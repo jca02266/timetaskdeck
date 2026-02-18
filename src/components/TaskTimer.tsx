@@ -2,12 +2,21 @@
 
 import { useEffect, useState } from 'react';
 import { useTaskStore } from '@/store/useTaskStore';
-import { Play, Square, Pause } from 'lucide-react';
+import { Play, Square, Pause, ArrowDown, Pencil, Check, X } from 'lucide-react';
 import { format } from 'date-fns';
 
 export function TaskTimer() {
-    const { currentTask, stopTask, completeTask, interruptTask } = useTaskStore();
+    const {
+        currentTask,
+        stopTask,
+        completeTask,
+        sendCurrentToBack,
+        updateCurrentTaskName,
+        togglePause
+    } = useTaskStore();
     const [elapsed, setElapsed] = useState(0);
+    const [isEditing, setIsEditing] = useState(false);
+    const [editName, setEditName] = useState('');
 
     useEffect(() => {
         if (!currentTask || currentTask.status !== 'pending') {
@@ -15,11 +24,14 @@ export function TaskTimer() {
             return;
         }
 
+        // Set initial elapsed time
+        setElapsed(currentTask.duration + (Date.now() - currentTask.startTime));
+
         const interval = setInterval(() => {
             const now = Date.now();
             const currentDuration = now - currentTask.startTime;
             setElapsed(currentTask.duration + currentDuration);
-        }, 100); // 100ms for responsiveness
+        }, 100);
 
         return () => clearInterval(interval);
     }, [currentTask]);
@@ -31,6 +43,24 @@ export function TaskTimer() {
         const minutes = Math.floor((totalSeconds % 3600) / 60);
         const seconds = totalSeconds % 60;
         return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+    };
+
+    const startEditing = () => {
+        if (currentTask) {
+            setEditName(currentTask.name);
+            setIsEditing(true);
+        }
+    };
+
+    const saveEdit = () => {
+        if (editName.trim()) {
+            updateCurrentTaskName(editName.trim());
+        }
+        setIsEditing(false);
+    };
+
+    const cancelEdit = () => {
+        setIsEditing(false);
     };
 
     if (!currentTask) {
@@ -49,11 +79,52 @@ export function TaskTimer() {
             {/* Background Glow */}
             <div className="absolute top-0 left-1/2 -translate-x-1/2 w-full h-full bg-blue-500/5 blur-[100px] -z-10" />
 
-            <h2 className="text-3xl font-medium text-center mb-4 text-glow break-all">
-                {currentTask.name}
-            </h2>
+            {/* Stop/Pause Button - Top Left */}
+            <button
+                onClick={togglePause}
+                className="absolute top-4 left-4 text-slate-500 hover:text-white transition-colors p-2 rounded-full hover:bg-slate-800/50"
+                title={currentTask.status === 'paused' ? "Resume" : "Pause"}
+            >
+                {currentTask.status === 'paused' ? <Play size={20} fill="currentColor" /> : <Pause size={20} fill="currentColor" />}
+            </button>
 
-            <div className="text-6xl font-thin tracking-wider my-8 text-blue-400 font-mono text-glow">
+            {/* Task Name & Edit */}
+            {isEditing ? (
+                <div className="flex items-center gap-2 mb-4 w-full">
+                    <input
+                        type="text"
+                        value={editName}
+                        onChange={(e) => setEditName(e.target.value)}
+                        className="flex-1 bg-slate-900/50 border border-slate-600 rounded px-3 py-2 text-xl text-center text-white focus:outline-none focus:border-blue-500"
+                        autoFocus
+                        onKeyDown={(e) => {
+                            if (e.key === 'Enter') saveEdit();
+                            if (e.key === 'Escape') cancelEdit();
+                        }}
+                    />
+                    <button onClick={saveEdit} className="text-green-400 hover:text-green-300 p-2">
+                        <Check size={20} />
+                    </button>
+                    <button onClick={cancelEdit} className="text-red-400 hover:text-red-300 p-2">
+                        <X size={20} />
+                    </button>
+                </div>
+            ) : (
+                <div className="group flex items-center justify-center gap-3 mb-4 w-full relative">
+                    <h2 className="text-3xl font-medium text-center text-glow break-all">
+                        {currentTask.name}
+                    </h2>
+                    <button
+                        onClick={startEditing}
+                        className="opacity-0 group-hover:opacity-100 transition-opacity text-slate-500 hover:text-slate-300 absolute right-0 translate-x-full pl-2"
+                        title="Edit Name"
+                    >
+                        <Pencil size={18} />
+                    </button>
+                </div>
+            )}
+
+            <div className={`text-6xl font-thin tracking-wider my-8 font-mono text-glow transition-colors ${currentTask.status === 'paused' ? 'text-yellow-500' : 'text-blue-400'}`}>
                 {formatTime(elapsed)}
             </div>
 
@@ -78,6 +149,17 @@ export function TaskTimer() {
                         <Pause size={24} fill="currentColor" />
                     </div>
                     <span className="text-sm">バックログ</span>
+                </button>
+
+                <button
+                    onClick={sendCurrentToBack}
+                    className="group flex flex-col items-center gap-2 text-slate-400 hover:text-blue-400 transition-colors w-24"
+                    title="Send to Back of Stack"
+                >
+                    <div className="w-14 h-14 rounded-full glass flex items-center justify-center border border-slate-600 group-hover:border-blue-400 transition-all">
+                        <ArrowDown size={24} />
+                    </div>
+                    <span className="text-sm">背面へ</span>
                 </button>
             </div>
         </div>

@@ -9,7 +9,7 @@ export function TaskStack() {
     if (taskStack.length === 0) return null;
 
     return (
-        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full max-w-lg h-64 -z-10 pointer-events-none">
+        <div className="absolute inset-0 -z-10 pointer-events-none">
             {taskStack.map((task, index) => {
                 // Calculate reverse index (last item is top of stack)
                 const reverseIndex = taskStack.length - 1 - index;
