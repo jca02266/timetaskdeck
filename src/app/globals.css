@@ -1,0 +1,70 @@
+@import "tailwindcss";
+
+@theme {
+  --color-primary: #3b82f6;
+  --color-secondary: #a855f7;
+  --color-accent: #10b981;
+  --color-surface: rgba(30, 41, 59, 0.7);
+}
+
+:root {
+  --background: #0f172a;
+  --foreground: #f8fafc;
+
+  --primary: #3b82f6;
+  --primary-glow: rgba(59, 130, 246, 0.5);
+
+  --secondary: #a855f7;
+  --secondary-glow: rgba(168, 85, 247, 0.5);
+
+  --accent: #10b981;
+  --accent-glow: rgba(16, 185, 129, 0.5);
+
+  --surface: rgba(30, 41, 59, 0.7);
+  --surface-border: rgba(255, 255, 255, 0.1);
+}
+
+body {
+  color: var(--foreground);
+  background: var(--background);
+  background-image:
+    radial-gradient(circle at 15% 50%, rgba(59, 130, 246, 0.08), transparent 25%),
+    radial-gradient(circle at 85% 30%, rgba(168, 85, 247, 0.08), transparent 25%);
+}
+
+input,
+button,
+textarea,
+select {
+  color: inherit;
+  font-family: inherit;
+}
+
+input::placeholder {
+  color: #94a3b8;
+  /* slate-400 */
+}
+
+@utility glass {
+  background: var(--surface);
+  backdrop-filter: blur(12px);
+  --webkit-backdrop-filter: blur(12px);
+  border: 1px solid var(--surface-border);
+}
+
+@utility glass-panel {
+  background: var(--surface);
+  backdrop-filter: blur(12px);
+  --webkit-backdrop-filter: blur(12px);
+  border: 1px solid var(--surface-border);
+  border-radius: 0.75rem;
+  box-shadow: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
+}
+
+@utility text-glow {
+  text-shadow: 0 0 10px var(--primary-glow);
+}
+
+@utility neon-border-blue {
+  box-shadow: 0 0 5px var(--primary), 0 0 10px var(--primary-glow);
+}
