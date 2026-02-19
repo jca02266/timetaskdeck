@@ -11,6 +11,8 @@ export interface Task {
     duration: number; // Accumulated duration in milliseconds
     status: TaskStatus;
     recurringTaskId?: string; // Links back to the recurring task template
+    scheduledTime?: string; // HH:mm format
+    scheduledDate?: string; // YYYY-MM-DD format
 }
 
 export interface TaskLogEntry {
@@ -53,9 +55,11 @@ interface TaskState {
     reorderRecurringTasks: (fromIndex: number, toIndex: number) => void;
     toggleRecurringTaskCheck: (id: string) => void;
     startRecurringTask: (id: string) => void;
+    copyToRecurring: (taskId: string) => void;
 
     // Timer Control
     togglePause: () => void;
+    updateTaskSchedule: (taskId: string, date?: string, time?: string) => void;
 }
 
 export const useTaskStore = create<TaskState>()(
@@ -525,7 +529,8 @@ export const useTaskStore = create<TaskState>()(
                     name,
                     startTime: 0,
                     duration: 0,
-                    status: 'pending' // Default unchecked
+                    status: 'pending', // Default unchecked
+                    scheduledTime: ''
                 };
                 set((state) => ({ recurringTasks: [newTask, ...state.recurringTasks] }));
             },
@@ -579,6 +584,18 @@ export const useTaskStore = create<TaskState>()(
                 state.startTask(task.name, id);
             },
 
+            copyToRecurring: (taskId) => {
+                const state = get();
+                const task = state.backlog.find(t => t.id === taskId) ||
+                    state.history.find(t => t.id === taskId) ||
+                    state.taskStack.find(t => t.id === taskId) ||
+                    (state.currentTask && state.currentTask.id === taskId ? state.currentTask : undefined);
+
+                if (task) {
+                    state.addRecurringTask(task.name);
+                }
+            },
+
             togglePause: () => {
                 set((state) => {
                     if (!state.currentTask) return {};
@@ -618,6 +635,38 @@ export const useTaskStore = create<TaskState>()(
                             taskLog: [logEntry, ...state.taskLog]
                         };
                     }
+                });
+            },
+
+            updateTaskSchedule: (taskId, date, time) => {
+                set((state) => {
+                    const updateTask = (task: Task) => {
+                        let newTime = time !== undefined ? time : task.scheduledTime;
+                        let newDate = date !== undefined ? date : task.scheduledDate;
+
+                        // Default time logic: if date is set (or already set) but time is empty, default to 08:30
+                        if (newDate && !newTime) {
+                            newTime = '08:30';
+                        }
+
+                        return { ...task, scheduledDate: newDate, scheduledTime: newTime };
+                    };
+
+                    const recurringIndex = state.recurringTasks.findIndex(t => t.id === taskId);
+                    if (recurringIndex !== -1) {
+                        const newRecurring = [...state.recurringTasks];
+                        newRecurring[recurringIndex] = updateTask(newRecurring[recurringIndex]);
+                        return { recurringTasks: newRecurring };
+                    }
+
+                    const backlogIndex = state.backlog.findIndex(t => t.id === taskId);
+                    if (backlogIndex !== -1) {
+                        const newBacklog = [...state.backlog];
+                        newBacklog[backlogIndex] = updateTask(newBacklog[backlogIndex]);
+                        return { backlog: newBacklog };
+                    }
+
+                    return {};
                 });
             }
         }),

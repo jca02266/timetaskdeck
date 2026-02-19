@@ -1,12 +1,18 @@
 "use client";
 
 import { useTaskStore } from '@/store/useTaskStore';
-import { Download, RotateCcw, Clock, Pencil, Check, X, Trash2 } from 'lucide-react';
+import { Download, RotateCcw, Clock, Pencil, Check, X, Trash2, Copy } from 'lucide-react';
 import { format } from 'date-fns';
 import { useState } from 'react';
+import { Tooltip } from './Tooltip';
+import { DraggablePanel } from './DraggablePanel';
 
 export function HistoryView() {
-    const { history, reopenTask, updateTaskName, deleteTask } = useTaskStore();
+    const history = useTaskStore((state) => state.history);
+    const reopenTask = useTaskStore((state) => state.reopenTask);
+    const updateTaskName = useTaskStore((state) => state.updateTaskName);
+    const deleteTask = useTaskStore((state) => state.deleteTask);
+    const copyToRecurring = useTaskStore((state) => state.copyToRecurring);
     const [editingId, setEditingId] = useState<string | null>(null);
     const [editValue, setEditValue] = useState('');
 
@@ -65,12 +71,18 @@ export function HistoryView() {
     if (history.length === 0) return null;
 
     return (
-        <div className="glass-panel p-4 w-80 fixed bottom-8 left-8 flex flex-col max-h-[50vh] z-50">
-            <div className="flex items-center justify-between mb-3 shrink-0">
-                <div className="flex items-center gap-2 text-slate-400 text-sm uppercase tracking-wider font-semibold">
+        <DraggablePanel
+            id="history-panel"
+            defaultPosition={{ bottom: 32, left: 32 }}
+            defaultSize={{ width: 320, height: 400 }}
+            title={
+                <div className="flex items-center gap-2 uppercase tracking-wider">
                     <Clock size={16} />
                     <span>完了タスク</span>
                 </div>
+            }
+        >
+            <div className="flex items-center justify-end px-4 py-2 shrink-0 absolute top-0 right-0 z-10">
                 <button
                     onClick={exportCSV}
                     className="text-slate-500 hover:text-slate-300 transition-colors"
@@ -80,7 +92,7 @@ export function HistoryView() {
                 </button>
             </div>
 
-            <div className="overflow-y-auto flex-1 min-h-0 space-y-2 mb-1 scrollbar-thin scrollbar-thumb-slate-700 scrollbar-track-transparent pr-2">
+            <div className="overflow-y-auto flex-1 min-h-0 space-y-2 p-4 pt-2 scrollbar-thin scrollbar-thumb-slate-700 scrollbar-track-transparent">
                 {history.map((task) => (
                     <div key={task.id} className="group bg-slate-800/30 hover:bg-slate-800/80 p-3 rounded-lg border border-transparent hover:border-slate-600 transition-all">
                         <div className="flex justify-between items-start mb-1">
@@ -106,7 +118,9 @@ export function HistoryView() {
                                 </div>
                             ) : (
                                 <>
-                                    <div className="text-sm text-slate-300 font-medium truncate flex-1">{task.name}</div>
+                                    <Tooltip text={task.name}>
+                                        <div className="text-sm text-slate-300 font-medium truncate flex-1">{task.name}</div>
+                                    </Tooltip>
                                     <div className="flex items-center opacity-0 group-hover:opacity-100 transition-opacity gap-1 shrink-0">
                                         <button
                                             onClick={() => startEditing(task)}
@@ -114,6 +128,16 @@ export function HistoryView() {
                                             title="Rename"
                                         >
                                             <Pencil size={14} />
+                                        </button>
+                                        <button
+                                            onClick={(e) => {
+                                                e.stopPropagation();
+                                                copyToRecurring(task.id);
+                                            }}
+                                            className="p-1 text-slate-400 hover:text-blue-400 transition-colors"
+                                            title="定期タスクにコピー"
+                                        >
+                                            <Copy size={14} />
                                         </button>
                                         <button
                                             onClick={() => {
@@ -144,6 +168,6 @@ export function HistoryView() {
                     </div>
                 ))}
             </div>
-        </div>
+        </DraggablePanel>
     );
 }

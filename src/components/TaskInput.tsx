@@ -19,7 +19,7 @@ export function TaskInput() {
     };
 
     const handleKeyDown = (e: React.KeyboardEvent) => {
-        if (e.key === 'Enter') {
+        if (e.key === 'Enter' && !e.nativeEvent.isComposing) {
             handleStart();
         }
     };
@@ -60,7 +60,7 @@ export function TaskInput() {
     };
 
     return (
-        <div className="relative w-full max-w-lg mx-auto mt-8 z-20" ref={dropdownRef}>
+        <div className="relative w-full z-20" ref={dropdownRef}>
             <div className="flex gap-2">
                 <input
                     type="text"

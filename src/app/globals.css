@@ -68,3 +68,19 @@ input::placeholder {
 @utility neon-border-blue {
   box-shadow: 0 0 5px var(--primary), 0 0 10px var(--primary-glow);
 }
+
+@keyframes blink {
+
+  0%,
+  100% {
+    opacity: 1;
+  }
+
+  50% {
+    opacity: 0.3;
+  }
+}
+
+.animate-blink {
+  animation: blink 1s ease-in-out infinite;
+}
