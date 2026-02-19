@@ -21,9 +21,10 @@ interface DraggablePanelProps {
     title?: React.ReactNode;
     className?: string;
     resizable?: boolean;
+    headerControls?: React.ReactNode;
 }
 
-export function DraggablePanel({ id, defaultPosition, defaultSize, children, title, className, resizable = true }: DraggablePanelProps) {
+export function DraggablePanel({ id, defaultPosition, defaultSize, children, title, className, resizable = true, headerControls }: DraggablePanelProps) {
     const [position, setPosition] = useState<Position>({ x: 0, y: 0 });
     const [size, setSize] = useState<Size>(defaultSize);
     const [isLoaded, setIsLoaded] = useState(false);
@@ -167,16 +168,22 @@ export function DraggablePanel({ id, defaultPosition, defaultSize, children, tit
             {/* Header / Drag Handle */}
             <div
                 onMouseDown={handleDragStart}
-                className="flex items-center justify-between p-2 border-b border-slate-700/50 cursor-grab active:cursor-grabbing bg-slate-800/50 rounded-t-xl select-none"
+                className="relative z-50 flex items-center justify-between p-2 border-b border-slate-700/50 cursor-grab active:cursor-grabbing bg-slate-800/90 backdrop-blur-sm rounded-t-xl select-none"
             >
                 <div className="flex items-center gap-2 text-slate-400 text-sm font-semibold pointer-events-none">
                     <GripHorizontal size={14} />
                     {title}
                 </div>
+                {/* Header Controls (Right side) */}
+                {headerControls && (
+                    <div onMouseDown={(e) => e.stopPropagation()} className="pointer-events-auto">
+                        {headerControls}
+                    </div>
+                )}
             </div>
 
             {/* Content Area */}
-            <div className="flex-1 overflow-hidden flex flex-col relative">
+            <div className="flex-1 flex flex-col relative rounded-b-xl">
                 {children}
             </div>
 

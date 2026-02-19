@@ -12,10 +12,11 @@ import { useState } from "react";
 import { DraggablePanel } from "@/components/DraggablePanel";
 
 /* Icons */
-import { RotateCcw, Plus, Play, List } from 'lucide-react';
+import { RotateCcw, Plus, Play, List, Layers } from 'lucide-react';
 
 export default function Home() {
   const [isLogOpen, setIsLogOpen] = useState(false);
+  const [isStackExpanded, setStackExpanded] = useState(false);
 
   return (
     <main className="min-h-screen relative p-8 pb-32 overflow-hidden flex flex-col bg-slate-950 text-slate-200 selection:bg-blue-500/30">
@@ -52,17 +53,20 @@ export default function Home() {
         defaultSize={{ width: 500, height: 500 }}
         title="Current Task"
         resizable={false}
-        className="!bg-transparent !shadow-none !border-none" // Override pane styles to let Timer style take over if needed, or keep them. 
-      // Actually, if I remove styles, I lose the title bar background. 
-      // Let's keep specific styles but maybe make the background transparent for the content area?
-      // DraggablePanel has `glass-panel` class.
-      // TaskTimer has `glass-panel` class.
-      // Let's keep DraggablePanel as the container and maybe remove glass from Timer?
-      // Or just nest them.
+        className="!bg-transparent !shadow-none !border-none"
+        headerControls={
+          <button
+            onClick={() => setStackExpanded(!isStackExpanded)}
+            className={`p-1 rounded hover:bg-slate-700/50 transition-colors ${isStackExpanded ? 'text-blue-400 bg-slate-800' : 'text-slate-400'}`}
+            title="Toggle Stack View"
+          >
+            <Layers size={16} />
+          </button>
+        }
       >
-        <div className="relative w-full h-full flex items-center justify-center">
-          <TaskStack />
-          <div className="scale-90 origin-center"> {/* Scale down slightly to fit common screens if needed */}
+        <div className="relative w-full h-full flex items-end justify-center pb-8">
+          <TaskStack isExpanded={isStackExpanded} onToggle={setStackExpanded} />
+          <div className={`scale-90 origin-bottom transition-opacity duration-300 ${isStackExpanded ? 'opacity-0 pointer-events-none' : 'opacity-100'}`}>
             <TaskTimer />
           </div>
         </div>
