@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 
-export type TaskStatus = 'pending' | 'completed' | 'paused';
+export type TaskStatus = 'pending' | 'completed' | 'paused' | 'interrupted';
 
 export interface Task {
     id: string;

@@ -13,8 +13,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "TimeTask",
-  description: "Focus-first task management",
+  title: "TimeTaskDeck",
+  description: "Focus-first task management with a deck-style interface",
 };
 
 export default function RootLayout({
