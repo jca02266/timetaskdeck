@@ -14,7 +14,7 @@ const STACK_CONFIG = {
     // ------------------------------------------------------------------
     // ユーザー設定: ここでスタックの見た目を調整してください
     // ------------------------------------------------------------------
-    OFFSET_BASE: -60,   // スタック全体の上下位置（負の値で上へ移動）
+    OFFSET_BASE: -70,   // スタック全体の上下位置（負の値で上へ移動）
     OFFSET_STEP: 15,    // カード同士の重なり間隔（px）
     SCALE_STEP: 0.05,   // 奥に行くごとの縮小率（5%ずつ小さく）
     VISIBLE_COUNT: 8,   // 表示する最大枚数
@@ -81,7 +81,7 @@ export function TaskStack({ isExpanded, onToggle }: TaskStackProps) {
                                 onToggle(true);
                             }
                         }}
-                        className={`absolute w-[80%] max-w-sm h-[300px] glass-panel flex flex-col items-center justify-center cursor-pointer transition-all duration-500 ease-out border-slate-600/50 hover:border-blue-400 bg-slate-900 shadow-2xl ${isExpanded ? 'pointer-events-auto' : 'pointer-events-none'}`}
+                        className={`absolute w-[80%] max-w-sm h-[300px] glass-panel flex flex-col items-center cursor-pointer transition-all duration-500 ease-out border-slate-600/50 hover:border-blue-400 bg-slate-900 shadow-2xl ${isExpanded ? 'justify-center pointer-events-auto' : 'justify-start pt-1 pointer-events-none'}`}
                         style={{
                             transform: isExpanded
                                 ? `translateY(0) scale(${expandedScale}) translateZ(0)` // Remove transform positioning in expanded
@@ -92,19 +92,17 @@ export function TaskStack({ isExpanded, onToggle }: TaskStackProps) {
                             marginTop: isExpanded ? '1rem' : '0',
                         }}
                     >
-                        <div className="text-lg font-bold text-slate-200 truncate max-w-[90%] px-4 w-full text-center tracking-wider">
+                        <div className={`text-lg font-bold text-slate-200 truncate max-w-[90%] px-4 w-full text-center tracking-wider transition-opacity duration-300 ${(!isExpanded && reverseIndex > 0) ? 'opacity-0' : 'opacity-100'}`}>
                             {task.name}
                         </div>
-                        <div className="text-xs text-slate-500 mt-2 uppercase tracking-widest">
-                            Paused
-                        </div>
+
                     </div>
                 );
             })}
 
             {/* Instruction Hint */}
             {!isExpanded && taskStack.length > 0 && (
-                <div className="absolute top-[-60px] text-xs text-slate-500 opacity-0 hover:opacity-100 transition-opacity">
+                <div className="absolute top-[-80px] text-xs text-slate-500 opacity-0 hover:opacity-100 transition-opacity">
                     Click stack to expand
                 </div>
             )}
