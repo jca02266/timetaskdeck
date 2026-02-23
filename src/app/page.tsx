@@ -166,6 +166,9 @@ export default function Home() {
                   if (!hasMoved && (Date.now() - startTime < 300)) {
                     // It was a tap
                     useTaskStore.getState().toggleBacklogMinimized(category.id);
+                    if (category.isMinimized) {
+                      useTaskStore.getState().bringToFront(category.id);
+                    }
                   }
                   setDraggedDockId(null);
                 };
@@ -187,7 +190,12 @@ export default function Home() {
           ))}
           {/* Recurring Tasks Dock Item */}
           <button
-            onClick={() => toggleRecurringMinimized()}
+            onClick={() => {
+              toggleRecurringMinimized();
+              if (isRecurringMinimized) {
+                useTaskStore.getState().bringToFront('recurring');
+              }
+            }}
             className={`pointer-events-auto flex items-center gap-2 px-4 py-2 backdrop-blur-md border rounded-full text-sm font-medium transition-all shadow-xl hover:-translate-y-0.5
               ${isRecurringMinimized
                 ? 'bg-slate-900/90 border-slate-700/50 text-slate-400 hover:text-white hover:bg-slate-800'
@@ -201,7 +209,12 @@ export default function Home() {
           {/* History Dock Item (Only show if there's history) */}
           {historyCount > 0 && (
             <button
-              onClick={() => toggleHistoryMinimized()}
+              onClick={() => {
+                toggleHistoryMinimized();
+                if (isHistoryMinimized) {
+                  useTaskStore.getState().bringToFront('history');
+                }
+              }}
               className={`pointer-events-auto flex items-center gap-2 px-4 py-2 backdrop-blur-md border rounded-full text-sm font-medium transition-all shadow-xl hover:-translate-y-0.5
                 ${isHistoryMinimized
                   ? 'bg-slate-900/90 border-slate-700/50 text-slate-400 hover:text-white hover:bg-slate-800'
