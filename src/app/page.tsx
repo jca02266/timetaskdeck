@@ -167,7 +167,9 @@ export default function Home() {
                     // It was a tap
                     useTaskStore.getState().toggleBacklogMinimized(category.id);
                     if (category.isMinimized) {
-                      useTaskStore.getState().bringToFront(category.id);
+                      setTimeout(() => {
+                        useTaskStore.getState().bringToFront(category.id);
+                      }, 50);
                     }
                   }
                   setDraggedDockId(null);
@@ -193,7 +195,9 @@ export default function Home() {
             onClick={() => {
               toggleRecurringMinimized();
               if (isRecurringMinimized) {
-                useTaskStore.getState().bringToFront('recurring');
+                setTimeout(() => {
+                  useTaskStore.getState().bringToFront('recurring');
+                }, 50);
               }
             }}
             className={`pointer-events-auto flex items-center gap-2 px-4 py-2 backdrop-blur-md border rounded-full text-sm font-medium transition-all shadow-xl hover:-translate-y-0.5
@@ -212,7 +216,9 @@ export default function Home() {
               onClick={() => {
                 toggleHistoryMinimized();
                 if (isHistoryMinimized) {
-                  useTaskStore.getState().bringToFront('history');
+                  setTimeout(() => {
+                    useTaskStore.getState().bringToFront('history');
+                  }, 50);
                 }
               }}
               className={`pointer-events-auto flex items-center gap-2 px-4 py-2 backdrop-blur-md border rounded-full text-sm font-medium transition-all shadow-xl hover:-translate-y-0.5
