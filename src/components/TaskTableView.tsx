@@ -1,7 +1,7 @@
 "use client";
 
-import { useTaskStore, Task, BacklogCategory, ColorDefinition } from '@/store/useTaskStore';
-import { Table, Trash2, ArrowUpDown, ArrowUp, ArrowDown, Plus, X, GripVertical, Calendar, ListFilter, Play } from 'lucide-react';
+import { useTaskStore, Task, ColorDefinition } from '@/store/useTaskStore';
+import { Trash2, ArrowUp, ArrowDown, Plus, X, GripVertical, Calendar, ListFilter, Play } from 'lucide-react';
 import { useState, useMemo, useEffect } from 'react';
 import { format, parseISO } from 'date-fns';
 
@@ -26,37 +26,45 @@ function getPillClasses(colorCode?: string) {
 }
 
 export function TaskTableView({ isOpen, onClose }: TaskTableViewProps) {
+    // Store data
     const backlogTasks = useTaskStore((state) => state.backlogTasks);
     const currentTask = useTaskStore((state) => state.currentTask);
     const taskStack = useTaskStore((state) => state.taskStack);
     const categories = useTaskStore((state) => state.backlogCategories);
     const colors = useTaskStore((state) => state.colors);
 
-    const updateTaskName = useTaskStore((state) => state.updateTaskName);
-    const updateTaskColorId = useTaskStore((state) => state.updateTaskColorId);
-    const updateTaskBacklogId = useTaskStore((state) => state.updateTaskBacklogId);
-    const moveTaskToLocation = useTaskStore((state) => state.moveTaskToLocation);
-    const updateTaskSchedule = useTaskStore((state) => state.updateTaskSchedule);
-    const deleteTask = useTaskStore((state) => state.deleteTask);
-    const addToBacklog = useTaskStore((state) => state.addToBacklog);
+    // Store actions
+    const reorderAllTasks = useTaskStore((state) => state.reorderAllTasks);
+    const setPaused = useTaskStore((state) => state.setPaused);
     const addBacklogCategory = useTaskStore((state) => state.addBacklogCategory);
 
+    // Local state for performance
+    const [localTasks, setLocalTasks] = useState<Task[]>([]);
+
+    // UI state
     const [sortKey, setSortKey] = useState<SortKey>('backlog');
     const [sortDir, setSortDir] = useState<SortDirection>('asc');
     const [isSortActive, setIsSortActive] = useState(false);
     const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
 
-    const reorderAllTasks = useTaskStore((state) => state.reorderAllTasks);
-    const setPaused = useTaskStore((state) => state.setPaused);
-
-    // Auto-pause when open
+    // Initialize local state when modal opens
     useEffect(() => {
         if (isOpen) {
+            let allTasks: Task[] = [];
+            if (currentTask) {
+                allTasks.push({ ...currentTask, backlogId: '__CURRENT__' });
+            }
+            if (taskStack.length > 0) {
+                allTasks = [...allTasks, ...taskStack.map(t => ({ ...t, backlogId: '__STACK__' }))];
+            }
+            allTasks = [...allTasks, ...backlogTasks];
+
+            setLocalTasks(allTasks);
             setPaused(true);
         } else {
             setPaused(false);
         }
-    }, [isOpen, setPaused]);
+    }, [isOpen, currentTask, taskStack, backlogTasks, setPaused]);
 
     const handleSort = (key: SortKey) => {
         if (!isSortActive) {
@@ -70,19 +78,10 @@ export function TaskTableView({ isOpen, onClose }: TaskTableViewProps) {
         }
     };
 
-    const sortedTasks = useMemo(() => {
-        let allTasks: Task[] = [];
-        if (currentTask) {
-            allTasks.push({ ...currentTask, backlogId: '__CURRENT__' });
-        }
-        if (taskStack.length > 0) {
-            allTasks = [...allTasks, ...taskStack.map(t => ({ ...t, backlogId: '__STACK__' }))];
-        }
-        allTasks = [...allTasks, ...backlogTasks];
+    const displayTasks = useMemo(() => {
+        if (!isSortActive) return localTasks;
 
-        if (!isSortActive) return allTasks;
-
-        return allTasks.sort((a, b) => {
+        return [...localTasks].sort((a, b) => {
             let valA: any = '';
             let valB: any = '';
 
@@ -100,8 +99,14 @@ export function TaskTableView({ isOpen, onClose }: TaskTableViewProps) {
                 case 'backlog':
                     const catA = categories.find(c => c.id === a.backlogId);
                     const catB = categories.find(c => c.id === b.backlogId);
-                    valA = catA ? catA.name.toLowerCase() : '';
-                    valB = catB ? catB.name.toLowerCase() : '';
+                    // Special virtual categories
+                    if (a.backlogId === '__CURRENT__') valA = '00_CURRENT';
+                    else if (a.backlogId === '__STACK__') valA = '01_STACK';
+                    else valA = catA ? '02_' + catA.name.toLowerCase() : 'zz_none';
+
+                    if (b.backlogId === '__CURRENT__') valB = '00_CURRENT';
+                    else if (b.backlogId === '__STACK__') valB = '01_STACK';
+                    else valB = catB ? '02_' + catB.name.toLowerCase() : 'zz_none';
                     break;
                 case 'scheduled':
                     valA = (a.scheduledDate || '9999-99-99') + (a.scheduledTime || '99:99');
@@ -113,17 +118,41 @@ export function TaskTableView({ isOpen, onClose }: TaskTableViewProps) {
             if (valA > valB) return sortDir === 'asc' ? 1 : -1;
             return 0;
         });
-    }, [backlogTasks, sortKey, sortDir, categories, colors]);
+    }, [localTasks, isSortActive, sortKey, sortDir, categories, colors]);
+
+    const handleClose = () => {
+        // Commit local state to store then close
+        reorderAllTasks(localTasks);
+        onClose();
+    };
+
+    const handleLocalUpdate = (taskId: string, updates: Partial<Task>) => {
+        setLocalTasks(prev => prev.map(t => t.id === taskId ? { ...t, ...updates } : t));
+    };
+
+    const handleLocalDelete = (taskId: string) => {
+        if (window.confirm('このタスクを削除してもよろしいですか？')) {
+            setLocalTasks(prev => prev.filter(t => t.id !== taskId));
+        }
+    };
+
+    const handleAddTask = () => {
+        const newTask: Task = {
+            id: crypto.randomUUID(),
+            name: 'New Card',
+            startTime: 0,
+            duration: 0,
+            status: 'pending',
+            backlogId: categories[0]?.id || 'main'
+        };
+        setLocalTasks(prev => [...prev, newTask]);
+    };
 
     if (!isOpen) return null;
 
     const SortIcon = ({ columnKey }: { columnKey: SortKey }) => {
         if (!isSortActive || sortKey !== columnKey) return null;
         return sortDir === 'asc' ? <ArrowUp size={12} className="text-slate-400" /> : <ArrowDown size={12} className="text-slate-400" />;
-    };
-
-    const handleAddTask = () => {
-        addToBacklog('New Task');
     };
 
     return (
@@ -148,15 +177,16 @@ export function TaskTableView({ isOpen, onClose }: TaskTableViewProps) {
                     </button>
                     <button
                         onClick={handleAddTask}
-                        className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-500 rounded-lg text-sm font-medium text-white transition-colors shadow-lg shadow-blue-500/20"
+                        className="flex items-center gap-2 px-4 py-2 bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-lg text-sm font-medium text-white transition-colors"
                     >
                         <Plus size={16} />
                         <span>Create Card</span>
                     </button>
+                    <div className="w-[1px] h-8 bg-slate-800 mx-2" />
                     <button
-                        onClick={onClose}
-                        className="p-2 ml-4 text-slate-500 hover:text-white hover:bg-slate-800 rounded-full transition-colors"
-                        title="Close"
+                        onClick={handleClose}
+                        className="p-2 text-slate-500 hover:text-white hover:bg-slate-800 rounded-full transition-colors flex items-center gap-2"
+                        title="Close and Save"
                     >
                         <X size={24} />
                     </button>
@@ -188,7 +218,7 @@ export function TaskTableView({ isOpen, onClose }: TaskTableViewProps) {
                                 </tr>
                             </thead>
                             <tbody className="divide-y divide-slate-800/50 text-slate-300">
-                                {sortedTasks.map((task, index) => {
+                                {displayTasks.map((task, index) => {
                                     const activeColorDef = colors.find(c => c.id === task.colorId);
                                     const pillClasses = getPillClasses(activeColorDef?.colorCode);
 
@@ -207,11 +237,11 @@ export function TaskTableView({ isOpen, onClose }: TaskTableViewProps) {
                                                 e.preventDefault();
                                                 if (draggedIndex === null || draggedIndex === index) return;
 
-                                                const newAllTasks = [...sortedTasks];
+                                                const newAllTasks = [...localTasks];
                                                 const [moved] = newAllTasks.splice(draggedIndex, 1);
                                                 newAllTasks.splice(index, 0, moved);
 
-                                                reorderAllTasks(newAllTasks);
+                                                setLocalTasks(newAllTasks);
                                                 setDraggedIndex(index);
                                             }}
                                             onDragEnd={() => setDraggedIndex(null)}
@@ -231,7 +261,7 @@ export function TaskTableView({ isOpen, onClose }: TaskTableViewProps) {
                                                 <div className="relative inline-block w-full max-w-[100px]">
                                                     <select
                                                         value={task.colorId || ''}
-                                                        onChange={(e) => updateTaskColorId(task.id, e.target.value === '' ? undefined : e.target.value)}
+                                                        onChange={(e) => handleLocalUpdate(task.id, { colorId: e.target.value === '' ? undefined : e.target.value })}
                                                         className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
                                                         title="タグを設定"
                                                     >
@@ -251,7 +281,7 @@ export function TaskTableView({ isOpen, onClose }: TaskTableViewProps) {
                                                 <input
                                                     type="text"
                                                     value={task.name}
-                                                    onChange={(e) => updateTaskName(task.id, e.target.value)}
+                                                    onChange={(e) => handleLocalUpdate(task.id, { name: e.target.value })}
                                                     className="bg-transparent border-b border-transparent hover:border-slate-700 focus:border-blue-500 focus:outline-none w-full truncate py-1 text-slate-200 transition-colors"
                                                     placeholder="Task Name"
                                                 />
@@ -265,13 +295,9 @@ export function TaskTableView({ isOpen, onClose }: TaskTableViewProps) {
                                                             const val = e.target.value;
                                                             if (val === '__NEW__') {
                                                                 const newId = addBacklogCategory();
-                                                                moveTaskToLocation(task.id, 'backlog', newId);
-                                                            } else if (val === '__CURRENT__') {
-                                                                moveTaskToLocation(task.id, 'current');
-                                                            } else if (val === '__STACK__') {
-                                                                moveTaskToLocation(task.id, 'stack');
+                                                                handleLocalUpdate(task.id, { backlogId: newId });
                                                             } else {
-                                                                moveTaskToLocation(task.id, 'backlog', val);
+                                                                handleLocalUpdate(task.id, { backlogId: val });
                                                             }
                                                         }}
                                                         className="w-full bg-slate-800/50 hover:bg-slate-800 border border-transparent rounded-lg px-3 py-1.5 text-xs appearance-none cursor-pointer focus:border-slate-600 focus:outline-none text-slate-300 transition-colors shadow-sm pr-8"
@@ -301,7 +327,7 @@ export function TaskTableView({ isOpen, onClose }: TaskTableViewProps) {
                                                     <input
                                                         type="date"
                                                         value={task.scheduledDate || ''}
-                                                        onChange={(e) => updateTaskSchedule(task.id, e.target.value, undefined)}
+                                                        onChange={(e) => handleLocalUpdate(task.id, { scheduledDate: e.target.value })}
                                                         className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
                                                     />
                                                 </div>
@@ -310,11 +336,7 @@ export function TaskTableView({ isOpen, onClose }: TaskTableViewProps) {
                                             <td className="px-6 py-4 text-right">
                                                 <button
                                                     className="text-slate-600 hover:text-red-400 transition-colors opacity-0 group-hover:opacity-100 p-2 rounded-lg hover:bg-slate-800/80"
-                                                    onClick={() => {
-                                                        if (window.confirm('このタスクを削除してもよろしいですか？')) {
-                                                            deleteTask(task.id);
-                                                        }
-                                                    }}
+                                                    onClick={() => handleLocalDelete(task.id)}
                                                     title="Delete"
                                                 >
                                                     <Trash2 size={16} />
@@ -324,7 +346,7 @@ export function TaskTableView({ isOpen, onClose }: TaskTableViewProps) {
                                     );
                                 })}
 
-                                {sortedTasks.length === 0 && (
+                                {displayTasks.length === 0 && (
                                     <tr>
                                         <td colSpan={6} className="text-center py-12 text-slate-500 text-sm">
                                             No tasks found. Click "Create Card" to get started.
