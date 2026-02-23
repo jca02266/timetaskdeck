@@ -24,22 +24,25 @@ export default function Home() {
   const [isStackExpanded, setStackExpanded] = useState(false);
   const [draggedDockId, setDraggedDockId] = useState<string | null>(null);
 
-  const isLogOpen = useTaskStore((state) => state.isLogOpen);
-  const isColorSettingsOpen = useTaskStore((state) => state.isColorSettingsOpen);
-  const isTaskTableOpen = useTaskStore((state) => state.isTaskTableOpen);
-  const setIsLogOpen = useTaskStore((state) => state.setIsLogOpen);
-  const setIsColorSettingsOpen = useTaskStore((state) => state.setIsColorSettingsOpen);
-  const setIsTaskTableOpen = useTaskStore((state) => state.setIsTaskTableOpen);
+  const {
+    isLogOpen,
+    isColorSettingsOpen,
+    isTaskTableOpen,
+    setIsLogOpen,
+    setIsColorSettingsOpen,
+    setIsTaskTableOpen,
+    backlogCategories,
+    addBacklogCategory,
+    isRecurringMinimized,
+    isHistoryMinimized,
+    toggleRecurringMinimized,
+    toggleHistoryMinimized,
+    activeMemoTaskId,
+    isMemoMinimized,
+    history
+  } = useTaskStore();
 
-  const backlogCategories = useTaskStore((state) => state.backlogCategories);
-  const addBacklogCategory = useTaskStore((state) => state.addBacklogCategory);
-  const isRecurringMinimized = useTaskStore((state) => state.isRecurringMinimized);
-  const isHistoryMinimized = useTaskStore((state) => state.isHistoryMinimized);
-  const toggleRecurringMinimized = useTaskStore((state) => state.toggleRecurringMinimized);
-  const toggleHistoryMinimized = useTaskStore((state) => state.toggleHistoryMinimized);
-  const historyCount = useTaskStore((state) => state.history.length);
-  const activeMemoTaskId = useTaskStore((state) => state.activeMemoTaskId);
-  const isMemoMinimized = useTaskStore((state) => state.isMemoMinimized);
+  const historyCount = history.length;
 
   return (
     <main className="min-h-screen relative p-8 pb-32 overflow-hidden flex flex-col bg-slate-950 text-slate-200 selection:bg-blue-500/30">
@@ -261,13 +264,13 @@ export default function Home() {
         />
       ))}
 
-      <TaskTableView isOpen={isTaskTableOpen} onClose={() => setIsTaskTableOpen(false)} />
+      <TaskTableView />
       {!isRecurringMinimized && <RecurringTasks />}
       {!isHistoryMinimized && <HistoryView />}
       <TaskMemoEditor />
 
-      <TaskLogModal isOpen={isLogOpen} onClose={() => setIsLogOpen(false)} />
-      <ColorSettingsModal isOpen={isColorSettingsOpen} onClose={() => setIsColorSettingsOpen(false)} />
+      <TaskLogModal />
+      <ColorSettingsModal />
 
     </main>
   );

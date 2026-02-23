@@ -83,6 +83,11 @@ export function TaskMemoEditor() {
     const closeMemo = useTaskStore((state) => state.closeMemo);
     const getTaskById = useTaskStore((state) => state.getTaskById);
 
+    const isTaskTableOpen = useTaskStore((state) => state.isTaskTableOpen);
+    const isLogOpen = useTaskStore((state) => state.isLogOpen);
+    const isColorSettingsOpen = useTaskStore((state) => state.isColorSettingsOpen);
+    const isAnyModalOpen = isTaskTableOpen || isLogOpen || isColorSettingsOpen;
+
     const setMemo = useMemoStore((state) => state.setMemo);
     const memos = useMemoStore((state) => state.memos);
 
@@ -179,10 +184,6 @@ export function TaskMemoEditor() {
         </div>
     );
 
-    const isTaskTableOpen = useTaskStore((state) => state.isTaskTableOpen);
-    const isLogOpen = useTaskStore((state) => state.isLogOpen);
-    const isColorSettingsOpen = useTaskStore((state) => state.isColorSettingsOpen);
-    const isAnyModalOpen = isTaskTableOpen || isLogOpen || isColorSettingsOpen;
 
     // CSS class to override position/size when maximized, and ensure it's always above TaskTableView (which is z-100)
     const containerClass = isMaximized
@@ -193,7 +194,7 @@ export function TaskMemoEditor() {
         <DraggablePanel
             id="memo-panel"
             title={titleNode}
-            defaultPosition={{ x: window.innerWidth / 2 - defaultSize.width / 2, y: window.innerHeight / 2 - defaultSize.height / 2 }}
+            defaultPosition={{ left: window.innerWidth / 2 - defaultSize.width / 2, top: window.innerHeight / 2 - defaultSize.height / 2 }}
             defaultSize={defaultSize}
             minSize={{ width: 300, height: 200 }}
             headerControls={renderHeaderControls()}
