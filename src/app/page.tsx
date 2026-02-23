@@ -168,7 +168,7 @@ export default function Home() {
                     useTaskStore.getState().toggleBacklogMinimized(category.id);
                     if (category.isMinimized) {
                       setTimeout(() => {
-                        useTaskStore.getState().bringToFront(category.id);
+                        useTaskStore.getState().bringToFront(`backlog-panel-${category.id}`);
                       }, 50);
                     }
                   }
@@ -196,7 +196,7 @@ export default function Home() {
               toggleRecurringMinimized();
               if (isRecurringMinimized) {
                 setTimeout(() => {
-                  useTaskStore.getState().bringToFront('recurring');
+                  useTaskStore.getState().bringToFront('recurring-panel');
                 }, 50);
               }
             }}
@@ -217,7 +217,7 @@ export default function Home() {
                 toggleHistoryMinimized();
                 if (isHistoryMinimized) {
                   setTimeout(() => {
-                    useTaskStore.getState().bringToFront('history');
+                    useTaskStore.getState().bringToFront('history-panel');
                   }, 50);
                 }
               }}
