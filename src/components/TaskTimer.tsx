@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { useTaskStore } from '@/store/useTaskStore';
 import { Play, Square, Pause, ArrowDown, Pencil, Check, X, FileText } from 'lucide-react';
 import { format } from 'date-fns';
+import { Tooltip } from './Tooltip';
 
 export function TaskTimer() {
     const {
@@ -119,21 +120,25 @@ export function TaskTimer() {
                     </button>
                 </div>
             ) : (
-                <div className="group flex items-center justify-center gap-3 mb-4 w-[calc(100%-80px)] mx-auto relative">
-                    <h2 className="text-3xl font-medium text-center text-glow break-all">
-                        {currentTask.name}
-                    </h2>
-                    <div className="opacity-0 group-hover:opacity-100 transition-opacity absolute right-0 flex items-center gap-2">
+                <div className="group flex flex-col items-center justify-center gap-3 mb-4 w-[calc(100%-40px)] mx-auto relative text-center min-h-[5rem]">
+                    <Tooltip text={currentTask.name}>
+                        <h2 className="text-3xl font-medium text-glow line-clamp-2 break-words px-8">
+                            {currentTask.name}
+                        </h2>
+                    </Tooltip>
+
+                    {/* Floating tools overlay, positioned bottom-right relative to the container */}
+                    <div className="opacity-0 group-hover:opacity-100 transition-opacity absolute bottom-0 right-0 flex items-center gap-2 bg-slate-900/80 backdrop-blur-sm px-2 py-1 rounded-tl-lg shadow shadow-slate-900/50">
                         <button
                             onClick={startEditing}
-                            className="text-slate-500 hover:text-slate-300"
+                            className="text-slate-400 hover:text-slate-200 transition-colors p-1"
                             title="Edit Name"
                         >
                             <Pencil size={18} />
                         </button>
                         <button
                             onClick={() => useTaskStore.getState().openMemo(currentTask.id)}
-                            className="text-slate-500 hover:text-blue-400"
+                            className="text-slate-400 hover:text-blue-400 transition-colors p-1"
                             title="Open Memo"
                         >
                             <FileText size={18} />
