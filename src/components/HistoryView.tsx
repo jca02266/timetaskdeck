@@ -136,7 +136,11 @@ export function HistoryView() {
                                     </Tooltip>
                                     <div className="flex items-center opacity-0 group-hover:opacity-100 transition-opacity gap-1 shrink-0">
                                         <button
-                                            onClick={() => startEditing(task)}
+                                            onClick={(e) => {
+                                                e.stopPropagation();
+                                                startEditing(task);
+                                            }}
+                                            onPointerDown={(e) => e.stopPropagation()}
                                             className="text-slate-400 hover:text-slate-200 p-1 rounded"
                                             title="Rename"
                                         >
@@ -147,6 +151,7 @@ export function HistoryView() {
                                                 e.stopPropagation();
                                                 copyToRecurring(task.id);
                                             }}
+                                            onPointerDown={(e) => e.stopPropagation()}
                                             className="p-1 text-slate-400 hover:text-blue-400 transition-colors"
                                             title="定期タスクにコピー"
                                         >
@@ -164,18 +169,24 @@ export function HistoryView() {
                                             <FileText size={14} />
                                         </button>
                                         <button
-                                            onClick={() => {
+                                            onClick={(e) => {
+                                                e.stopPropagation();
                                                 if (window.confirm('このタスクを削除してもよろしいですか？')) {
                                                     deleteTask(task.id);
                                                 }
                                             }}
+                                            onPointerDown={(e) => e.stopPropagation()}
                                             className="text-red-400 hover:text-red-300 p-1 rounded"
                                             title="Delete Task"
                                         >
                                             <Trash2 size={14} />
                                         </button>
                                         <button
-                                            onClick={() => reopenTask(task.id)}
+                                            onClick={(e) => {
+                                                e.stopPropagation();
+                                                reopenTask(task.id);
+                                            }}
+                                            onPointerDown={(e) => e.stopPropagation()}
                                             className="text-blue-400 hover:text-blue-300 p-1 rounded"
                                             title="Reopen Task"
                                         >
