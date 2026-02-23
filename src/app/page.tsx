@@ -8,7 +8,7 @@ import { BacklogPanel } from "@/components/BacklogPanel";
 import { RecurringTasks } from "@/components/RecurringTasks";
 import { HistoryView } from "@/components/HistoryView";
 import { TaskLogModal } from "@/components/TaskLogModal";
-import { BacklogTableView } from "@/components/BacklogTableView";
+import { TaskTableView } from "@/components/TaskTableView";
 import { ColorSettingsModal } from "@/components/ColorSettingsModal";
 import { useState } from "react";
 /* New Components */
@@ -16,16 +16,22 @@ import { DraggablePanel } from "@/components/DraggablePanel";
 import { useTaskStore } from "@/store/useTaskStore";
 
 /* Icons */
-import { RotateCcw, Plus, Play, List, Layers, Settings, ListPlus, Table } from 'lucide-react';
+import { RotateCcw, Plus, Play, List, Layers, Settings, ListPlus, Table, ListTodo } from 'lucide-react';
 
 export default function Home() {
   const [isLogOpen, setIsLogOpen] = useState(false);
   const [isStackExpanded, setStackExpanded] = useState(false);
   const [isColorSettingsOpen, setIsColorSettingsOpen] = useState(false);
-  const [isBacklogTableOpen, setIsBacklogTableOpen] = useState(false);
+  const [isTaskTableOpen, setIsTaskTableOpen] = useState(false);
+  const [draggedDockId, setDraggedDockId] = useState<string | null>(null);
 
   const backlogCategories = useTaskStore((state) => state.backlogCategories);
   const addBacklogCategory = useTaskStore((state) => state.addBacklogCategory);
+  const isRecurringMinimized = useTaskStore((state) => state.isRecurringMinimized);
+  const isHistoryMinimized = useTaskStore((state) => state.isHistoryMinimized);
+  const toggleRecurringMinimized = useTaskStore((state) => state.toggleRecurringMinimized);
+  const toggleHistoryMinimized = useTaskStore((state) => state.toggleHistoryMinimized);
+  const historyCount = useTaskStore((state) => state.history.length);
 
   return (
     <main className="min-h-screen relative p-8 pb-32 overflow-hidden flex flex-col bg-slate-950 text-slate-200 selection:bg-blue-500/30">
@@ -54,7 +60,7 @@ export default function Home() {
                 <span>Add Backlog</span>
               </button>
               <button
-                onClick={() => setIsBacklogTableOpen(true)}
+                onClick={() => setIsTaskTableOpen(true)}
                 className="flex items-center gap-1 px-2 py-1 bg-slate-800/50 hover:bg-slate-700/50 rounded text-xs text-slate-400 hover:text-white transition-colors border border-slate-700"
               >
                 <Table size={14} />
@@ -79,12 +85,12 @@ export default function Home() {
         </div>
       </DraggablePanel>
 
-      {/* Timer Panel (Timer + Stack) */}
+      {/*- カレントタスクデッキ (`TaskTimer`, `TaskStack`): 現在実行中のタスクと一時的にスタックに積んだ背面に並んだタスクの一覧*/}
       <DraggablePanel
         id="timer-panel"
         defaultPosition={{ top: 120, left: 300 }} // Safe default, center logic handled on client if needed
         defaultSize={{ width: 500, height: 500 }}
-        title="Current Task"
+        title="カレントタスクデッキ"
         resizable={false}
         className="!bg-transparent !shadow-none !border-none"
         headerControls={
@@ -105,8 +111,74 @@ export default function Home() {
         </div>
       </DraggablePanel>
 
-      {/* Map through all backlog categories and render a panel for each */}
-      {backlogCategories.map((category, index) => (
+      {/* Deck Bar (Always visible) */}
+      <div className="fixed bottom-6 left-0 right-0 flex justify-center gap-3 z-40 pointer-events-none px-4">
+        <div className="flex flex-wrap justify-center gap-2 max-w-4xl">
+          {backlogCategories.map(category => (
+            <button
+              key={category.id}
+              onClick={() => useTaskStore.getState().toggleBacklogMinimized(category.id)}
+              draggable
+              onDragStart={(e) => {
+                setDraggedDockId(category.id);
+                e.dataTransfer.effectAllowed = 'move';
+              }}
+              onDragOver={(e) => {
+                e.preventDefault();
+                e.dataTransfer.dropEffect = 'move';
+              }}
+              onDrop={(e) => {
+                e.preventDefault();
+                if (!draggedDockId || draggedDockId === category.id) return;
+                const startIndex = backlogCategories.findIndex(c => c.id === draggedDockId);
+                const endIndex = backlogCategories.findIndex(c => c.id === category.id);
+                useTaskStore.getState().reorderBacklogCategories(startIndex, endIndex);
+                setDraggedDockId(null);
+              }}
+              onDragEnd={() => setDraggedDockId(null)}
+              className={`pointer-events-auto flex items-center gap-2 px-4 py-2 backdrop-blur-md border rounded-full text-sm font-medium transition-all shadow-xl hover:-translate-y-0.5 cursor-grab active:cursor-grabbing
+                ${category.isMinimized
+                  ? 'bg-slate-900/90 border-slate-700/50 text-slate-400 hover:text-white hover:bg-slate-800'
+                  : 'bg-blue-900/40 border-blue-500/50 text-blue-100 hover:bg-blue-800/60 shadow-blue-900/20'}
+                ${draggedDockId === category.id ? 'opacity-20 translate-y-2' : ''}`}
+              title={category.isMinimized ? "Restore Backlog" : "Minimize Backlog"}
+            >
+              <ListTodo size={16} className={category.isMinimized ? 'opacity-50' : 'text-blue-400'} />
+              <span className="max-w-[150px] truncate">{category.name}</span>
+            </button>
+          ))}
+          {/* Recurring Tasks Dock Item */}
+          <button
+            onClick={() => toggleRecurringMinimized()}
+            className={`pointer-events-auto flex items-center gap-2 px-4 py-2 backdrop-blur-md border rounded-full text-sm font-medium transition-all shadow-xl hover:-translate-y-0.5
+              ${isRecurringMinimized
+                ? 'bg-slate-900/90 border-slate-700/50 text-slate-400 hover:text-white hover:bg-slate-800'
+                : 'bg-purple-900/40 border-purple-500/50 text-purple-100 hover:bg-purple-800/60 shadow-purple-900/20'}`}
+            title={isRecurringMinimized ? "Restore Recurring Tasks" : "Minimize Recurring Tasks"}
+          >
+            <RotateCcw size={16} className={isRecurringMinimized ? 'opacity-50' : 'text-purple-400'} />
+            <span>定期タスクデッキ</span>
+          </button>
+
+          {/* History Dock Item (Only show if there's history) */}
+          {historyCount > 0 && (
+            <button
+              onClick={() => toggleHistoryMinimized()}
+              className={`pointer-events-auto flex items-center gap-2 px-4 py-2 backdrop-blur-md border rounded-full text-sm font-medium transition-all shadow-xl hover:-translate-y-0.5
+                ${isHistoryMinimized
+                  ? 'bg-slate-900/90 border-slate-700/50 text-slate-400 hover:text-white hover:bg-slate-800'
+                  : 'bg-green-900/40 border-green-500/50 text-green-100 hover:bg-green-800/60 shadow-green-900/20'}`}
+              title={isHistoryMinimized ? "Restore Completed Tasks" : "Minimize Completed Tasks"}
+            >
+              <Plus size={16} className={`rotate-45 ${isHistoryMinimized ? 'opacity-50' : 'text-green-400'}`} />
+              <span>完了タスクデッキ</span>
+            </button>
+          )}
+        </div>
+      </div>
+
+      {/* Map through all active backlog categories and render a panel for each */}
+      {backlogCategories.filter(c => !c.isMinimized).map((category, index) => (
         <BacklogPanel
           key={category.id}
           category={category}
@@ -115,9 +187,9 @@ export default function Home() {
         />
       ))}
 
-      <BacklogTableView isOpen={isBacklogTableOpen} onClose={() => setIsBacklogTableOpen(false)} />
-      <RecurringTasks />
-      <HistoryView />
+      <TaskTableView isOpen={isTaskTableOpen} onClose={() => setIsTaskTableOpen(false)} />
+      {!isRecurringMinimized && <RecurringTasks />}
+      {!isHistoryMinimized && <HistoryView />}
 
       <TaskLogModal isOpen={isLogOpen} onClose={() => setIsLogOpen(false)} />
       <ColorSettingsModal isOpen={isColorSettingsOpen} onClose={() => setIsColorSettingsOpen(false)} />

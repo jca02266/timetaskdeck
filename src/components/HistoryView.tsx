@@ -1,7 +1,7 @@
 "use client";
 
 import { useTaskStore } from '@/store/useTaskStore';
-import { Download, RotateCcw, Clock, Pencil, Check, X, Trash2, Copy } from 'lucide-react';
+import { Download, RotateCcw, Clock, Pencil, Check, X, Trash2, Copy, Minimize2 } from 'lucide-react';
 import { format } from 'date-fns';
 import { useState } from 'react';
 import { Tooltip } from './Tooltip';
@@ -13,6 +13,7 @@ export function HistoryView() {
     const updateTaskName = useTaskStore((state) => state.updateTaskName);
     const deleteTask = useTaskStore((state) => state.deleteTask);
     const copyToRecurring = useTaskStore((state) => state.copyToRecurring);
+    const toggleHistoryMinimized = useTaskStore((state) => state.toggleHistoryMinimized);
     const [editingId, setEditingId] = useState<string | null>(null);
     const [editValue, setEditValue] = useState('');
 
@@ -79,19 +80,29 @@ export function HistoryView() {
             title={
                 <div className="flex items-center gap-2 uppercase tracking-wider">
                     <Clock size={16} />
-                    <span>完了タスク</span>
+                    <span>完了タスクデッキ</span>
+                </div>
+            }
+            headerControls={
+                <div className="flex items-center gap-1" onPointerDown={(e) => e.stopPropagation()}>
+                    <button
+                        onClick={exportCSV}
+                        className="p-1.5 text-slate-400 hover:text-white rounded hover:bg-slate-700/50 transition-colors"
+                        title="Export CSV"
+                    >
+                        <Download size={14} />
+                    </button>
+                    <button
+                        onClick={() => toggleHistoryMinimized()}
+                        className="p-1.5 text-slate-400 hover:text-white rounded hover:bg-slate-700/50 transition-colors"
+                        title="Minimize"
+                    >
+                        <Minimize2 size={14} />
+                    </button>
                 </div>
             }
         >
-            <div className="flex items-center justify-end px-4 py-2 shrink-0 absolute top-0 right-0 z-10">
-                <button
-                    onClick={exportCSV}
-                    className="text-slate-500 hover:text-slate-300 transition-colors"
-                    title="Export CSV"
-                >
-                    <Download size={14} />
-                </button>
-            </div>
+
 
             <div className="overflow-y-auto flex-1 min-h-0 space-y-2 p-4 pt-2 scrollbar-thin scrollbar-thumb-slate-700 scrollbar-track-transparent">
                 {history.map((task) => (
@@ -106,6 +117,7 @@ export function HistoryView() {
                                         className="flex-1 bg-slate-900 border border-slate-600 rounded px-2 py-1 text-xs text-white focus:outline-none focus:border-blue-500"
                                         autoFocus
                                         onKeyDown={(e) => {
+                                            if (e.nativeEvent.isComposing || e.keyCode === 229) return;
                                             if (e.key === 'Enter') saveEdit();
                                             if (e.key === 'Escape') cancelEdit();
                                         }}

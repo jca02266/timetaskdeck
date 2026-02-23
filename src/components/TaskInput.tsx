@@ -19,7 +19,8 @@ export function TaskInput() {
     };
 
     const handleKeyDown = (e: React.KeyboardEvent) => {
-        if (e.key === 'Enter' && !e.nativeEvent.isComposing) {
+        if (e.nativeEvent.isComposing || e.keyCode === 229) return;
+        if (e.key === 'Enter') {
             handleStart();
         }
     };

@@ -7,6 +7,7 @@ export interface BacklogCategory {
     id: string;
     name: string;
     allocatedMinutes: number;
+    isMinimized?: boolean;
 }
 
 export interface ColorDefinition {
@@ -59,6 +60,8 @@ interface TaskState {
     history: Task[];
     recurringTasks: Task[];
     taskLog: TaskLogEntry[];
+    isRecurringMinimized: boolean;
+    isHistoryMinimized: boolean;
 
     // Actions
     startTask: (name: string, recurringTaskId?: string) => void;
@@ -73,9 +76,12 @@ interface TaskState {
     moveHistoryToBacklog: (taskId: string, targetBacklogId: string) => void;
 
     // Category / Color Operations
-    addBacklogCategory: () => void;
+    addBacklogCategory: () => string;
     updateBacklogCategory: (id: string, updates: Partial<BacklogCategory>) => void;
     deleteBacklogCategory: (id: string) => void;
+    toggleBacklogMinimized: (id: string) => void;
+    reorderBacklogCategories: (startIndex: number, endIndex: number) => void;
+
     updateColorName: (id: string, name: string) => void;
     updateTaskColorId: (taskId: string, colorId?: string) => void;
     updateTaskBacklogId: (taskId: string, backlogId: string) => void;
@@ -99,6 +105,13 @@ interface TaskState {
     // Timer Control
     togglePause: () => void;
     updateTaskSchedule: (taskId: string, date?: string, time?: string) => void;
+    resumeFromStack: () => void;
+    reorderBacklogTasks: (startIndex: number, endIndex: number) => void;
+    moveTaskToLocation: (taskId: string, location: 'current' | 'stack' | 'backlog', backlogId?: string) => void;
+    reorderAllTasks: (newTasks: Task[]) => void;
+    setPaused: (isPaused: boolean) => void;
+    toggleRecurringMinimized: () => void;
+    toggleHistoryMinimized: () => void;
 }
 
 export const useTaskStore = create<TaskState>()(
@@ -112,15 +125,20 @@ export const useTaskStore = create<TaskState>()(
             history: [],
             recurringTasks: [],
             taskLog: [],
+            isRecurringMinimized: false,
+            isHistoryMinimized: false,
 
             startTask: (name, recurringTaskId) => {
+                const state = get();
+                const defaultBacklogId = state.backlogCategories.length > 0 ? state.backlogCategories[0].id : 'main';
                 const newTask: Task = {
                     id: crypto.randomUUID(),
                     name,
                     startTime: Date.now(),
                     duration: 0,
                     status: 'pending',
-                    recurringTaskId
+                    recurringTaskId,
+                    backlogId: defaultBacklogId
                 };
 
                 set((state) => {
@@ -180,8 +198,18 @@ export const useTaskStore = create<TaskState>()(
                         status: 'paused' as TaskStatus
                     };
 
+                    const nextTask = state.taskStack.length > 0 ? state.taskStack[state.taskStack.length - 1] : null;
+                    const newStack = state.taskStack.slice(0, -1);
+
+                    const resumedTask = nextTask ? {
+                        ...nextTask,
+                        startTime: Date.now(),
+                        status: 'pending' as TaskStatus
+                    } : null;
+
                     return {
-                        currentTask: null,
+                        currentTask: resumedTask,
+                        taskStack: newStack,
                         backlogTasks: [stoppedTask, ...state.backlogTasks],
                         taskLog: [logEntry, ...state.taskLog]
                     };
@@ -242,6 +270,24 @@ export const useTaskStore = create<TaskState>()(
                 });
             },
 
+            resumeFromStack: () => {
+                set((state) => {
+                    if (state.currentTask || state.taskStack.length === 0) return {};
+
+                    const nextTask = state.taskStack[state.taskStack.length - 1];
+                    const newStack = state.taskStack.slice(0, -1);
+
+                    return {
+                        currentTask: {
+                            ...nextTask,
+                            startTime: Date.now(),
+                            status: 'pending' as TaskStatus
+                        },
+                        taskStack: newStack
+                    };
+                });
+            },
+
             interruptTask: (name) => {
                 set((state) => {
                     let newStack = state.taskStack;
@@ -268,12 +314,14 @@ export const useTaskStore = create<TaskState>()(
                         newStack = [...state.taskStack, pausedTask];
                     }
 
+                    const defaultBacklogId = state.backlogCategories.length > 0 ? state.backlogCategories[0].id : 'main';
                     const interruptTask: Task = {
                         id: crypto.randomUUID(),
                         name,
                         startTime: Date.now(),
                         duration: 0,
-                        status: 'pending'
+                        status: 'pending',
+                        backlogId: defaultBacklogId
                     };
 
                     return {
@@ -412,8 +460,8 @@ export const useTaskStore = create<TaskState>()(
             },
 
             addBacklogCategory: () => {
+                const newId = crypto.randomUUID();
                 set((state) => {
-                    const newId = crypto.randomUUID();
                     const newCategory: BacklogCategory = {
                         id: newId,
                         name: `New Backlog`,
@@ -423,6 +471,7 @@ export const useTaskStore = create<TaskState>()(
                         backlogCategories: [...state.backlogCategories, newCategory]
                     };
                 });
+                return newId;
             },
 
             updateBacklogCategory: (id, updates) => {
@@ -443,6 +492,23 @@ export const useTaskStore = create<TaskState>()(
                         backlogCategories: state.backlogCategories.filter(c => c.id !== id),
                         backlogTasks: newBacklogTasks
                     };
+                });
+            },
+
+            toggleBacklogMinimized: (id) => {
+                set((state) => ({
+                    backlogCategories: state.backlogCategories.map(c =>
+                        c.id === id ? { ...c, isMinimized: !c.isMinimized } : c
+                    )
+                }));
+            },
+
+            reorderBacklogCategories: (startIndex, endIndex) => {
+                set((state) => {
+                    const newCategories = [...state.backlogCategories];
+                    const [moved] = newCategories.splice(startIndex, 1);
+                    newCategories.splice(endIndex, 0, moved);
+                    return { backlogCategories: newCategories };
                 });
             },
 
@@ -813,6 +879,212 @@ export const useTaskStore = create<TaskState>()(
                         recurringTasks: updateList(state.recurringTasks)
                     };
                 });
+            },
+
+            reorderBacklogTasks: (startIndex, endIndex) => {
+                set((state) => {
+                    const newTasks = [...state.backlogTasks];
+                    const [moved] = newTasks.splice(startIndex, 1);
+                    newTasks.splice(endIndex, 0, moved);
+                    return { backlogTasks: newTasks };
+                });
+            },
+
+            moveTaskToLocation: (taskId, location, backlogId) => {
+                set((state) => {
+                    let taskToMove: Task | undefined;
+                    let foundLocation: 'current' | 'stack' | 'backlog' | undefined;
+
+                    // 1. Find and remove from current source
+                    if (state.currentTask?.id === taskId) {
+                        taskToMove = state.currentTask;
+                        foundLocation = 'current';
+                    } else {
+                        const stackIdx = state.taskStack.findIndex(t => t.id === taskId);
+                        if (stackIdx !== -1) {
+                            taskToMove = state.taskStack[stackIdx];
+                            foundLocation = 'stack';
+                        } else {
+                            const backlogIdx = state.backlogTasks.findIndex(t => t.id === taskId);
+                            if (backlogIdx !== -1) {
+                                taskToMove = state.backlogTasks[backlogIdx];
+                                foundLocation = 'backlog';
+                            }
+                        }
+                    }
+
+                    if (!taskToMove) return {};
+
+                    let newCurrent = state.currentTask;
+                    let newStack = [...state.taskStack];
+                    let newBacklog = [...state.backlogTasks];
+                    let newLog = [...state.taskLog];
+
+                    // Remove from previous location
+                    if (foundLocation === 'current') {
+                        const now = Date.now();
+                        const duration = now - newCurrent!.startTime;
+                        newLog.unshift({
+                            id: crypto.randomUUID(),
+                            taskId: newCurrent!.id,
+                            name: newCurrent!.name,
+                            startTime: newCurrent!.startTime,
+                            endTime: now,
+                            duration,
+                            status: location === 'backlog' ? 'paused' : 'interrupted'
+                        });
+                        taskToMove = { ...newCurrent!, duration: newCurrent!.duration + duration, status: 'paused' };
+                        newCurrent = null;
+                    } else if (foundLocation === 'stack') {
+                        const idx = newStack.findIndex(t => t.id === taskId);
+                        newStack.splice(idx, 1);
+                    } else if (foundLocation === 'backlog') {
+                        const idx = newBacklog.findIndex(t => t.id === taskId);
+                        newBacklog.splice(idx, 1);
+                    }
+
+                    // 2. Insert into target location
+                    if (location === 'current') {
+                        // If there was an existing current task, push it to stack
+                        if (newCurrent) {
+                            const now = Date.now();
+                            const duration = now - newCurrent.startTime;
+                            newLog.unshift({
+                                id: crypto.randomUUID(),
+                                taskId: newCurrent.id,
+                                name: newCurrent.name,
+                                startTime: newCurrent.startTime,
+                                endTime: now,
+                                duration,
+                                status: 'interrupted'
+                            });
+                            newStack.push({ ...newCurrent, duration: newCurrent.duration + duration, status: 'paused' });
+                        }
+                        newCurrent = { ...taskToMove!, startTime: Date.now(), status: 'pending' };
+                    } else if (location === 'stack') {
+                        newStack.push({ ...taskToMove!, status: 'paused' });
+                    } else if (location === 'backlog') {
+                        newBacklog.unshift({ ...taskToMove!, backlogId: backlogId || state.backlogCategories[0].id, status: 'paused' });
+                    }
+
+                    return {
+                        currentTask: newCurrent,
+                        taskStack: newStack,
+                        backlogTasks: newBacklog,
+                        taskLog: newLog
+                    };
+                });
+            },
+
+            reorderAllTasks: (newAllTasks) => {
+                set((state) => {
+                    if (newAllTasks.length === 0) return { currentTask: null, taskStack: [], backlogTasks: [] };
+
+                    // Identify the boundaries
+                    const prevActiveCount = (state.currentTask ? 1 : 0) + state.taskStack.length;
+                    const defaultBacklogId = state.backlogCategories[0]?.id || 'main';
+
+                    const movedTasks = newAllTasks.map((t, idx) => {
+                        const newTask = { ...t };
+
+                        // Section crossing logic:
+                        // Top task is ALWAYS Current.
+                        // Items at index 1...prevActiveCount-1 are ALWAYS Stack.
+                        // The rest are Backlog.
+
+                        if (idx === 0) {
+                            newTask.status = 'paused'; // Top task
+                        } else if (idx < prevActiveCount) {
+                            newTask.status = 'paused'; // Stack task
+                        } else {
+                            newTask.status = 'paused'; // Backlog task
+                        }
+
+                        // Restore/Update backlogId
+                        if (newTask.backlogId === '__CURRENT__' || newTask.backlogId === '__STACK__') {
+                            const original = state.backlogTasks.find(bt => bt.id === t.id) ||
+                                state.taskStack.find(s => s.id === t.id) ||
+                                (state.currentTask?.id === t.id ? state.currentTask : null);
+                            newTask.backlogId = original?.backlogId || defaultBacklogId;
+                        }
+
+                        return newTask;
+                    });
+
+                    const topTask = movedTasks.shift()!;
+
+                    let newLog = [...state.taskLog];
+                    if (state.currentTask && state.currentTask.id !== topTask.id) {
+                        const now = Date.now();
+                        const duration = now - state.currentTask.startTime;
+                        newLog.unshift({
+                            id: crypto.randomUUID(),
+                            taskId: state.currentTask.id,
+                            name: state.currentTask.name,
+                            startTime: state.currentTask.startTime,
+                            endTime: now,
+                            duration,
+                            status: 'paused'
+                        });
+                        topTask.startTime = now;
+                    } else if (!state.currentTask) {
+                        topTask.startTime = Date.now();
+                    }
+
+                    const newStack: Task[] = [];
+                    const newBacklog: Task[] = [];
+
+                    movedTasks.forEach((task, idx) => {
+                        // idx here is originalIndex - 1
+                        if (idx < prevActiveCount - 1) {
+                            newStack.push(task);
+                        } else {
+                            newBacklog.push(task);
+                        }
+                    });
+
+                    return {
+                        currentTask: topTask,
+                        taskStack: newStack,
+                        backlogTasks: newBacklog,
+                        taskLog: newLog
+                    };
+                });
+            },
+
+            setPaused: (paused) => {
+                set((state) => {
+                    if (!state.currentTask) return {};
+                    if (paused && state.currentTask.status !== 'paused') {
+                        const now = Date.now();
+                        const duration = now - state.currentTask.startTime;
+                        return {
+                            currentTask: { ...state.currentTask, status: 'paused', duration: state.currentTask.duration + duration },
+                            taskLog: [{
+                                id: crypto.randomUUID(),
+                                taskId: state.currentTask.id,
+                                name: state.currentTask.name,
+                                startTime: state.currentTask.startTime,
+                                endTime: now,
+                                duration,
+                                status: 'paused'
+                            }, ...state.taskLog]
+                        };
+                    } else if (!paused && state.currentTask.status === 'paused') {
+                        return {
+                            currentTask: { ...state.currentTask, status: 'pending', startTime: Date.now() }
+                        };
+                    }
+                    return {};
+                });
+            },
+
+            toggleRecurringMinimized: () => {
+                set((state) => ({ isRecurringMinimized: !state.isRecurringMinimized }));
+            },
+
+            toggleHistoryMinimized: () => {
+                set((state) => ({ isHistoryMinimized: !state.isHistoryMinimized }));
             }
         }),
         {

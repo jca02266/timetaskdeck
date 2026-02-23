@@ -1,7 +1,7 @@
 "use client";
 
 import { useTaskStore } from '@/store/useTaskStore';
-import { Repeat, Play, Plus, Pencil, Check, X, Trash2, GripVertical, CheckCircle2, Circle } from 'lucide-react';
+import { Repeat, Play, Plus, Pencil, Check, X, Trash2, GripVertical, CheckCircle2, Circle, Minimize2 } from 'lucide-react';
 import { useState } from 'react';
 import { Tooltip } from './Tooltip';
 import { DatePicker } from './DatePicker';
@@ -16,7 +16,8 @@ export function RecurringTasks() {
         reorderRecurringTasks,
         toggleRecurringTaskCheck,
         startRecurringTask,
-        updateTaskSchedule
+        updateTaskSchedule,
+        toggleRecurringMinimized
     } = useTaskStore();
 
     const [newItem, setNewItem] = useState('');
@@ -94,8 +95,18 @@ export function RecurringTasks() {
             title={
                 <div className="flex items-center gap-2 uppercase tracking-wider">
                     <Repeat size={16} />
-                    <span>定期タスク</span>
+                    <span>定期タスクデッキ</span>
                 </div>
+            }
+            headerControls={
+                <button
+                    onClick={() => toggleRecurringMinimized()}
+                    className="p-1.5 text-slate-400 hover:text-white rounded hover:bg-slate-700/50 transition-colors"
+                    title="Minimize"
+                    onPointerDown={(e) => e.stopPropagation()}
+                >
+                    <Minimize2 size={14} />
+                </button>
             }
         >
             <form onSubmit={handleAdd} className="flex gap-2 shrink-0 mb-3 px-4 pt-2">
@@ -145,6 +156,7 @@ export function RecurringTasks() {
                                         className="flex-1 bg-slate-900 border border-slate-600 rounded px-2 py-1 text-xs text-white focus:outline-none focus:border-blue-500"
                                         autoFocus
                                         onKeyDown={(e) => {
+                                            if (e.nativeEvent.isComposing || e.keyCode === 229) return;
                                             if (e.key === 'Enter') saveEdit();
                                             if (e.key === 'Escape') cancelEdit();
                                         }}

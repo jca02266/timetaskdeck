@@ -8,15 +8,23 @@ import { format } from 'date-fns';
 export function TaskTimer() {
     const {
         currentTask,
+        taskStack,
         stopTask,
         completeTask,
         sendCurrentToBack,
         updateCurrentTaskName,
-        togglePause
+        togglePause,
+        resumeFromStack
     } = useTaskStore();
     const [elapsed, setElapsed] = useState(0);
     const [isEditing, setIsEditing] = useState(false);
     const [editName, setEditName] = useState('');
+
+    useEffect(() => {
+        if (!currentTask && taskStack.length > 0) {
+            resumeFromStack();
+        }
+    }, [currentTask, taskStack.length, resumeFromStack]);
 
     useEffect(() => {
         if (!currentTask || currentTask.status !== 'pending') {
@@ -98,6 +106,7 @@ export function TaskTimer() {
                         className="flex-1 bg-slate-900/50 border border-slate-600 rounded px-3 py-2 text-xl text-center text-white focus:outline-none focus:border-blue-500"
                         autoFocus
                         onKeyDown={(e) => {
+                            if (e.nativeEvent.isComposing || e.keyCode === 229) return;
                             if (e.key === 'Enter') saveEdit();
                             if (e.key === 'Escape') cancelEdit();
                         }}

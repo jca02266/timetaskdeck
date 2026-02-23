@@ -64,6 +64,7 @@ export function ColorSettingsModal({ isOpen, onClose }: ColorSettingsModalProps)
                                             className="flex-1 bg-slate-950 border border-slate-600 rounded px-2 py-1 text-sm text-white focus:outline-none focus:border-blue-500"
                                             autoFocus
                                             onKeyDown={(e) => {
+                                                if (e.nativeEvent.isComposing || e.keyCode === 229) return;
                                                 if (e.key === 'Enter') saveEdit();
                                                 if (e.key === 'Escape') cancelEdit();
                                             }}

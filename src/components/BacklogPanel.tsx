@@ -2,8 +2,21 @@ import { useTaskStore, BacklogCategory, Task } from '@/store/useTaskStore';
 import { Tooltip } from './Tooltip';
 import { DatePicker } from './DatePicker';
 import { DraggablePanel } from './DraggablePanel';
-import { ListTodo, Play, Plus, Pencil, Check, X, Trash2, GripVertical, Copy } from 'lucide-react';
+import { format, parseISO } from 'date-fns';
+import { ListTodo, Play, Plus, Pencil, Check, X, Trash2, GripVertical, Copy, Minimize2, Calendar, Clock } from 'lucide-react';
 import { useState, useRef, useEffect } from 'react';
+
+function getPillClasses(colorCode?: string) {
+    if (!colorCode) return 'bg-slate-800 border-slate-700 text-slate-400';
+    if (colorCode.includes('red')) return 'bg-red-500/10 border-red-500/20 text-red-400';
+    if (colorCode.includes('blue')) return 'bg-blue-500/10 border-blue-500/20 text-blue-400';
+    if (colorCode.includes('green')) return 'bg-green-500/10 border-green-500/20 text-green-400';
+    if (colorCode.includes('yellow')) return 'bg-yellow-500/10 border-yellow-500/20 text-yellow-400';
+    if (colorCode.includes('purple')) return 'bg-purple-500/10 border-purple-500/20 text-purple-400';
+    if (colorCode.includes('pink')) return 'bg-pink-500/10 border-pink-500/20 text-pink-400';
+    if (colorCode.includes('orange')) return 'bg-orange-500/10 border-orange-500/20 text-orange-400';
+    return 'bg-slate-500/10 border-slate-500/20 text-slate-400';
+}
 
 interface BacklogPanelProps {
     category: BacklogCategory;
@@ -24,13 +37,13 @@ export const BacklogPanel = ({ category, defaultPosition }: BacklogPanelProps) =
     const updateTaskSchedule = useTaskStore((state) => state.updateTaskSchedule);
     const updateBacklogCategory = useTaskStore((state) => state.updateBacklogCategory);
     const deleteBacklogCategory = useTaskStore((state) => state.deleteBacklogCategory);
+    const toggleBacklogMinimized = useTaskStore((state) => state.toggleBacklogMinimized);
+    const updateTaskColorId = useTaskStore((state) => state.updateTaskColorId);
 
     // For calculating total time
     const taskLog = useTaskStore((state) => state.taskLog);
 
     const [newItem, setNewItem] = useState('');
-    const [editingId, setEditingId] = useState<string | null>(null);
-    const [editValue, setEditValue] = useState('');
     const [isEditingTitle, setIsEditingTitle] = useState(false);
     const [titleValue, setTitleValue] = useState(category.name);
 
@@ -43,8 +56,8 @@ export const BacklogPanel = ({ category, defaultPosition }: BacklogPanelProps) =
     useEffect(() => {
         const updateTime = () => {
             const now = new Date();
-            const timeString = `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}`;
-            const dateString = `${now.getFullYear()}-${(now.getMonth() + 1).toString().padStart(2, '0')}-${now.getDate().toString().padStart(2, '0')}`;
+            const timeString = `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')} `;
+            const dateString = `${now.getFullYear()} -${(now.getMonth() + 1).toString().padStart(2, '0')} -${now.getDate().toString().padStart(2, '0')} `;
             setCurrentTime(timeString);
             setCurrentDate(dateString);
         };
@@ -52,6 +65,21 @@ export const BacklogPanel = ({ category, defaultPosition }: BacklogPanelProps) =
         const interval = setInterval(updateTime, 10000); // Check every 10s
         return () => clearInterval(interval);
     }, []);
+
+    const formatTime = (ms: number) => {
+        const totalSeconds = Math.floor(ms / 1000);
+        const hours = Math.floor(totalSeconds / 3600);
+        const minutes = Math.floor((totalSeconds % 3600) / 60);
+        const seconds = totalSeconds % 60;
+
+        if (hours > 0) {
+            return `${hours}h ${minutes} m`;
+        } else if (minutes > 0) {
+            return `${minutes}m ${seconds} s`;
+        } else {
+            return `${seconds} s`;
+        }
+    };
 
     // Calculate total time spent on this category
     const calculateElapsedTime = () => {
@@ -69,7 +97,7 @@ export const BacklogPanel = ({ category, defaultPosition }: BacklogPanelProps) =
         const totalMin = Math.floor(totalMs / 60000);
         const hours = Math.floor(totalMin / 60);
         const minutes = totalMin % 60;
-        return hours > 0 ? `${hours}h ${minutes}m` : `${minutes}m`;
+        return hours > 0 ? `${hours}h ${minutes} m` : `${minutes} m`;
     };
 
     const handleAdd = (e: React.FormEvent) => {
@@ -77,24 +105,6 @@ export const BacklogPanel = ({ category, defaultPosition }: BacklogPanelProps) =
         if (!newItem.trim()) return;
         addToBacklog(newItem, category.id);
         setNewItem('');
-    };
-
-    const startEditing = (task: { id: string, name: string }) => {
-        setEditingId(task.id);
-        setEditValue(task.name);
-    };
-
-    const saveEdit = () => {
-        if (editingId && editValue.trim()) {
-            updateTaskName(editingId, editValue.trim());
-        }
-        setEditingId(null);
-        setEditValue('');
-    };
-
-    const cancelEdit = () => {
-        setEditingId(null);
-        setEditValue('');
     };
 
     const saveTitle = () => {
@@ -153,69 +163,95 @@ export const BacklogPanel = ({ category, defaultPosition }: BacklogPanelProps) =
 
     return (
         <DraggablePanel
-            id={`backlog-panel-${category.id}`}
+            id={`backlog - panel - ${category.id} `}
             defaultPosition={defaultPosition}
             defaultSize={{ width: 320, height: 400 }}
             minSize={{ width: 320, height: 200 }}
             title={
-                <div className="flex flex-col w-full text-sm">
-                    {isEditingTitle ? (
-                        <div className="flex items-center gap-1 w-full">
-                            <input
-                                type="text"
-                                value={titleValue}
-                                onChange={(e) => setTitleValue(e.target.value)}
-                                className="flex-1 bg-slate-900 border border-slate-600 rounded px-2 py-0.5 text-xs text-white focus:outline-none focus:border-blue-500"
-                                autoFocus
-                                onKeyDown={(e) => {
-                                    if (e.key === 'Enter') saveTitle();
-                                    if (e.key === 'Escape') {
-                                        setTitleValue(category.name);
-                                        setIsEditingTitle(false);
-                                    }
-                                }}
-                                onBlur={saveTitle}
-                            />
-                        </div>
-                    ) : (
-                        <div className="flex items-center justify-between w-full group cursor-pointer" onClick={() => setIsEditingTitle(true)}>
-                            <div className="flex items-center gap-2 uppercase tracking-wider font-bold">
-                                <ListTodo size={16} />
-                                <span>{category.name}</span>
-                            </div>
-                            <Pencil size={12} className="opacity-0 group-hover:opacity-100 transition-opacity text-slate-500" />
-                        </div>
-                    )}
-
-                    <div className="flex items-center gap-2 mt-1 text-xs text-slate-400">
-                        <span>Time: {calculateElapsedTime()}</span>
-                        <span>/</span>
+                isEditingTitle ? (
+                    <div className="flex items-center gap-1 w-full" onPointerDown={(e) => e.stopPropagation()}>
                         <input
-                            type="number"
-                            value={category.allocatedMinutes || ''}
-                            onChange={(e) => updateBacklogCategory(category.id, { allocatedMinutes: parseInt(e.target.value) || 0 })}
-                            placeholder="Min"
-                            className="bg-slate-900 border border-slate-700 rounded w-12 px-1 text-center text-xs"
+                            type="text"
+                            value={titleValue}
+                            onChange={(e) => setTitleValue(e.target.value)}
+                            className="flex-1 bg-slate-900 border border-slate-600 rounded px-2 py-0.5 text-xs text-white focus:outline-none focus:border-blue-500"
+                            autoFocus
+                            onKeyDown={(e) => {
+                                if (e.nativeEvent.isComposing || e.keyCode === 229) return;
+                                if (e.key === 'Enter') {
+                                    updateBacklogCategory(category.id, { name: titleValue.trim() });
+                                    setIsEditingTitle(false);
+                                }
+                                if (e.key === 'Escape') {
+                                    setTitleValue(category.name);
+                                    setIsEditingTitle(false);
+                                }
+                            }}
+                            onBlur={saveTitle}
                         />
-                        <span>min</span>
-                        {category.id !== 'main' && (
-                            <button
-                                onClick={() => {
-                                    if (window.confirm('このバックログを削除しますか？タスクはMainに移動します。')) {
-                                        deleteBacklogCategory(category.id);
-                                    }
-                                }}
-                                className="ml-auto text-red-500 hover:text-red-400 p-1"
-                                title="Delete Backlog"
-                            >
-                                <Trash2 size={12} />
-                            </button>
-                        )}
                     </div>
-                </div>
+                ) : (
+                    <div className="flex items-center gap-2 uppercase tracking-wider font-bold w-full">
+                        <ListTodo size={16} />
+                        <span className="truncate">{category.name}</span>
+                    </div>
+                )
+            }
+            headerControls={
+                !isEditingTitle && (
+                    <>
+                        <button
+                            onClick={(e) => { e.stopPropagation(); setIsEditingTitle(true); }}
+                            className="p-1.5 text-slate-400 hover:text-white rounded hover:bg-slate-700/50 transition-colors"
+                            title="Edit Backlog Name"
+                            onPointerDown={(e) => e.stopPropagation()}
+                        >
+                            <Pencil size={14} />
+                        </button>
+                        <button
+                            onClick={(e) => { e.stopPropagation(); toggleBacklogMinimized(category.id); }}
+                            className="p-1.5 text-slate-400 hover:text-white rounded hover:bg-slate-700/50 transition-colors"
+                            title="Minimize Backlog"
+                            onPointerDown={(e) => e.stopPropagation()}
+                        >
+                            <Minimize2 size={14} />
+                        </button>
+                    </>
+                )
             }
         >
-            <form onSubmit={handleAdd} className="flex gap-2 shrink-0 mb-3 px-4 pt-2">
+            {/* Category Stats Header (Not draggable) */}
+            <div className="flex items-center gap-2 px-4 py-2 text-xs text-slate-400 border-b border-slate-800/50 bg-slate-900/20 shrink-0">
+                <span>時間: {calculateElapsedTime()}</span>
+                <span>/</span>
+                <input
+                    type="number"
+                    min="0"
+                    value={category.allocatedMinutes || ''}
+                    onChange={(e) => updateBacklogCategory(category.id, { allocatedMinutes: Math.max(0, parseInt(e.target.value) || 0) })}
+                    placeholder="予定"
+                    className="bg-slate-900 border border-slate-700 rounded w-16 px-1 text-center text-xs focus:border-blue-500 focus:outline-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                    onPointerDown={(e) => e.stopPropagation()}
+                />
+                <span>分</span>
+                {category.id !== 'main' && (
+                    <button
+                        onClick={(e) => {
+                            e.stopPropagation();
+                            if (window.confirm('このバックログを削除しますか？タスクはMainに移動します。')) {
+                                deleteBacklogCategory(category.id);
+                            }
+                        }}
+                        className="ml-auto text-red-500 hover:text-red-400 p-1 rounded hover:bg-slate-800 transition-colors"
+                        title="Delete Backlog"
+                        onPointerDown={(e) => e.stopPropagation()}
+                    >
+                        <Trash2 size={12} />
+                    </button>
+                )}
+            </div>
+
+            <form onSubmit={handleAdd} className="flex gap-2 shrink-0 mb-3 px-4 pt-3">
                 <input
                     type="text"
                     value={newItem}
@@ -245,107 +281,122 @@ export const BacklogPanel = ({ category, defaultPosition }: BacklogPanelProps) =
                     const isTimeDue = task.scheduledTime === currentTime;
                     const isDateDue = !task.scheduledDate || task.scheduledDate === currentDate;
                     const isDue = isTimeDue && isDateDue;
-                    const colorDef = colors.find(c => c.id === task.colorId);
-                    const borderColorClass = colorDef ? colorDef.colorCode.replace('bg-', 'border-') : 'border-transparent';
+                    const activeColorDef = colors.find(c => c.id === task.colorId);
+                    const borderColorClass = activeColorDef ? activeColorDef.colorCode.replace('bg-', 'border-') : 'border-transparent';
+                    const pillClasses = getPillClasses(activeColorDef?.colorCode);
+
+                    const dateDisplay = task.scheduledDate
+                        ? format(parseISO(task.scheduledDate), 'MM/dd')
+                        : '--/--';
+                    const timeDisplay = task.scheduledTime || '--:--';
 
                     return (
                         <div
                             key={task.id}
-                            draggable={editingId === null}
+                            draggable
                             onDragStart={(e) => handleDragStart(e, task.id)}
                             onDragOver={(e) => handleDragOver(e, index)}
                             onDrop={(e) => { e.stopPropagation(); handleDrop(e, index); }}
-                            className={`group bg-slate-800/30 hover:bg-slate-800/80 p-3 rounded-lg border-l-4 hover:border-r-slate-600 border-t-transparent border-b-transparent border-r-transparent transition-all flex items-center justify-between gap-2 
+                            className={`group bg - slate - 900 / 50 hover: bg - slate - 800 / 80 p - 3 rounded - lg border - l - 4 hover: border - r - slate - 600 border - t - transparent border - b - transparent border - r - transparent transition - all flex flex - col gap - 2
                                 ${borderColorClass}
                                 ${draggedTaskId === task.id ? 'opacity-50' : ''}
-                                ${isDue ? 'animate-blink border-yellow-500/50 shadow-[0_0_10px_rgba(234,179,8,0.3)]' : ''}`}
+                                ${isDue ? 'animate-blink border-yellow-500/50 shadow-[0_0_10px_rgba(234,179,8,0.3)]' : ''} `}
                         >
-                            {editingId === task.id ? (
-                                <div className="flex items-center gap-1 w-full">
-                                    <input
-                                        type="text"
-                                        value={editValue}
-                                        onChange={(e) => setEditValue(e.target.value)}
-                                        className="flex-1 bg-slate-900 border border-slate-600 rounded px-2 py-1 text-xs text-white focus:outline-none focus:border-blue-500"
-                                        autoFocus
-                                        onKeyDown={(e) => {
-                                            if (e.key === 'Enter') saveEdit();
-                                            if (e.key === 'Escape') cancelEdit();
-                                        }}
-                                    />
-                                    <button onClick={saveEdit} className="text-green-400 hover:text-green-300 p-1">
-                                        <Check size={14} />
-                                    </button>
-                                    <button onClick={cancelEdit} className="text-red-400 hover:text-red-300 p-1">
-                                        <X size={14} />
-                                    </button>
+                            {/* Top Row: Grip, Name, Play */}
+                            <div className="flex items-center gap-2">
+                                <div className="cursor-grab text-slate-500 hover:text-slate-300">
+                                    <GripVertical size={14} />
                                 </div>
-                            ) : (
-                                <>
-                                    <div className="text-sm text-slate-300 truncate flex-1 flex flex-col gap-0.5">
-                                        <div className="text-sm text-slate-300 truncate flex-1 flex items-center gap-2">
-                                            <div className="cursor-grab text-slate-600 hover:text-slate-400">
-                                                <GripVertical size={14} />
-                                            </div>
-                                            <Tooltip text={task.name}>
-                                                <span className="truncate block">{task.name}</span>
-                                            </Tooltip>
+                                <input
+                                    type="text"
+                                    value={task.name}
+                                    onChange={(e) => updateTaskName(task.id, e.target.value)}
+                                    className="flex-1 bg-transparent border-b border-transparent hover:border-slate-700 focus:border-blue-500 focus:outline-none text-sm text-slate-200 transition-colors truncate"
+                                    placeholder="Task Name"
+                                />
+                                <button
+                                    onClick={() => pickFromBacklog(task.id)}
+                                    className="text-blue-500 hover:text-blue-400 p-1 rounded-full bg-blue-500/10 hover:bg-blue-500/20 transition-colors ml-auto shrink-0"
+                                    title="Start Task"
+                                >
+                                    <Play size={14} className="fill-current" />
+                                </button>
+                            </div>
+
+                            {/* Bottom Row: Priority, Date, Time, Actions */}
+                            <div className="flex items-center justify-between pl-6 gap-2 opacity-60 group-hover:opacity-100 transition-opacity">
+
+                                <div className="flex items-center gap-2 flex-wrap">
+                                    {/* Priority Pill Select */}
+                                    <div className="relative inline-block">
+                                        <select
+                                            value={task.colorId || ''}
+                                            onChange={(e) => updateTaskColorId(task.id, e.target.value === '' ? undefined : e.target.value)}
+                                            className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
+                                            title="タグを設定"
+                                        >
+                                            <option value="">NONE</option>
+                                            {colors.map(c => (
+                                                <option key={c.id} value={c.id}>{c.name.toUpperCase()}</option>
+                                            ))}
+                                        </select>
+                                        <div className={`inline - flex items - center gap - 1.5 px - 2 py - 0.5 rounded text - [9px] font - bold tracking - widest uppercase border pointer - events - none ${pillClasses} `}>
+                                            <div className={`w - 1 h - 1 rounded - full ${activeColorDef?.colorCode || 'bg-slate-500'} `} />
+                                            <span>{activeColorDef ? activeColorDef.name : 'NONE'}</span>
                                         </div>
-                                        <div className="flex items-center gap-1 pl-5">
-                                            <DatePicker
-                                                value={task.scheduledDate}
-                                                onChange={(date) => updateTaskSchedule(task.id, date, undefined)}
+                                    </div>
+
+                                    {/* Date & Time Select */}
+                                    <div className="flex items-center gap-2 bg-slate-950/30 px-2 py-0.5 rounded border border-slate-800 text-[11px] text-slate-400">
+                                        <div className="relative flex items-center gap-1 group/date hover:text-slate-300 transition-colors">
+                                            <Calendar size={10} />
+                                            <span>{dateDisplay}</span>
+                                            <input
+                                                type="date"
+                                                value={task.scheduledDate || ''}
+                                                onChange={(e) => updateTaskSchedule(task.id, e.target.value, undefined)}
+                                                className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
                                             />
+                                        </div>
+                                        <div className="relative flex items-center gap-1 group/time hover:text-slate-300 transition-colors">
+                                            <Clock size={10} />
+                                            <span>{timeDisplay}</span>
                                             <input
                                                 type="time"
                                                 value={task.scheduledTime || ''}
                                                 onChange={(e) => updateTaskSchedule(task.id, undefined, e.target.value)}
-                                                className="bg-transparent text-[10px] text-slate-500 focus:text-slate-300 focus:outline-none w-16"
+                                                className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
                                             />
                                         </div>
                                     </div>
-                                    <div className="flex items-center opacity-0 group-hover:opacity-100 transition-opacity gap-1">
-                                        <button
-                                            onClick={() => startEditing(task)}
-                                            className="text-slate-400 hover:text-slate-200 p-1 rounded"
-                                            title="Rename"
-                                        >
-                                            <Pencil size={14} />
-                                        </button>
-                                        <div className="flex gap-1 ml-auto shrink-0 opacity-0 group-hover:opacity-100 transition-opacity">
-                                            <button
-                                                onClick={(e) => {
-                                                    e.stopPropagation();
-                                                    copyToRecurring(task.id);
-                                                }}
-                                                className="p-1 text-slate-400 hover:text-blue-400 transition-colors"
-                                                title="定期タスクにコピー"
-                                            >
-                                                <Copy size={14} />
-                                            </button>
-                                            <button
-                                                onClick={(e) => {
-                                                    e.stopPropagation();
-                                                    if (window.confirm('このタスクを削除してもよろしいですか？')) {
-                                                        deleteTask(task.id);
-                                                    }
-                                                }}
-                                                className="p-1 text-slate-400 hover:text-red-400 transition-colors"
-                                                title="削除"
-                                            >
-                                                <Trash2 size={14} />
-                                            </button>
-                                        </div>
-                                        <button
-                                            onClick={() => pickFromBacklog(task.id)}
-                                            className="text-blue-400 hover:text-blue-300 p-1 rounded"
-                                            title="Start Task"
-                                        >
-                                            <Play size={14} fill="currentColor" />
-                                        </button>
-                                    </div>
-                                </>
-                            )}
+                                </div>
+
+                                {/* Actions */}
+                                <div className="flex items-center gap-1 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity">
+                                    <button
+                                        onClick={(e) => {
+                                            e.stopPropagation();
+                                            copyToRecurring(task.id);
+                                        }}
+                                        className="p-1 text-slate-500 hover:text-blue-400 transition-colors"
+                                        title="Copy to Recurring"
+                                    >
+                                        <Copy size={12} />
+                                    </button>
+                                    <button
+                                        onClick={(e) => {
+                                            e.stopPropagation();
+                                            if (window.confirm('Delete this task?')) {
+                                                deleteTask(task.id);
+                                            }
+                                        }}
+                                        className="p-1 text-slate-500 hover:text-red-400 transition-colors"
+                                        title="Delete Task"
+                                    >
+                                        <Trash2 size={12} />
+                                    </button>
+                                </div>
+                            </div>
                         </div>
                     );
                 })}
