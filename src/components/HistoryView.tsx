@@ -114,6 +114,7 @@ export function HistoryView() {
                                         type="text"
                                         value={editValue}
                                         onChange={(e) => setEditValue(e.target.value)}
+                                        onPointerDown={(e) => e.stopPropagation()}
                                         className="flex-1 bg-slate-900 border border-slate-600 rounded px-2 py-1 text-xs text-white focus:outline-none focus:border-blue-500"
                                         autoFocus
                                         onKeyDown={(e) => {

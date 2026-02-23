@@ -15,7 +15,10 @@ export function TaskScheduleInput({ date, time, onUpdate, className }: TaskSched
     const timeDisplay = time || '--:--';
 
     return (
-        <div className={`relative flex flex-col items-center justify-center bg-slate-950/30 px-2 py-1 rounded border border-slate-800 text-[9px] leading-tight transition-colors group/schedule ${className || ''}`}>
+        <div
+            onPointerDown={(e) => e.stopPropagation()}
+            className={`relative flex flex-col items-center justify-center bg-slate-950/30 px-2 py-1 rounded border border-slate-800 text-[9px] leading-tight transition-colors group/schedule ${className || ''}`}
+        >
             <div className="flex items-center gap-1">
                 <DatePicker
                     value={date}

@@ -363,6 +363,7 @@ export const BacklogPanel = ({ category, defaultPosition }: BacklogPanelProps) =
                                 <select
                                     value={task.colorId || ''}
                                     onChange={(e) => updateTaskColorId(task.id, e.target.value === '' ? undefined : e.target.value)}
+                                    onPointerDown={(e) => e.stopPropagation()}
                                     className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
                                     title="タグを設定"
                                 >
@@ -383,6 +384,7 @@ export const BacklogPanel = ({ category, defaultPosition }: BacklogPanelProps) =
                                     type="text"
                                     value={task.name}
                                     onChange={(e) => updateTaskName(task.id, e.target.value)}
+                                    onPointerDown={(e) => e.stopPropagation()}
                                     className="flex-1 bg-transparent border-b border-transparent hover:border-slate-700 focus:border-blue-500 focus:outline-none text-sm text-slate-200 transition-colors truncate min-w-0"
                                     placeholder="Task Name"
                                 />
