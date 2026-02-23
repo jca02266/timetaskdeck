@@ -8,11 +8,6 @@ import { TaskScheduleInput } from './TaskScheduleInput';
 type SortKey = 'name' | 'color' | 'backlog' | 'scheduled';
 type SortDirection = 'asc' | 'desc';
 
-interface TaskTableViewProps {
-    isOpen: boolean;
-    onClose: () => void;
-}
-
 function getPillClasses(colorCode?: string) {
     if (!colorCode) return 'bg-slate-800 border-slate-700 text-slate-400';
     if (colorCode.includes('red')) return 'bg-red-500/10 border-red-500/20 text-red-400';
@@ -25,7 +20,10 @@ function getPillClasses(colorCode?: string) {
     return 'bg-slate-500/10 border-slate-500/20 text-slate-400';
 }
 
-export function TaskTableView({ isOpen, onClose }: TaskTableViewProps) {
+export function TaskTableView() {
+    const isTaskTableOpen = useTaskStore((state) => state.isTaskTableOpen);
+    const setIsTaskTableOpen = useTaskStore((state) => state.setIsTaskTableOpen);
+
     // Store data
     const backlogTasks = useTaskStore((state) => state.backlogTasks);
     const currentTask = useTaskStore((state) => state.currentTask);
@@ -52,7 +50,7 @@ export function TaskTableView({ isOpen, onClose }: TaskTableViewProps) {
 
     // Initialize local state when modal opens
     useEffect(() => {
-        if (isOpen) {
+        if (isTaskTableOpen) {
             wasPausedRef.current = currentTask?.status === 'paused';
             let allTasks: Task[] = [];
             if (currentTask) {
@@ -71,8 +69,8 @@ export function TaskTableView({ isOpen, onClose }: TaskTableViewProps) {
                 setPaused(false);
             }
         }
-        prevIsOpenRef.current = isOpen;
-    }, [isOpen, currentTask, taskStack, backlogTasks, setPaused]);
+        prevIsOpenRef.current = isTaskTableOpen;
+    }, [isTaskTableOpen, currentTask, taskStack, backlogTasks, setPaused]);
 
     const handleSort = (key: SortKey) => {
         if (!isSortActive) {
@@ -131,7 +129,7 @@ export function TaskTableView({ isOpen, onClose }: TaskTableViewProps) {
     const handleClose = () => {
         // Commit local state to store then close
         reorderAllTasks(localTasks);
-        onClose();
+        setIsTaskTableOpen(false);
     };
 
     const handleLocalUpdate = (taskId: string, updates: Partial<Task>) => {
@@ -156,7 +154,7 @@ export function TaskTableView({ isOpen, onClose }: TaskTableViewProps) {
         setLocalTasks(prev => [...prev, newTask]);
     };
 
-    if (!isOpen) return null;
+    if (!isTaskTableOpen) return null;
 
     const SortIcon = ({ columnKey }: { columnKey: SortKey }) => {
         if (!isSortActive || sortKey !== columnKey) return null;

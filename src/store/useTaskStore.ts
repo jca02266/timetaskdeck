@@ -126,6 +126,14 @@ interface TaskState {
     closeMemo: () => void;
     toggleMemoMinimized: () => void;
     getTaskById: (taskId: string) => Task | undefined;
+
+    // Modal Global States
+    isTaskTableOpen: boolean;
+    isLogOpen: boolean;
+    isColorSettingsOpen: boolean;
+    setIsTaskTableOpen: (open: boolean) => void;
+    setIsLogOpen: (open: boolean) => void;
+    setIsColorSettingsOpen: (open: boolean) => void;
 }
 
 export const useTaskStore = create<TaskState>()(
@@ -147,6 +155,15 @@ export const useTaskStore = create<TaskState>()(
             // Memo Initialization
             activeMemoTaskId: null,
             isMemoMinimized: typeof window !== 'undefined' ? localStorage.getItem('timetask-ui-memo-minimized') === 'true' : false,
+
+            // Modal Global States Initialization
+            isTaskTableOpen: false,
+            isLogOpen: false,
+            isColorSettingsOpen: false,
+
+            setIsTaskTableOpen: (open) => set({ isTaskTableOpen: open }),
+            setIsLogOpen: (open) => set({ isLogOpen: open }),
+            setIsColorSettingsOpen: (open) => set({ isColorSettingsOpen: open }),
 
             openMemo: (taskId: string) => {
                 set({ activeMemoTaskId: taskId, isMemoMinimized: false });

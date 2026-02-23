@@ -2,15 +2,12 @@ import { useTaskStore } from '@/store/useTaskStore';
 import { X, Clock } from 'lucide-react';
 import { format } from 'date-fns';
 
-interface TaskLogModalProps {
-    isOpen: boolean;
-    onClose: () => void;
-}
+export function TaskLogModal() {
+    const isLogOpen = useTaskStore((state) => state.isLogOpen);
+    const setIsLogOpen = useTaskStore((state) => state.setIsLogOpen);
+    const { taskLog } = useTaskStore();
 
-export function TaskLogModal({ isOpen, onClose }: TaskLogModalProps) {
-    const { taskLog, currentTask } = useTaskStore();
-
-    if (!isOpen) return null;
+    if (!isLogOpen) return null;
 
     return (
         <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
@@ -22,7 +19,7 @@ export function TaskLogModal({ isOpen, onClose }: TaskLogModalProps) {
                         <span>Task Activity Log</span>
                     </div>
                     <button
-                        onClick={onClose}
+                        onClick={() => setIsLogOpen(false)}
                         className="text-slate-400 hover:text-white transition-colors p-1 rounded hover:bg-slate-700"
                     >
                         <X size={20} />
@@ -66,9 +63,9 @@ export function TaskLogModal({ isOpen, onClose }: TaskLogModalProps) {
                                             </td>
                                             <td className="p-4 capitalize text-xs">
                                                 <span className={`px-2 py-1 rounded-full ${log.status === 'completed' ? 'bg-green-500/20 text-green-400' :
-                                                        log.status === 'paused' ? 'bg-yellow-500/20 text-yellow-400' :
-                                                            log.status === 'interrupted' ? 'bg-orange-500/20 text-orange-400' :
-                                                                'bg-slate-700 text-slate-300'
+                                                    log.status === 'paused' ? 'bg-yellow-500/20 text-yellow-400' :
+                                                        log.status === 'interrupted' ? 'bg-orange-500/20 text-orange-400' :
+                                                            'bg-slate-700 text-slate-300'
                                                     }`}>
                                                     {log.status}
                                                 </span>

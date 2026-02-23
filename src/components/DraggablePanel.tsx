@@ -206,7 +206,7 @@ export function DraggablePanel({ id, defaultPosition, defaultSize, children, tit
                 top: position.y,
                 width: size.width,
                 height: size.height,
-                zIndex,
+                zIndex: className?.includes('z-[') ? undefined : zIndex,
                 touchAction: 'none'
             }}
         >

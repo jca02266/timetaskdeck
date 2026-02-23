@@ -4,19 +4,16 @@ import { useTaskStore } from '@/store/useTaskStore';
 import { X, Check } from 'lucide-react';
 import { useState } from 'react';
 
-interface ColorSettingsModalProps {
-    isOpen: boolean;
-    onClose: () => void;
-}
-
-export function ColorSettingsModal({ isOpen, onClose }: ColorSettingsModalProps) {
+export function ColorSettingsModal() {
+    const isColorSettingsOpen = useTaskStore((state) => state.isColorSettingsOpen);
+    const setIsColorSettingsOpen = useTaskStore((state) => state.setIsColorSettingsOpen);
     const colors = useTaskStore((state) => state.colors);
     const updateColorName = useTaskStore((state) => state.updateColorName);
 
     const [editingId, setEditingId] = useState<string | null>(null);
     const [editValue, setEditValue] = useState('');
 
-    if (!isOpen) return null;
+    if (!isColorSettingsOpen) return null;
 
     const startEditing = (id: string, currentName: string) => {
         setEditingId(id);
@@ -42,7 +39,7 @@ export function ColorSettingsModal({ isOpen, onClose }: ColorSettingsModalProps)
                 <div className="flex justify-between items-center mb-6">
                     <h2 className="text-lg font-bold text-slate-200">Task Colors</h2>
                     <button
-                        onClick={onClose}
+                        onClick={() => setIsColorSettingsOpen(false)}
                         className="text-slate-400 hover:text-white transition-colors"
                     >
                         <X size={20} />

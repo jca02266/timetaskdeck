@@ -21,11 +21,15 @@ import { useTaskStore } from "@/store/useTaskStore";
 import { RotateCcw, Plus, Play, List, Layers, Settings, ListPlus, Table, ListTodo, Repeat, Clock, FileText } from 'lucide-react';
 
 export default function Home() {
-  const [isLogOpen, setIsLogOpen] = useState(false);
   const [isStackExpanded, setStackExpanded] = useState(false);
-  const [isColorSettingsOpen, setIsColorSettingsOpen] = useState(false);
-  const [isTaskTableOpen, setIsTaskTableOpen] = useState(false);
   const [draggedDockId, setDraggedDockId] = useState<string | null>(null);
+
+  const isLogOpen = useTaskStore((state) => state.isLogOpen);
+  const isColorSettingsOpen = useTaskStore((state) => state.isColorSettingsOpen);
+  const isTaskTableOpen = useTaskStore((state) => state.isTaskTableOpen);
+  const setIsLogOpen = useTaskStore((state) => state.setIsLogOpen);
+  const setIsColorSettingsOpen = useTaskStore((state) => state.setIsColorSettingsOpen);
+  const setIsTaskTableOpen = useTaskStore((state) => state.setIsTaskTableOpen);
 
   const backlogCategories = useTaskStore((state) => state.backlogCategories);
   const addBacklogCategory = useTaskStore((state) => state.addBacklogCategory);

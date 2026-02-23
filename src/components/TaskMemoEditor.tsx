@@ -179,19 +179,26 @@ export function TaskMemoEditor() {
         </div>
     );
 
-    // If maximized, we override the draggable panel completely using classes
-    const maximizedClass = isMaximized ? "!fixed !inset-x-0 !inset-y-0 !w-full !h-full !max-w-none !max-h-none !z-[300] !rounded-none" : "";
+    const isTaskTableOpen = useTaskStore((state) => state.isTaskTableOpen);
+    const isLogOpen = useTaskStore((state) => state.isLogOpen);
+    const isColorSettingsOpen = useTaskStore((state) => state.isColorSettingsOpen);
+    const isAnyModalOpen = isTaskTableOpen || isLogOpen || isColorSettingsOpen;
+
+    // CSS class to override position/size when maximized, and ensure it's always above TaskTableView (which is z-100)
+    const containerClass = isMaximized
+        ? "!fixed !top-4 !left-4 !right-4 !bottom-4 !w-auto !h-auto !translate-x-0 !translate-y-0 z-[110]"
+        : isAnyModalOpen ? "z-[110]" : "z-[60]";
 
     return (
         <DraggablePanel
-            id="memo-panel" // Constant ID so its position is remembered globally for memos
-            defaultPosition={{ right: 20, top: 200 }}
+            id="memo-panel"
+            title={titleNode}
+            defaultPosition={{ x: window.innerWidth / 2 - defaultSize.width / 2, y: window.innerHeight / 2 - defaultSize.height / 2 }}
             defaultSize={defaultSize}
             minSize={{ width: 300, height: 200 }}
-            title={titleNode}
             headerControls={renderHeaderControls()}
+            className={containerClass}
             resizable={!isMaximized}
-            className={`transition-all duration-200 border-blue-500/30 shadow-blue-900/10 ${maximizedClass}`}
         >
             <div className="flex flex-col h-full bg-slate-900/95 relative overflow-hidden group">
                 {/* View/Edit Toggle Floating Button */}
