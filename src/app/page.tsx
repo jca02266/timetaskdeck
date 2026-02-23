@@ -31,7 +31,7 @@ export default function Home() {
     <main className="min-h-screen relative p-8 pb-32 overflow-hidden flex flex-col bg-slate-950 text-slate-200 selection:bg-blue-500/30">
       {/* Brand */}
       <div className="absolute top-8 left-1/2 -translate-x-1/2 opacity-50 font-bold tracking-widest text-sm z-10 text-slate-500 pointer-events-none">
-        TIMETASK
+        TIMETASKDECK
       </div>
 
       {/* Control Panel (Input + List Button) */}

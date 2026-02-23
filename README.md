@@ -1,4 +1,23 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# TimeTaskDeck
+
+## 概要
+TimeTaskDeckは、マルチタスクや頻繁な割り込み作業が発生する環境で働く人のためのタスク・時間管理アプリケーションです。単なるTODOアプリではなく、実際の作業フローに寄り添った設計になっています。
+
+## 目的
+常に多数のタスクを抱え、急な割り込み作業が発生する状況において、以下の課題を解決することを目的としています。
+- **スムーズな復帰**: 割り込み作業が発生したあとでも、迷うことなく元のタスクに復帰できるようにする
+- **作業の可視化**: 「今日、何を、どれくらいの時間作業したか」を正確に記録し、簡単に振り返ることができるようにする
+- **タスクの退避と再開**: 溢れてしまったタスクを忘れないようバックログに記録し、適切なタイミングで再開できるようにする
+- **ルーチンの管理**: 定期的に実行する作業をあらかじめ定義し、実施漏れを防ぐ
+
+## 主な機能
+- **タスクのスタックと割り込み管理**: 実行中のタスクを保持したまま、割り込みタスクを上に積む（スタックする）ことで、作業の切り替えと元のタスクへの復帰を容易にします。
+- **作業時間の自動計測と振り返り (Timelog)**: タスクごとの作業時間を計測し、完了したタスクの履歴やタイムログとして振り返ることが可能です。
+- **マルチバックログ管理と取捨選択**: 消化しきれないタスクはバックログに記録。複数のバックログカテゴリを作成でき、グローバルなテーブルビュー機能を使って溜まったバックログを俯瞰し、整理や取捨選択が可能です。
+- **定期タスク機能**: 繰り返し行う作業を定義し、日々のスケジュールに合わせて実施状況を管理します。
+- **タスクのカラーリング**: タスクに色を付けて視覚的に分類。色の意味（名前）はユーザー自身でカスタマイズ可能です。
+
+---
 
 ## Getting Started
 
@@ -15,22 +34,3 @@ bun dev
 ```
 
 Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
-
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
-
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
-
-## Learn More
-
-To learn more about Next.js, take a look at the following resources:
-
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
