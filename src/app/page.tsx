@@ -16,7 +16,7 @@ import { DraggablePanel } from "@/components/DraggablePanel";
 import { useTaskStore } from "@/store/useTaskStore";
 
 /* Icons */
-import { RotateCcw, Plus, Play, List, Layers, Settings, ListPlus, Table, ListTodo } from 'lucide-react';
+import { RotateCcw, Plus, Play, List, Layers, Settings, ListPlus, Table, ListTodo, Repeat, Clock } from 'lucide-react';
 
 export default function Home() {
   const [isLogOpen, setIsLogOpen] = useState(false);
@@ -156,7 +156,7 @@ export default function Home() {
                 : 'bg-purple-900/40 border-purple-500/50 text-purple-100 hover:bg-purple-800/60 shadow-purple-900/20'}`}
             title={isRecurringMinimized ? "Restore Recurring Tasks" : "Minimize Recurring Tasks"}
           >
-            <RotateCcw size={16} className={isRecurringMinimized ? 'opacity-50' : 'text-purple-400'} />
+            <Repeat size={16} className={isRecurringMinimized ? 'opacity-50' : 'text-purple-400'} />
             <span>定期タスクデッキ</span>
           </button>
 
@@ -170,7 +170,7 @@ export default function Home() {
                   : 'bg-green-900/40 border-green-500/50 text-green-100 hover:bg-green-800/60 shadow-green-900/20'}`}
               title={isHistoryMinimized ? "Restore Completed Tasks" : "Minimize Completed Tasks"}
             >
-              <Plus size={16} className={`rotate-45 ${isHistoryMinimized ? 'opacity-50' : 'text-green-400'}`} />
+              <Clock size={16} className={isHistoryMinimized ? 'opacity-50' : 'text-green-400'} />
               <span>完了タスクデッキ</span>
             </button>
           )}
