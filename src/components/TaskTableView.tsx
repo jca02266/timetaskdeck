@@ -37,6 +37,7 @@ export function TaskTableView({ isOpen, onClose }: TaskTableViewProps) {
     const reorderAllTasks = useTaskStore((state) => state.reorderAllTasks);
     const setPaused = useTaskStore((state) => state.setPaused);
     const addBacklogCategory = useTaskStore((state) => state.addBacklogCategory);
+    const bringToFront = useTaskStore((state) => state.bringToFront);
 
     // Local state for performance
     const [localTasks, setLocalTasks] = useState<Task[]>([]);
@@ -232,26 +233,53 @@ export function TaskTableView({ isOpen, onClose }: TaskTableViewProps) {
                                     return (
                                         <tr
                                             key={task.id}
+                                            data-index={index}
                                             className={`hover:bg-slate-800/40 transition-colors group ${draggedIndex === index ? 'opacity-30' : ''} ${task.backlogId === '__CURRENT__' ? 'bg-blue-500/5' : ''}`}
-                                            draggable={!isSortActive}
-                                            onDragStart={() => !isSortActive && setDraggedIndex(index)}
-                                            onDragOver={(e) => {
-                                                if (isSortActive) return;
-                                                e.preventDefault();
-                                                if (draggedIndex === null || draggedIndex === index) return;
-
-                                                const newAllTasks = [...localTasks];
-                                                const [moved] = newAllTasks.splice(draggedIndex, 1);
-                                                newAllTasks.splice(index, 0, moved);
-
-                                                setLocalTasks(newAllTasks);
-                                                setDraggedIndex(index);
-                                            }}
-                                            onDragEnd={() => setDraggedIndex(null)}
                                         >
-                                            <td className="px-6 py-4 text-slate-600">
+                                            <td className="px-6 py-4 text-slate-600 relative">
                                                 {!isSortActive && (
-                                                    <GripVertical size={16} className="cursor-grab hover:text-slate-400 active:cursor-grabbing" />
+                                                    <div
+                                                        onPointerDown={(e) => {
+                                                            if (isSortActive) return;
+                                                            bringToFront('task-table-view'); // Though it's a modal
+                                                            setDraggedIndex(index);
+                                                            const target = e.currentTarget as HTMLElement;
+                                                            target.setPointerCapture(e.pointerId);
+
+                                                            const onPointerMove = (moveEvent: PointerEvent) => {
+                                                                const overElement = document.elementFromPoint(moveEvent.clientX, moveEvent.clientY);
+                                                                const row = overElement?.closest('tr');
+                                                                if (row) {
+                                                                    const overIndexAttr = row.getAttribute('data-index');
+                                                                    if (overIndexAttr !== null) {
+                                                                        const overIndex = parseInt(overIndexAttr);
+                                                                        setLocalTasks(prev => {
+                                                                            if (prev[overIndex].id === task.id) return prev;
+                                                                            const newTasks = [...prev];
+                                                                            const fromIndex = newTasks.findIndex(t => t.id === task.id);
+                                                                            const [moved] = newTasks.splice(fromIndex, 1);
+                                                                            newTasks.splice(overIndex, 0, moved);
+                                                                            return newTasks;
+                                                                        });
+                                                                    }
+                                                                }
+                                                            };
+
+                                                            const onPointerUp = (upEvent: PointerEvent) => {
+                                                                target.releasePointerCapture(upEvent.pointerId);
+                                                                setDraggedIndex(null);
+                                                                window.removeEventListener('pointermove', onPointerMove);
+                                                                window.removeEventListener('pointerup', onPointerUp);
+                                                            };
+
+                                                            window.addEventListener('pointermove', onPointerMove);
+                                                            window.addEventListener('pointerup', onPointerUp);
+                                                        }}
+                                                        className="cursor-grab hover:text-slate-400 active:cursor-grabbing p-1 -m-1"
+                                                        style={{ touchAction: 'none' }}
+                                                    >
+                                                        <GripVertical size={16} />
+                                                    </div>
                                                 )}
                                                 {index === 0 && !isSortActive && (
                                                     <div className="absolute left-2 text-blue-500 animate-pulse">

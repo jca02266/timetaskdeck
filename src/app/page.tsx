@@ -10,6 +10,7 @@ import { HistoryView } from "@/components/HistoryView";
 import { TaskLogModal } from "@/components/TaskLogModal";
 import { TaskTableView } from "@/components/TaskTableView";
 import { ColorSettingsModal } from "@/components/ColorSettingsModal";
+import { TaskMemoEditor } from "@/components/TaskMemoEditor";
 import { useState } from "react";
 /* New Components */
 import { DraggablePanel } from "@/components/DraggablePanel";
@@ -117,33 +118,67 @@ export default function Home() {
       {/* Deck Bar (Always visible) */}
       <div className="fixed bottom-6 left-0 right-0 flex justify-center gap-3 z-40 pointer-events-none px-4">
         <div className="flex flex-wrap justify-center gap-2 max-w-4xl">
-          {backlogCategories.map(category => (
+          {backlogCategories.map((category, index) => (
             <button
               key={category.id}
-              onClick={() => useTaskStore.getState().toggleBacklogMinimized(category.id)}
-              draggable
-              onDragStart={(e) => {
-                setDraggedDockId(category.id);
-                e.dataTransfer.effectAllowed = 'move';
+              data-category-id={category.id}
+              onPointerDown={(e) => {
+                if (e.button !== 0) return;
+                const startTime = Date.now();
+                const startPos = { x: e.clientX, y: e.clientY };
+                let hasMoved = false;
+
+                const target = e.currentTarget as HTMLElement;
+                target.setPointerCapture(e.pointerId);
+
+                const onPointerMove = (moveEvent: PointerEvent) => {
+                  const dist = Math.sqrt(
+                    Math.pow(moveEvent.clientX - startPos.x, 2) +
+                    Math.pow(moveEvent.clientY - startPos.y, 2)
+                  );
+
+                  if (dist > 10 && !hasMoved) {
+                    hasMoved = true;
+                    setDraggedDockId(category.id);
+                  }
+
+                  if (hasMoved) {
+                    const overElement = document.elementFromPoint(moveEvent.clientX, moveEvent.clientY);
+                    const overButton = overElement?.closest('button[data-category-id]');
+                    if (overButton) {
+                      const overId = overButton.getAttribute('data-category-id');
+                      if (overId && overId !== category.id) {
+                        const fromIdx = backlogCategories.findIndex(c => c.id === category.id);
+                        const toIdx = backlogCategories.findIndex(c => c.id === overId);
+                        if (fromIdx !== -1 && toIdx !== -1) {
+                          useTaskStore.getState().reorderBacklogCategories(fromIdx, toIdx);
+                        }
+                      }
+                    }
+                  }
+                };
+
+                const onPointerUp = (upEvent: PointerEvent) => {
+                  target.releasePointerCapture(upEvent.pointerId);
+                  window.removeEventListener('pointermove', onPointerMove);
+                  window.removeEventListener('pointerup', onPointerUp);
+
+                  if (!hasMoved && (Date.now() - startTime < 300)) {
+                    // It was a tap
+                    useTaskStore.getState().toggleBacklogMinimized(category.id);
+                  }
+                  setDraggedDockId(null);
+                };
+
+                window.addEventListener('pointermove', onPointerMove);
+                window.addEventListener('pointerup', onPointerUp);
               }}
-              onDragOver={(e) => {
-                e.preventDefault();
-                e.dataTransfer.dropEffect = 'move';
-              }}
-              onDrop={(e) => {
-                e.preventDefault();
-                if (!draggedDockId || draggedDockId === category.id) return;
-                const startIndex = backlogCategories.findIndex(c => c.id === draggedDockId);
-                const endIndex = backlogCategories.findIndex(c => c.id === category.id);
-                useTaskStore.getState().reorderBacklogCategories(startIndex, endIndex);
-                setDraggedDockId(null);
-              }}
-              onDragEnd={() => setDraggedDockId(null)}
-              className={`pointer-events-auto flex items-center gap-2 px-4 py-2 backdrop-blur-md border rounded-full text-sm font-medium transition-all shadow-xl hover:-translate-y-0.5 cursor-grab active:cursor-grabbing
+              className={`pointer-events-auto flex items-center gap-2 px-4 py-2 backdrop-blur-md border rounded-full text-sm font-medium transition-all shadow-xl hover:-translate-y-0.5 cursor-grab active:cursor-grabbing select-none
                 ${category.isMinimized
                   ? 'bg-slate-900/90 border-slate-700/50 text-slate-400 hover:text-white hover:bg-slate-800'
                   : 'bg-blue-900/40 border-blue-500/50 text-blue-100 hover:bg-blue-800/60 shadow-blue-900/20'}
-                ${draggedDockId === category.id ? 'opacity-20 translate-y-2' : ''}`}
+                ${draggedDockId === category.id ? 'opacity-20 scale-95' : ''}`}
+              style={{ touchAction: 'none' }}
               title={category.isMinimized ? "Restore Backlog" : "Minimize Backlog"}
             >
               <ListTodo size={16} className={category.isMinimized ? 'opacity-50' : 'text-blue-400'} />
@@ -193,6 +228,7 @@ export default function Home() {
       <TaskTableView isOpen={isTaskTableOpen} onClose={() => setIsTaskTableOpen(false)} />
       {!isRecurringMinimized && <RecurringTasks />}
       {!isHistoryMinimized && <HistoryView />}
+      <TaskMemoEditor />
 
       <TaskLogModal isOpen={isLogOpen} onClose={() => setIsLogOpen(false)} />
       <ColorSettingsModal isOpen={isColorSettingsOpen} onClose={() => setIsColorSettingsOpen(false)} />

@@ -270,8 +270,7 @@ export const BacklogPanel = ({ category, defaultPosition }: BacklogPanelProps) =
 
             <div
                 className="overflow-y-auto flex-1 h-full min-h-0 space-y-2 mb-4 scrollbar-thin scrollbar-thumb-slate-700 scrollbar-track-transparent px-4 pb-2"
-                onDragOver={(e) => { e.preventDefault(); e.dataTransfer.dropEffect = "move"; }}
-                onDrop={handleCategoryDrop}
+                data-panel-category-id={category.id}
             >
                 {backlogTasks.length === 0 && (
                     <div className="text-slate-600 text-center py-4 text-sm italic pointer-events-none">
@@ -287,13 +286,77 @@ export const BacklogPanel = ({ category, defaultPosition }: BacklogPanelProps) =
                     return (
                         <div
                             key={task.id}
-                            draggable
-                            onDragStart={(e) => handleDragStart(e, task.id)}
-                            onDragOver={(e) => handleDragOver(e, index)}
-                            onDrop={(e) => { e.stopPropagation(); handleDrop(e, index); }}
-                            className={`group bg-slate-900/50 hover:bg-slate-800/80 px-3 py-2 rounded-lg transition-all flex items-center gap-3
-                                ${draggedTaskId === task.id ? 'opacity-50' : ''}
+                            data-task-id={task.id}
+                            data-panel-id={category.id}
+                            data-index={index}
+                            className={`group bg-slate-900/50 hover:bg-slate-800/80 px-3 py-2 rounded-lg transition-all flex items-center gap-3 select-none
+                                ${draggedTaskId === task.id ? 'opacity-20 scale-95 shadow-none' : 'shadow-sm'}
                                 ${isDue ? 'animate-blink border-yellow-500/50 shadow-[0_0_10px_rgba(234,179,8,0.3)]' : ''}`}
+                            style={{ touchAction: 'none' }}
+                            onPointerDown={(e) => {
+                                if (e.button !== 0) return;
+                                const startTime = Date.now();
+                                const startPos = { x: e.clientX, y: e.clientY };
+                                let hasMoved = false;
+
+                                const target = e.currentTarget as HTMLElement;
+                                target.setPointerCapture(e.pointerId);
+
+                                const onPointerMove = (moveEvent: PointerEvent) => {
+                                    const dist = Math.sqrt(
+                                        Math.pow(moveEvent.clientX - startPos.x, 2) +
+                                        Math.pow(moveEvent.clientY - startPos.y, 2)
+                                    );
+
+                                    if (dist > 8 && !hasMoved) {
+                                        hasMoved = true;
+                                        setDraggedTaskId(task.id);
+                                    }
+
+                                    if (hasMoved) {
+                                        const overElement = document.elementFromPoint(moveEvent.clientX, moveEvent.clientY);
+                                        const overTaskRow = overElement?.closest('div[data-task-id]');
+                                        if (overTaskRow) {
+                                            const overPanelId = overTaskRow.getAttribute('data-panel-id');
+                                            const overIndex = parseInt(overTaskRow.getAttribute('data-index') || '0');
+                                            if (overPanelId) {
+                                                // If we are over a task in some panel
+                                                if (overPanelId === category.id) {
+                                                    // Same panel reorder
+                                                    if (overIndex !== index) {
+                                                        moveBacklogTask(task.id, category.id, overIndex);
+                                                    }
+                                                } else {
+                                                    // Cross panel move
+                                                    moveBacklogTask(task.id, overPanelId, overIndex);
+                                                }
+                                            }
+                                        } else {
+                                            // Maybe over an empty area of a panel
+                                            const overPanel = overElement?.closest('div[data-panel-category-id]');
+                                            if (overPanel) {
+                                                const overPanelId = overPanel.getAttribute('data-panel-category-id');
+                                                if (overPanelId && overPanelId !== category.id) {
+                                                    moveBacklogTask(task.id, overPanelId, 0);
+                                                }
+                                            }
+                                        }
+                                    }
+                                };
+
+                                const onPointerUp = (upEvent: PointerEvent) => {
+                                    target.releasePointerCapture(upEvent.pointerId);
+                                    window.removeEventListener('pointermove', onPointerMove);
+                                    window.removeEventListener('pointerup', onPointerUp);
+                                    setDraggedTaskId(null);
+
+                                    // No tap action defined for the whole row currently, 
+                                    // specific fields handle their own clicks
+                                };
+
+                                window.addEventListener('pointermove', onPointerMove);
+                                window.addEventListener('pointerup', onPointerUp);
+                            }}
                         >
                             {/* Color Dot Tag */}
                             <div className="relative shrink-0">

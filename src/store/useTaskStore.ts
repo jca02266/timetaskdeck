@@ -115,6 +115,8 @@ interface TaskState {
     toggleHistoryMinimized: () => void;
     frontPanelId: string | null;
     bringToFront: (id: string) => void;
+    draggedTaskId: string | null;
+    setDraggedTaskId: (id: string | null) => void;
 }
 
 export const useTaskStore = create<TaskState>()(
@@ -131,9 +133,14 @@ export const useTaskStore = create<TaskState>()(
             isRecurringMinimized: typeof window !== 'undefined' ? localStorage.getItem('timetask-ui-recurring-minimized') === 'true' : false,
             isHistoryMinimized: typeof window !== 'undefined' ? localStorage.getItem('timetask-ui-history-minimized') === 'true' : false,
             frontPanelId: null,
+            draggedTaskId: null,
 
             bringToFront: (id: string) => {
                 set({ frontPanelId: id });
+            },
+
+            setDraggedTaskId: (id: string | null) => {
+                set({ draggedTaskId: id });
             },
 
             startTask: (name, recurringTaskId) => {
@@ -1146,7 +1153,7 @@ export const useTaskStore = create<TaskState>()(
                 return persistedState as TaskState;
             },
             partialize: (state) => {
-                const { isRecurringMinimized, isHistoryMinimized, ...rest } = state;
+                const { isRecurringMinimized, isHistoryMinimized, frontPanelId, draggedTaskId, ...rest } = state;
                 return rest;
             }
         }

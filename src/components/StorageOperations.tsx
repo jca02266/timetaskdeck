@@ -4,27 +4,44 @@ import { useTaskStore } from "@/store/useTaskStore";
 import { Download, Upload } from "lucide-react";
 import { useRef } from "react";
 
+import { useMemoStore } from "@/store/useMemoStore";
+
 export function StorageOperations() {
     const importState = useTaskStore((state) => state.importState);
+    const importMemoState = useMemoStore((state) => state.importState);
     const fileInputRef = useRef<HTMLInputElement>(null);
 
     const handleExport = () => {
-        const rawData = localStorage.getItem('timetask-storage');
-        if (!rawData) {
+        const rawTaskData = localStorage.getItem('timetask-storage');
+        const rawMemoData = localStorage.getItem('timetask-memos');
+
+        if (!rawTaskData) {
             alert("保存されたデータが見つかりません。");
             return;
         }
 
-        const blob = new Blob([rawData], { type: 'application/json' });
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
-        a.href = url;
-        a.download = `timetask-backup-${timestamp}.json`;
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-        URL.revokeObjectURL(url);
+        try {
+            const taskDataStr = JSON.parse(rawTaskData);
+            const memoDataStr = rawMemoData ? JSON.parse(rawMemoData) : { state: { memos: {} } };
+
+            const combinedData = {
+                tasks: taskDataStr,
+                memos: memoDataStr
+            };
+
+            const blob = new Blob([JSON.stringify(combinedData, null, 2)], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
+            a.href = url;
+            a.download = `timetask-backup-${timestamp}.json`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+        } catch (e) {
+            alert("エクスポート中にエラーが発生しました。");
+        }
     };
 
     const handleImport = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -36,7 +53,20 @@ export function StorageOperations() {
             try {
                 const json = JSON.parse(event.target?.result as string);
                 if (window.confirm("データをインポートしますか？現在の状態は上書きされます。")) {
-                    importState(json);
+
+                    // Handle new combined format
+                    if (json.tasks || json.memos) {
+                        if (json.tasks && json.tasks.state) {
+                            importState(json.tasks.state);
+                        }
+                        if (json.memos && json.memos.state) {
+                            importMemoState(json.memos.state);
+                        }
+                    } else {
+                        // Handle legacy direct export format (only tasks)
+                        importState(json);
+                    }
+
                     alert("インポートが完了しました。");
                     // Reset file input
                     if (fileInputRef.current) fileInputRef.current.value = '';

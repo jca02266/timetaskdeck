@@ -69,23 +69,6 @@ export function RecurringTasks() {
         setEditValue('');
     };
 
-    const handleDragStart = (e: React.DragEvent, index: number) => {
-        setDraggedIndex(index);
-        e.dataTransfer.effectAllowed = "move";
-    };
-
-    const handleDragOver = (e: React.DragEvent, index: number) => {
-        e.preventDefault();
-        e.dataTransfer.dropEffect = "move";
-    };
-
-    const handleDrop = (e: React.DragEvent, targetIndex: number) => {
-        e.preventDefault();
-        if (draggedIndex === null || draggedIndex === targetIndex) return;
-
-        reorderRecurringTasks(draggedIndex, targetIndex);
-        setDraggedIndex(null);
-    };
 
     return (
         <DraggablePanel
@@ -140,13 +123,57 @@ export function RecurringTasks() {
                     return (
                         <div
                             key={task.id}
-                            draggable={editingId === null}
-                            onDragStart={(e) => handleDragStart(e, index)}
-                            onDragOver={(e) => handleDragOver(e, index)}
-                            onDrop={(e) => handleDrop(e, index)}
-                            className={`group bg-slate-800/30 hover:bg-slate-800/80 p-3 rounded-lg border border-transparent hover:border-slate-600 transition-all flex items-center justify-between gap-2 
+                            data-index={index}
+                            onPointerDown={(e) => {
+                                if (e.button !== 0 || editingId !== null) return;
+                                const startTime = Date.now();
+                                const startPos = { x: e.clientX, y: e.clientY };
+                                let hasMoved = false;
+
+                                const target = e.currentTarget as HTMLElement;
+                                target.setPointerCapture(e.pointerId);
+
+                                const onPointerMove = (moveEvent: PointerEvent) => {
+                                    const dist = Math.sqrt(
+                                        Math.pow(moveEvent.clientX - startPos.x, 2) +
+                                        Math.pow(moveEvent.clientY - startPos.y, 2)
+                                    );
+
+                                    if (dist > 8 && !hasMoved) {
+                                        hasMoved = true;
+                                        setDraggedIndex(index);
+                                    }
+
+                                    if (hasMoved) {
+                                        const overElement = document.elementFromPoint(moveEvent.clientX, moveEvent.clientY);
+                                        const overRow = overElement?.closest('div[data-index]');
+                                        if (overRow) {
+                                            const overIndexAttr = overRow.getAttribute('data-index');
+                                            if (overIndexAttr !== null) {
+                                                const overIndex = parseInt(overIndexAttr);
+                                                if (overIndex !== index) {
+                                                    reorderRecurringTasks(index, overIndex);
+                                                    setDraggedIndex(overIndex);
+                                                }
+                                            }
+                                        }
+                                    }
+                                };
+
+                                const onPointerUp = (upEvent: PointerEvent) => {
+                                    target.releasePointerCapture(upEvent.pointerId);
+                                    window.removeEventListener('pointermove', onPointerMove);
+                                    window.removeEventListener('pointerup', onPointerUp);
+                                    setDraggedIndex(null);
+                                };
+
+                                window.addEventListener('pointermove', onPointerMove);
+                                window.addEventListener('pointerup', onPointerUp);
+                            }}
+                            className={`group bg-slate-800/30 hover:bg-slate-800/80 p-3 rounded-lg border border-transparent hover:border-slate-600 transition-all flex items-center justify-between gap-2 select-none
                                 ${draggedIndex === index ? 'opacity-50' : ''} 
                                 ${isDue ? 'animate-blink border-yellow-500/50 shadow-[0_0_10px_rgba(234,179,8,0.3)]' : ''}`}
+                            style={{ touchAction: 'none' }}
                         >
                             {editingId === task.id ? (
                                 <div className="flex items-center gap-1 w-full">

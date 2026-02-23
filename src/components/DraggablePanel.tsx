@@ -105,59 +105,69 @@ export function DraggablePanel({ id, defaultPosition, defaultSize, children, tit
         localStorage.setItem(`panel-${id}`, JSON.stringify({ pos: position, size }));
     }, [position, size, id, isLoaded]);
 
-    const handleDragStart = (e: React.MouseEvent) => {
+    const handleDragStart = (e: React.PointerEvent) => {
+        if (e.button !== 0) return; // Only target primary button
         bringToFront(id);
         isDragging.current = true;
         dragStart.current = { x: e.clientX - position.x, y: e.clientY - position.y };
-        document.addEventListener('mousemove', handleMouseMove);
-        document.addEventListener('mouseup', handleMouseUp);
+
+        const target = e.currentTarget as HTMLElement;
+        target.setPointerCapture(e.pointerId);
+
+        const handlePointerMove = (moveEvent: PointerEvent) => {
+            if (!isDragging.current) return;
+            let newX = moveEvent.clientX - dragStart.current.x;
+            let newY = moveEvent.clientY - dragStart.current.y;
+
+            // Snapping Threshold
+            const SNAP = 20;
+
+            if (Math.abs(newX) < SNAP) newX = 0;
+            if (Math.abs(window.innerWidth - (newX + size.width)) < SNAP) newX = window.innerWidth - size.width;
+
+            if (Math.abs(newY) < SNAP) newY = 0;
+            if (Math.abs(window.innerHeight - (newY + size.height)) < SNAP) newY = window.innerHeight - size.height;
+
+            const maxX = window.innerWidth - 40;
+            const minX = -size.width + 40;
+            const maxY = window.innerHeight - 40;
+            const minY = 0;
+
+            const clampedX = Math.max(minX, Math.min(newX, maxX));
+            const clampedY = Math.max(minY, Math.min(newY, maxY));
+
+            setPosition({ x: clampedX, y: clampedY });
+        };
+
+        const handlePointerUp = (upEvent: PointerEvent) => {
+            target.releasePointerCapture(upEvent.pointerId);
+            isDragging.current = false;
+            window.removeEventListener('pointermove', handlePointerMove);
+            window.removeEventListener('pointerup', handlePointerUp);
+        };
+
+        window.addEventListener('pointermove', handlePointerMove);
+        window.addEventListener('pointerup', handlePointerUp);
     };
 
-    const handleResizeStart = (e: React.MouseEvent) => {
+    const handleResizeStart = (e: React.PointerEvent) => {
+        if (e.button !== 0) return;
         bringToFront(id);
         e.stopPropagation();
         isResizing.current = true;
         resizeStart.current = { x: e.clientX, y: e.clientY, width: size.width, height: size.height };
-        document.addEventListener('mousemove', handleResizeMove);
-        document.addEventListener('mouseup', handleMouseUp);
-    };
 
-    const handleMouseMove = (e: MouseEvent) => {
-        let newX = e.clientX - dragStart.current.x;
-        let newY = e.clientY - dragStart.current.y;
+        const target = e.currentTarget as HTMLElement;
+        target.setPointerCapture(e.pointerId);
 
-        // Snapping Threshold
-        const SNAP = 20;
-
-        // Snap to edges
-        if (Math.abs(newX) < SNAP) newX = 0;
-        if (Math.abs(window.innerWidth - (newX + size.width)) < SNAP) newX = window.innerWidth - size.width;
-
-        if (Math.abs(newY) < SNAP) newY = 0;
-        if (Math.abs(window.innerHeight - (newY + size.height)) < SNAP) newY = window.innerHeight - size.height;
-
-        // Constrain to window bounds
-        const maxX = window.innerWidth - 40; // Keep at least 40px visible on left/right
-        const minX = -size.width + 40;
-        const maxY = window.innerHeight - 40; // Keep at least 40px visible on bottom
-        const minY = 0; // Header must not go above top edge
-
-        const clampedX = Math.max(minX, Math.min(newX, maxX));
-        const clampedY = Math.max(minY, Math.min(newY, maxY));
-
-        setPosition({ x: clampedX, y: clampedY });
-    }
-
-
-    const handleResizeMove = (e: MouseEvent) => {
-        if (isResizing.current) {
-            const deltaX = e.clientX - resizeStart.current.x;
-            const deltaY = e.clientY - resizeStart.current.y;
+        const handlePointerMove = (moveEvent: PointerEvent) => {
+            if (!isResizing.current) return;
+            const deltaX = moveEvent.clientX - resizeStart.current.x;
+            const deltaY = moveEvent.clientY - resizeStart.current.y;
 
             let newWidth = Math.max(minSize.width, resizeStart.current.width + deltaX);
             let newHeight = Math.max(minSize.height, resizeStart.current.height + deltaY);
 
-            // Snapping for resize
             const SNAP = 20;
 
             if (Math.abs(window.innerWidth - (position.x + newWidth)) < SNAP) {
@@ -171,15 +181,17 @@ export function DraggablePanel({ id, defaultPosition, defaultSize, children, tit
                 width: newWidth,
                 height: newHeight
             });
-        }
-    };
+        };
 
-    const handleMouseUp = () => {
-        isDragging.current = false;
-        isResizing.current = false;
-        document.removeEventListener('mousemove', handleMouseMove);
-        document.removeEventListener('mousemove', handleResizeMove);
-        document.removeEventListener('mouseup', handleMouseUp);
+        const handlePointerUp = (upEvent: PointerEvent) => {
+            target.releasePointerCapture(upEvent.pointerId);
+            isResizing.current = false;
+            window.removeEventListener('pointermove', handlePointerMove);
+            window.removeEventListener('pointerup', handlePointerUp);
+        };
+
+        window.addEventListener('pointermove', handlePointerMove);
+        window.addEventListener('pointerup', handlePointerUp);
     };
 
     if (!isLoaded) return null; // Avoid hydration mismatch or flash of wrong position
@@ -187,19 +199,20 @@ export function DraggablePanel({ id, defaultPosition, defaultSize, children, tit
     return (
         <div
             ref={panelRef}
-            onMouseDown={() => bringToFront(id)}
+            onPointerDown={() => bringToFront(id)}
             className={`fixed glass-panel flex flex-col shadow-2xl overflow-hidden ${className || ''}`}
             style={{
                 left: position.x,
                 top: position.y,
                 width: size.width,
                 height: size.height,
-                zIndex
+                zIndex,
+                touchAction: 'none'
             }}
         >
             {/* Header / Drag Handle */}
             <div
-                onMouseDown={handleDragStart}
+                onPointerDown={handleDragStart}
                 className="relative z-50 flex items-center justify-between p-2 border-b border-slate-700/50 cursor-grab active:cursor-grabbing bg-slate-800/90 backdrop-blur-sm rounded-t-xl select-none"
             >
                 <div className="flex items-center gap-2 text-slate-400 text-sm font-semibold pointer-events-none">
@@ -208,7 +221,7 @@ export function DraggablePanel({ id, defaultPosition, defaultSize, children, tit
                 </div>
                 {/* Header Controls (Right side) */}
                 {headerControls && (
-                    <div onMouseDown={(e) => e.stopPropagation()} className="pointer-events-auto">
+                    <div onPointerDown={(e) => e.stopPropagation()} className="pointer-events-auto">
                         {headerControls}
                     </div>
                 )}
@@ -222,7 +235,7 @@ export function DraggablePanel({ id, defaultPosition, defaultSize, children, tit
             {/* Resize Handle */}
             {resizable && (
                 <div
-                    onMouseDown={handleResizeStart}
+                    onPointerDown={handleResizeStart}
                     className="absolute bottom-0 right-0 p-1 cursor-se-resize text-slate-500 hover:text-slate-300 z-10"
                 >
                     <Maximize2 size={12} className="rotate-90" />
