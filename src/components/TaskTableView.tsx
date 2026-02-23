@@ -1,8 +1,6 @@
-"use client";
-
+import React, { useState, useMemo, useEffect, useRef, useCallback, memo } from 'react';
 import { useTaskStore, Task } from '@/store/useTaskStore';
 import { Trash2, ArrowUp, ArrowDown, Plus, X, GripVertical, ListFilter, Play, FileText } from 'lucide-react';
-import { useState, useMemo, useEffect, useRef } from 'react';
 import { TaskScheduleInput } from './TaskScheduleInput';
 
 type SortKey = 'name' | 'color' | 'backlog' | 'scheduled';
@@ -46,30 +44,35 @@ export function TaskTableView() {
     const [isSortActive, setIsSortActive] = useState(false);
     const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
     const wasPausedRef = useRef<boolean>(false);
-    const prevIsOpenRef = useRef<boolean>(false);
+    const hasInitializedRef = useRef<boolean>(false);
 
     // Initialize local state when modal opens
     useEffect(() => {
         if (isTaskTableOpen) {
-            wasPausedRef.current = currentTask?.status === 'paused';
-            let allTasks: Task[] = [];
-            if (currentTask) {
-                allTasks.push({ ...currentTask, backlogId: '__CURRENT__' });
-            }
-            if (taskStack.length > 0) {
-                allTasks = [...allTasks, ...taskStack.map(t => ({ ...t, backlogId: '__STACK__' }))];
-            }
-            allTasks = [...allTasks, ...backlogTasks];
+            if (!hasInitializedRef.current) {
+                wasPausedRef.current = currentTask?.status === 'paused';
+                let allTasks: Task[] = [];
+                if (currentTask) {
+                    allTasks.push({ ...currentTask, backlogId: '__CURRENT__' });
+                }
+                if (taskStack.length > 0) {
+                    allTasks = [...allTasks, ...taskStack.map(t => ({ ...t, backlogId: '__STACK__' }))];
+                }
+                allTasks = [...allTasks, ...backlogTasks];
 
-            setLocalTasks(allTasks);
-            setPaused(true);
-        } else if (prevIsOpenRef.current) {
-            // Only resume if it was NOT paused before we opened the view
-            if (!wasPausedRef.current) {
-                setPaused(false);
+                setLocalTasks(allTasks);
+                setPaused(true);
+                hasInitializedRef.current = true;
+            }
+        } else {
+            if (hasInitializedRef.current) {
+                // Only resume if it was NOT paused before we opened the view
+                if (!wasPausedRef.current) {
+                    setPaused(false);
+                }
+                hasInitializedRef.current = false;
             }
         }
-        prevIsOpenRef.current = isTaskTableOpen;
     }, [isTaskTableOpen, currentTask, taskStack, backlogTasks, setPaused]);
 
     const handleSort = (key: SortKey) => {
@@ -132,15 +135,15 @@ export function TaskTableView() {
         setIsTaskTableOpen(false);
     };
 
-    const handleLocalUpdate = (taskId: string, updates: Partial<Task>) => {
+    const handleLocalUpdate = useCallback((taskId: string, updates: Partial<Task>) => {
         setLocalTasks(prev => prev.map(t => t.id === taskId ? { ...t, ...updates } : t));
-    };
+    }, []);
 
-    const handleLocalDelete = (taskId: string) => {
+    const handleLocalDelete = React.useCallback((taskId: string) => {
         if (window.confirm('このタスクを削除してもよろしいですか？')) {
             setLocalTasks(prev => prev.filter(t => t.id !== taskId));
         }
-    };
+    }, []);
 
     const handleAddTask = () => {
         const newTask: Task = {
@@ -153,6 +156,47 @@ export function TaskTableView() {
         };
         setLocalTasks(prev => [...prev, newTask]);
     };
+
+    const handleAddCategory = useCallback((name?: string) => {
+        return addBacklogCategory(name);
+    }, [addBacklogCategory]);
+
+    const handleDragStart = useCallback((index: number, e: React.PointerEvent, taskId: string) => {
+        if (isSortActive) return;
+        setDraggedIndex(index);
+        const target = e.currentTarget as HTMLElement;
+        target.setPointerCapture(e.pointerId);
+
+        const onPointerMove = (moveEvent: PointerEvent) => {
+            const overElement = document.elementFromPoint(moveEvent.clientX, moveEvent.clientY);
+            const row = overElement?.closest('tr');
+            if (row) {
+                const overIndexAttr = row.getAttribute('data-index');
+                if (overIndexAttr !== null) {
+                    const overIndex = parseInt(overIndexAttr);
+                    setLocalTasks(prev => {
+                        if (prev[overIndex].id === taskId) return prev;
+                        const newTasks = [...prev];
+                        const fromIndex = newTasks.findIndex(t => t.id === taskId);
+                        if (fromIndex === -1) return prev;
+                        const [moved] = newTasks.splice(fromIndex, 1);
+                        newTasks.splice(overIndex, 0, moved);
+                        return newTasks;
+                    });
+                }
+            }
+        };
+
+        const onPointerUp = (upEvent: PointerEvent) => {
+            target.releasePointerCapture(upEvent.pointerId);
+            setDraggedIndex(null);
+            window.removeEventListener('pointermove', onPointerMove);
+            window.removeEventListener('pointerup', onPointerUp);
+        };
+
+        window.addEventListener('pointermove', onPointerMove);
+        window.addEventListener('pointerup', onPointerUp);
+    }, [isSortActive]);
 
     if (!isTaskTableOpen) return null;
 
@@ -224,168 +268,21 @@ export function TaskTableView() {
                                 </tr>
                             </thead>
                             <tbody className="divide-y divide-slate-800/50 text-slate-300">
-                                {displayTasks.map((task, index) => {
-                                    const activeColorDef = colors.find(c => c.id === task.colorId);
-                                    const pillClasses = getPillClasses(activeColorDef?.colorCode);
-
-                                    return (
-                                        <tr
-                                            key={task.id}
-                                            data-index={index}
-                                            className={`hover:bg-slate-800/40 transition-colors group ${draggedIndex === index ? 'opacity-30' : ''} ${task.backlogId === '__CURRENT__' ? 'bg-blue-500/5' : ''}`}
-                                        >
-                                            <td className="px-6 py-4 text-slate-600 relative">
-                                                {!isSortActive && (
-                                                    <div
-                                                        onPointerDown={(e) => {
-                                                            if (isSortActive) return;
-                                                            bringToFront('task-table-view'); // Though it's a modal
-                                                            setDraggedIndex(index);
-                                                            const target = e.currentTarget as HTMLElement;
-                                                            target.setPointerCapture(e.pointerId);
-
-                                                            const onPointerMove = (moveEvent: PointerEvent) => {
-                                                                const overElement = document.elementFromPoint(moveEvent.clientX, moveEvent.clientY);
-                                                                const row = overElement?.closest('tr');
-                                                                if (row) {
-                                                                    const overIndexAttr = row.getAttribute('data-index');
-                                                                    if (overIndexAttr !== null) {
-                                                                        const overIndex = parseInt(overIndexAttr);
-                                                                        setLocalTasks(prev => {
-                                                                            if (prev[overIndex].id === task.id) return prev;
-                                                                            const newTasks = [...prev];
-                                                                            const fromIndex = newTasks.findIndex(t => t.id === task.id);
-                                                                            const [moved] = newTasks.splice(fromIndex, 1);
-                                                                            newTasks.splice(overIndex, 0, moved);
-                                                                            return newTasks;
-                                                                        });
-                                                                    }
-                                                                }
-                                                            };
-
-                                                            const onPointerUp = (upEvent: PointerEvent) => {
-                                                                target.releasePointerCapture(upEvent.pointerId);
-                                                                setDraggedIndex(null);
-                                                                window.removeEventListener('pointermove', onPointerMove);
-                                                                window.removeEventListener('pointerup', onPointerUp);
-                                                            };
-
-                                                            window.addEventListener('pointermove', onPointerMove);
-                                                            window.addEventListener('pointerup', onPointerUp);
-                                                        }}
-                                                        className="cursor-grab hover:text-slate-400 active:cursor-grabbing p-1 -m-1"
-                                                        style={{ touchAction: 'none' }}
-                                                    >
-                                                        <GripVertical size={16} />
-                                                    </div>
-                                                )}
-                                                {index === 0 && !isSortActive && (
-                                                    <div className="absolute left-2 text-blue-500 animate-pulse">
-                                                        <Play size={16} fill="currentColor" />
-                                                    </div>
-                                                )}
-                                            </td>
-
-                                            <td className="px-4 py-4">
-                                                <div className="relative inline-block w-full max-w-[100px]">
-                                                    <select
-                                                        value={task.colorId || ''}
-                                                        onChange={(e) => handleLocalUpdate(task.id, { colorId: e.target.value === '' ? undefined : e.target.value })}
-                                                        className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
-                                                        title="タグを設定"
-                                                    >
-                                                        <option value="">NONE</option>
-                                                        {colors.map(c => (
-                                                            <option key={c.id} value={c.id}>{c.name.toUpperCase()}</option>
-                                                        ))}
-                                                    </select>
-                                                    <div className={`inline-flex items-center gap-2 px-2.5 py-1 rounded-full text-[10px] font-bold tracking-widest uppercase border pointer-events-none ${pillClasses}`}>
-                                                        <div className={`w-1.5 h-1.5 rounded-full ${activeColorDef?.colorCode || 'bg-slate-500'}`} />
-                                                        <span>{activeColorDef ? activeColorDef.name : 'NONE'}</span>
-                                                    </div>
-                                                </div>
-                                            </td>
-
-                                            <td className="px-4 py-4 truncate max-w-md">
-                                                <input
-                                                    type="text"
-                                                    value={task.name}
-                                                    onChange={(e) => handleLocalUpdate(task.id, { name: e.target.value })}
-                                                    className="bg-transparent border-b border-transparent hover:border-slate-700 focus:border-blue-500 focus:outline-none w-full truncate py-1 text-slate-200 transition-colors"
-                                                    placeholder="Task Name"
-                                                />
-                                            </td>
-
-                                            <td className="px-4 py-4">
-                                                <div className="relative">
-                                                    <select
-                                                        value={task.backlogId || ''}
-                                                        onChange={(e) => {
-                                                            const val = e.target.value;
-                                                            if (val === '__NEW__') {
-                                                                const name = window.prompt("新しいバックログタスクデッキの名前を入力してください:", "New Backlog");
-                                                                if (name !== null) {
-                                                                    const newId = addBacklogCategory(name.trim());
-                                                                    handleLocalUpdate(task.id, { backlogId: newId });
-                                                                } else {
-                                                                    // Revert if cancelled
-                                                                    e.target.value = task.backlogId || '';
-                                                                }
-                                                            } else {
-                                                                handleLocalUpdate(task.id, { backlogId: val });
-                                                            }
-                                                        }}
-                                                        className="w-full bg-slate-800/50 hover:bg-slate-800 border border-transparent rounded-lg px-3 py-1.5 text-xs appearance-none cursor-pointer focus:border-slate-600 focus:outline-none text-slate-300 transition-colors shadow-sm pr-8"
-                                                    >
-                                                        <optgroup label="Active">
-                                                            <option value="__CURRENT__">⚡ Current Task</option>
-                                                            <option value="__STACK__">📚 Task Stack</option>
-                                                        </optgroup>
-                                                        <optgroup label="Backlog Categories">
-                                                            {categories.map(cat => (
-                                                                <option key={cat.id} value={cat.id}>{cat.name}</option>
-                                                            ))}
-                                                        </optgroup>
-                                                        <option value="__NEW__" className="text-blue-400 font-bold">+ New Category...</option>
-                                                    </select>
-                                                    {/* Custom chevron */}
-                                                    <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-slate-500">
-                                                        <ArrowDown size={12} />
-                                                    </div>
-                                                </div>
-                                            </td>
-
-                                            <td className="px-4 py-4">
-                                                <TaskScheduleInput
-                                                    date={task.scheduledDate}
-                                                    time={task.scheduledTime}
-                                                    onUpdate={(d, t) => handleLocalUpdate(task.id, { scheduledDate: d, scheduledTime: t })}
-                                                />
-                                            </td>
-
-                                            <td className="px-6 py-4 text-right flex items-center justify-end gap-1">
-                                                <button
-                                                    className="text-slate-600 hover:text-blue-400 transition-colors opacity-0 group-hover:opacity-100 p-2 rounded-lg hover:bg-slate-800/80"
-                                                    onClick={(e) => {
-                                                        e.stopPropagation();
-                                                        useTaskStore.getState().openMemo(task.id);
-                                                    }}
-                                                    onPointerDown={(e) => e.stopPropagation()}
-                                                    title="Open Memo"
-                                                >
-                                                    <FileText size={16} />
-                                                </button>
-                                                <button
-                                                    className="text-slate-600 hover:text-red-400 transition-colors opacity-0 group-hover:opacity-100 p-2 rounded-lg hover:bg-slate-800/80"
-                                                    onClick={() => handleLocalDelete(task.id)}
-                                                    title="Delete"
-                                                >
-                                                    <Trash2 size={16} />
-                                                </button>
-                                            </td>
-                                        </tr>
-                                    );
-                                })}
+                                {displayTasks.map((task, index) => (
+                                    <TaskTableRow
+                                        key={task.id}
+                                        task={task}
+                                        index={index}
+                                        isSortActive={isSortActive}
+                                        draggedIndex={draggedIndex}
+                                        onUpdate={handleLocalUpdate}
+                                        onDelete={handleLocalDelete}
+                                        onDragStart={handleDragStart}
+                                        categories={categories}
+                                        colors={colors}
+                                        onAddCategory={addBacklogCategory}
+                                    />
+                                ))}
 
                                 {displayTasks.length === 0 && (
                                     <tr>
@@ -402,3 +299,171 @@ export function TaskTableView() {
         </div>
     );
 }
+
+// Sub-component for each row to improve rendering performance via memo
+const TaskTableRow = memo(function TaskTableRow({
+    task,
+    index,
+    isSortActive,
+    draggedIndex,
+    onUpdate,
+    onDelete,
+    onDragStart,
+    categories,
+    colors,
+    onAddCategory
+}: {
+    task: Task;
+    index: number;
+    isSortActive: boolean;
+    draggedIndex: number | null;
+    onUpdate: (id: string, updates: Partial<Task>) => void;
+    onDelete: (id: string) => void;
+    onDragStart: (index: number, e: React.PointerEvent, taskId: string) => void;
+    categories: any[];
+    colors: any[];
+    onAddCategory: (name?: string) => string;
+}) {
+    const activeColorDef = colors.find(c => c.id === task.colorId);
+    const pillClasses = getPillClasses(activeColorDef?.colorCode);
+
+    // Row component manages its own name input state to avoid parent re-renders while typing
+    const [localName, setLocalName] = useState(task.name);
+
+    // Sync from parent if name changes (e.g. from state reset)
+    useEffect(() => {
+        setLocalName(task.name);
+    }, [task.name]);
+
+    return (
+        <tr
+            data-index={index}
+            className={`hover:bg-slate-800/40 transition-colors group ${draggedIndex === index ? 'opacity-30' : ''} ${task.backlogId === '__CURRENT__' ? 'bg-blue-500/5' : ''}`}
+        >
+            <td className="px-6 py-4 text-slate-600 relative">
+                {!isSortActive && (
+                    <div
+                        onPointerDown={(e) => onDragStart(index, e, task.id)}
+                        className="cursor-grab hover:text-slate-400 active:cursor-grabbing p-1 -m-1"
+                        style={{ touchAction: 'none' }}
+                    >
+                        <GripVertical size={16} />
+                    </div>
+                )}
+                {index === 0 && !isSortActive && (
+                    <div className="absolute left-2 text-blue-500 animate-pulse">
+                        <Play size={16} fill="currentColor" />
+                    </div>
+                )}
+            </td>
+
+            <td className="px-4 py-4">
+                <div className="relative inline-block w-full max-w-[100px]">
+                    <select
+                        value={task.colorId || ''}
+                        onChange={(e) => onUpdate(task.id, { colorId: e.target.value === '' ? undefined : e.target.value })}
+                        className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
+                        title="タグを設定"
+                    >
+                        <option value="">NONE</option>
+                        {colors.map(c => (
+                            <option key={c.id} value={c.id}>{c.name.toUpperCase()}</option>
+                        ))}
+                    </select>
+                    <div className={`inline-flex items-center gap-2 px-2.5 py-1 rounded-full text-[10px] font-bold tracking-widest uppercase border pointer-events-none ${pillClasses}`}>
+                        <div className={`w-1.5 h-1.5 rounded-full ${activeColorDef?.colorCode || 'bg-slate-500'}`} />
+                        <span>{activeColorDef ? activeColorDef.name : 'NONE'}</span>
+                    </div>
+                </div>
+            </td>
+
+            <td className="px-4 py-4 truncate max-w-md">
+                <input
+                    type="text"
+                    value={localName}
+                    onChange={(e) => setLocalName(e.target.value)}
+                    onBlur={() => {
+                        if (localName !== task.name) {
+                            onUpdate(task.id, { name: localName });
+                        }
+                    }}
+                    onKeyDown={(e) => {
+                        if (e.key === 'Enter') {
+                            (e.target as HTMLInputElement).blur();
+                        }
+                    }}
+                    className="bg-transparent border-b border-transparent hover:border-slate-700 focus:border-blue-500 focus:outline-none w-full truncate py-1 text-slate-200 transition-colors"
+                    placeholder="Task Name"
+                />
+            </td>
+
+            <td className="px-4 py-4">
+                <div className="relative">
+                    <select
+                        value={task.backlogId || ''}
+                        onChange={(e) => {
+                            const val = e.target.value;
+                            if (val === '__NEW__') {
+                                const name = window.prompt("新しいバックログタスクデッキの名前を入力してください:", "New Backlog");
+                                if (name !== null) {
+                                    const newId = onAddCategory(name.trim());
+                                    onUpdate(task.id, { backlogId: newId });
+                                } else {
+                                    // Revert if cancelled
+                                    e.target.value = task.backlogId || '';
+                                }
+                            } else {
+                                onUpdate(task.id, { backlogId: val });
+                            }
+                        }}
+                        className="w-full bg-slate-800/50 hover:bg-slate-800 border border-transparent rounded-lg px-3 py-1.5 text-xs appearance-none cursor-pointer focus:border-slate-600 focus:outline-none text-slate-300 transition-colors shadow-sm pr-8"
+                    >
+                        <optgroup label="Active">
+                            <option value="__CURRENT__">⚡ Current Task</option>
+                            <option value="__STACK__">📚 Task Stack</option>
+                        </optgroup>
+                        <optgroup label="Backlog Categories">
+                            {categories.map(cat => (
+                                <option key={cat.id} value={cat.id}>{cat.name}</option>
+                            ))}
+                        </optgroup>
+                        <option value="__NEW__" className="text-blue-400 font-bold">+ New Category...</option>
+                    </select>
+                    {/* Custom chevron */}
+                    <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-slate-500">
+                        <ArrowDown size={12} />
+                    </div>
+                </div>
+            </td>
+
+            <td className="px-4 py-4">
+                <TaskScheduleInput
+                    date={task.scheduledDate}
+                    time={task.scheduledTime}
+                    onUpdate={(d, t) => onUpdate(task.id, { scheduledDate: d, scheduledTime: t })}
+                />
+            </td>
+
+            <td className="px-6 py-4 text-right flex items-center justify-end gap-1">
+                <button
+                    className="text-slate-600 hover:text-blue-400 transition-colors opacity-0 group-hover:opacity-100 p-2 rounded-lg hover:bg-slate-800/80"
+                    onClick={(e) => {
+                        e.stopPropagation();
+                        useTaskStore.getState().openMemo(task.id);
+                    }}
+                    onPointerDown={(e) => e.stopPropagation()}
+                    title="Open Memo"
+                >
+                    <FileText size={16} />
+                </button>
+                <button
+                    className="text-slate-600 hover:text-red-400 transition-colors opacity-0 group-hover:opacity-100 p-2 rounded-lg hover:bg-slate-800/80"
+                    onClick={() => onDelete(task.id)}
+                    title="Delete"
+                >
+                    <Trash2 size={16} />
+                </button>
+            </td>
+        </tr>
+    );
+});
