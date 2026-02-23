@@ -426,6 +426,7 @@ export const BacklogPanel = ({ category, defaultPosition }: BacklogPanelProps) =
                                             deleteTask(task.id);
                                         }
                                     }}
+                                    onPointerDown={(e) => e.stopPropagation()}
                                     className="p-1.5 text-slate-600 hover:text-red-400 transition-all opacity-0 group-hover:opacity-100"
                                     title="Delete Task"
                                 >
