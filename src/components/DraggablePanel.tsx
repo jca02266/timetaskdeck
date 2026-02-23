@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { GripHorizontal, Maximize2 } from 'lucide-react';
+import { useTaskStore } from '@/store/useTaskStore';
 
 interface Position {
     x: number;
@@ -31,10 +32,16 @@ export function DraggablePanel({ id, defaultPosition, defaultSize, children, tit
     const [isLoaded, setIsLoaded] = useState(false);
 
     const panelRef = useRef<HTMLDivElement>(null);
+    const frontPanelId = useTaskStore((state) => state.frontPanelId);
+    const bringToFront = useTaskStore((state) => state.bringToFront);
+
     const isDragging = useRef(false);
     const isResizing = useRef(false);
     const dragStart = useRef({ x: 0, y: 0 });
     const resizeStart = useRef({ x: 0, y: 0, width: 0, height: 0 });
+
+    const isFront = frontPanelId === id;
+    const zIndex = isFront ? 60 : 50;
 
     useEffect(() => {
         const clampPosition = (x: number, y: number, w: number, h: number) => {
@@ -49,12 +56,31 @@ export function DraggablePanel({ id, defaultPosition, defaultSize, children, tit
             };
         };
 
-        const saved = localStorage.getItem(`panel-${id}`);
+        const currentKey = `panel-${id}`;
+        let saved = localStorage.getItem(currentKey);
+
+        // One-time migration for keys with extra spaces (e.g., "backlog - panel - ...")
+        if (!saved) {
+            const oldId = id.includes('-') ? id.split('-').join(' - ') : id;
+            const oldKey = `panel-${oldId} `; // Note the space at the end from the previous bug
+            const oldSaved = localStorage.getItem(oldKey) || localStorage.getItem(`panel-${oldId}`);
+
+            if (oldSaved) {
+                saved = oldSaved;
+                // Clean up old keys if migration found
+                localStorage.removeItem(oldKey);
+                localStorage.removeItem(`panel-${oldId}`);
+                console.log(`Migrated panel settings from ${oldKey} to ${currentKey}`);
+            }
+        }
+
         if (saved) {
-            const { pos, size: savedSize } = JSON.parse(saved);
-            const clamped = clampPosition(pos.x, pos.y, savedSize.width, savedSize.height);
-            setPosition(clamped);
-            setSize(savedSize);
+            try {
+                const { pos, size: savedSize } = JSON.parse(saved);
+                const clamped = clampPosition(pos.x, pos.y, savedSize.width, savedSize.height);
+                setPosition(clamped);
+                setSize(savedSize);
+            } catch (err) { }
         } else {
             // Calculate initial position based on defaultPosition props (css-like to absolute pixels)
             let x = 0;
@@ -80,6 +106,7 @@ export function DraggablePanel({ id, defaultPosition, defaultSize, children, tit
     }, [position, size, id, isLoaded]);
 
     const handleDragStart = (e: React.MouseEvent) => {
+        bringToFront(id);
         isDragging.current = true;
         dragStart.current = { x: e.clientX - position.x, y: e.clientY - position.y };
         document.addEventListener('mousemove', handleMouseMove);
@@ -87,6 +114,7 @@ export function DraggablePanel({ id, defaultPosition, defaultSize, children, tit
     };
 
     const handleResizeStart = (e: React.MouseEvent) => {
+        bringToFront(id);
         e.stopPropagation();
         isResizing.current = true;
         resizeStart.current = { x: e.clientX, y: e.clientY, width: size.width, height: size.height };
@@ -159,12 +187,14 @@ export function DraggablePanel({ id, defaultPosition, defaultSize, children, tit
     return (
         <div
             ref={panelRef}
-            className={`fixed glass-panel flex flex-col z-50 shadow-2xl overflow-hidden ${className || ''}`}
+            onMouseDown={() => bringToFront(id)}
+            className={`fixed glass-panel flex flex-col shadow-2xl overflow-hidden ${className || ''}`}
             style={{
                 left: position.x,
                 top: position.y,
                 width: size.width,
                 height: size.height,
+                zIndex
             }}
         >
             {/* Header / Drag Handle */}

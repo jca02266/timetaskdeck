@@ -13,6 +13,7 @@ import { ColorSettingsModal } from "@/components/ColorSettingsModal";
 import { useState } from "react";
 /* New Components */
 import { DraggablePanel } from "@/components/DraggablePanel";
+import { StorageOperations } from "@/components/StorageOperations";
 import { useTaskStore } from "@/store/useTaskStore";
 
 /* Icons */
@@ -44,8 +45,8 @@ export default function Home() {
       <DraggablePanel
         id="control-panel"
         defaultPosition={{ top: 32, left: 32 }}
-        defaultSize={{ width: 400, height: 160 }}
-        minSize={{ width: 400, height: 160 }}
+        defaultSize={{ width: 440, height: 180 }}
+        minSize={{ width: 440, height: 180 }}
         title="Control Panel"
       >
         <div className="p-4 flex flex-col gap-4 h-full justify-center">
@@ -73,6 +74,8 @@ export default function Home() {
                 <Settings size={14} />
                 <span>Colors</span>
               </button>
+              <div className="w-[1px] h-4 bg-slate-700 mx-1 self-center" />
+              <StorageOperations />
             </div>
             <button
               onClick={() => setIsLogOpen(true)}

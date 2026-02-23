@@ -1,3 +1,5 @@
+"use client";
+
 import { useTaskStore } from '@/store/useTaskStore';
 import { X, Check } from 'lucide-react';
 import { useState } from 'react';

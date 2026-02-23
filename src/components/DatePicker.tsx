@@ -3,8 +3,8 @@
 import { useState, useRef, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { Calendar } from './Calendar';
-import { format, parseISO, isValid } from 'date-fns';
-import { Calendar as CalendarIcon, X } from 'lucide-react';
+import { format, parseISO } from 'date-fns';
+import { Calendar as CalendarIcon } from 'lucide-react';
 
 interface DatePickerProps {
     value?: string; // YYYY-MM-DD
@@ -22,11 +22,6 @@ export function DatePicker({ value, onChange, placeholder = "Pick a date", class
     const handleSelect = (date: Date) => {
         onChange(format(date, 'yyyy-MM-dd'));
         setIsOpen(false);
-    };
-
-    const clearDate = (e: React.MouseEvent) => {
-        e.stopPropagation();
-        onChange(undefined);
     };
 
     const toggleOpen = () => {
@@ -77,14 +72,6 @@ export function DatePicker({ value, onChange, placeholder = "Pick a date", class
                 <CalendarIcon size={14} />
                 {value && (
                     <span className="text-[10px] font-mono">{displayValue}</span>
-                )}
-                {value && (
-                    <button
-                        onClick={clearDate}
-                        className="opacity-0 group-hover:opacity-100 hover:text-red-400 transition-opacity"
-                    >
-                        <X size={10} />
-                    </button>
                 )}
             </div>
 

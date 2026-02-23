@@ -1,9 +1,9 @@
 "use client";
 
-import { useTaskStore, Task, ColorDefinition } from '@/store/useTaskStore';
-import { Trash2, ArrowUp, ArrowDown, Plus, X, GripVertical, Calendar, ListFilter, Play } from 'lucide-react';
-import { useState, useMemo, useEffect } from 'react';
-import { format, parseISO } from 'date-fns';
+import { useTaskStore, Task } from '@/store/useTaskStore';
+import { Trash2, ArrowUp, ArrowDown, Plus, X, GripVertical, ListFilter, Play } from 'lucide-react';
+import { useState, useMemo, useEffect, useRef } from 'react';
+import { TaskScheduleInput } from './TaskScheduleInput';
 
 type SortKey = 'name' | 'color' | 'backlog' | 'scheduled';
 type SortDirection = 'asc' | 'desc';
@@ -46,10 +46,13 @@ export function TaskTableView({ isOpen, onClose }: TaskTableViewProps) {
     const [sortDir, setSortDir] = useState<SortDirection>('asc');
     const [isSortActive, setIsSortActive] = useState(false);
     const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
+    const wasPausedRef = useRef<boolean>(false);
+    const prevIsOpenRef = useRef<boolean>(false);
 
     // Initialize local state when modal opens
     useEffect(() => {
         if (isOpen) {
+            wasPausedRef.current = currentTask?.status === 'paused';
             let allTasks: Task[] = [];
             if (currentTask) {
                 allTasks.push({ ...currentTask, backlogId: '__CURRENT__' });
@@ -61,9 +64,13 @@ export function TaskTableView({ isOpen, onClose }: TaskTableViewProps) {
 
             setLocalTasks(allTasks);
             setPaused(true);
-        } else {
-            setPaused(false);
+        } else if (prevIsOpenRef.current) {
+            // Only resume if it was NOT paused before we opened the view
+            if (!wasPausedRef.current) {
+                setPaused(false);
+            }
         }
+        prevIsOpenRef.current = isOpen;
     }, [isOpen, currentTask, taskStack, backlogTasks, setPaused]);
 
     const handleSort = (key: SortKey) => {
@@ -222,10 +229,6 @@ export function TaskTableView({ isOpen, onClose }: TaskTableViewProps) {
                                     const activeColorDef = colors.find(c => c.id === task.colorId);
                                     const pillClasses = getPillClasses(activeColorDef?.colorCode);
 
-                                    const dateDisplay = task.scheduledDate
-                                        ? format(parseISO(task.scheduledDate), 'MMM d, yyyy')
-                                        : 'Set Date';
-
                                     return (
                                         <tr
                                             key={task.id}
@@ -294,8 +297,14 @@ export function TaskTableView({ isOpen, onClose }: TaskTableViewProps) {
                                                         onChange={(e) => {
                                                             const val = e.target.value;
                                                             if (val === '__NEW__') {
-                                                                const newId = addBacklogCategory();
-                                                                handleLocalUpdate(task.id, { backlogId: newId });
+                                                                const name = window.prompt("新しいバックログタスクデッキの名前を入力してください:", "New Backlog");
+                                                                if (name !== null) {
+                                                                    const newId = addBacklogCategory(name.trim());
+                                                                    handleLocalUpdate(task.id, { backlogId: newId });
+                                                                } else {
+                                                                    // Revert if cancelled
+                                                                    e.target.value = task.backlogId || '';
+                                                                }
                                                             } else {
                                                                 handleLocalUpdate(task.id, { backlogId: val });
                                                             }
@@ -321,16 +330,11 @@ export function TaskTableView({ isOpen, onClose }: TaskTableViewProps) {
                                             </td>
 
                                             <td className="px-4 py-4">
-                                                <div className="relative flex items-center gap-2 group/date">
-                                                    <Calendar size={14} className="text-slate-500" />
-                                                    <span className="text-slate-400 text-xs">{dateDisplay}</span>
-                                                    <input
-                                                        type="date"
-                                                        value={task.scheduledDate || ''}
-                                                        onChange={(e) => handleLocalUpdate(task.id, { scheduledDate: e.target.value })}
-                                                        className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
-                                                    />
-                                                </div>
+                                                <TaskScheduleInput
+                                                    date={task.scheduledDate}
+                                                    time={task.scheduledTime}
+                                                    onUpdate={(d, t) => handleLocalUpdate(task.id, { scheduledDate: d, scheduledTime: t })}
+                                                />
                                             </td>
 
                                             <td className="px-6 py-4 text-right">

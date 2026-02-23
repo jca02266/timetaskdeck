@@ -90,7 +90,7 @@ export function TaskTimer() {
             {/* Stop/Pause Button - Top Left */}
             <button
                 onClick={togglePause}
-                className="absolute top-4 left-4 text-slate-500 hover:text-white transition-colors p-2 rounded-full hover:bg-slate-800/50"
+                className="absolute top-4 left-4 text-slate-500 hover:text-white transition-colors p-3 rounded-full hover:bg-slate-800/50 z-20"
                 title={currentTask.status === 'paused' ? "Resume" : "Pause"}
             >
                 {currentTask.status === 'paused' ? <Play size={20} fill="currentColor" /> : <Pause size={20} fill="currentColor" />}

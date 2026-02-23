@@ -76,7 +76,7 @@ interface TaskState {
     moveHistoryToBacklog: (taskId: string, targetBacklogId: string) => void;
 
     // Category / Color Operations
-    addBacklogCategory: () => string;
+    addBacklogCategory: (name?: string) => string;
     updateBacklogCategory: (id: string, updates: Partial<BacklogCategory>) => void;
     deleteBacklogCategory: (id: string) => void;
     toggleBacklogMinimized: (id: string) => void;
@@ -108,10 +108,13 @@ interface TaskState {
     resumeFromStack: () => void;
     reorderBacklogTasks: (startIndex: number, endIndex: number) => void;
     moveTaskToLocation: (taskId: string, location: 'current' | 'stack' | 'backlog', backlogId?: string) => void;
+    importState: (data: any) => void;
     reorderAllTasks: (newTasks: Task[]) => void;
     setPaused: (isPaused: boolean) => void;
     toggleRecurringMinimized: () => void;
     toggleHistoryMinimized: () => void;
+    frontPanelId: string | null;
+    bringToFront: (id: string) => void;
 }
 
 export const useTaskStore = create<TaskState>()(
@@ -125,8 +128,13 @@ export const useTaskStore = create<TaskState>()(
             history: [],
             recurringTasks: [],
             taskLog: [],
-            isRecurringMinimized: false,
-            isHistoryMinimized: false,
+            isRecurringMinimized: typeof window !== 'undefined' ? localStorage.getItem('timetask-ui-recurring-minimized') === 'true' : false,
+            isHistoryMinimized: typeof window !== 'undefined' ? localStorage.getItem('timetask-ui-history-minimized') === 'true' : false,
+            frontPanelId: null,
+
+            bringToFront: (id: string) => {
+                set({ frontPanelId: id });
+            },
 
             startTask: (name, recurringTaskId) => {
                 const state = get();
@@ -459,12 +467,12 @@ export const useTaskStore = create<TaskState>()(
                 });
             },
 
-            addBacklogCategory: () => {
+            addBacklogCategory: (name) => {
                 const newId = crypto.randomUUID();
                 set((state) => {
                     const newCategory: BacklogCategory = {
                         id: newId,
-                        name: `New Backlog`,
+                        name: name || `New Backlog`,
                         allocatedMinutes: 0
                     };
                     return {
@@ -858,9 +866,10 @@ export const useTaskStore = create<TaskState>()(
                         let newTime = time !== undefined ? time : task.scheduledTime;
                         let newDate = date !== undefined ? date : task.scheduledDate;
 
-                        if (newDate && !newTime) {
-                            newTime = '08:30';
-                        }
+                        // If explicitly cleared (to undefined or null or empty string)
+                        if (date === null || date === '') newDate = undefined;
+                        if (time === null || time === '') newTime = undefined;
+
                         return { ...task, scheduledDate: newDate, scheduledTime: newTime };
                     };
 
@@ -976,6 +985,19 @@ export const useTaskStore = create<TaskState>()(
                 });
             },
 
+            importState: (data) => {
+                set(() => ({
+                    currentTask: data.state?.currentTask || data.currentTask || null,
+                    taskStack: data.state?.taskStack || data.taskStack || [],
+                    backlogTasks: data.state?.backlogTasks || data.backlogTasks || [],
+                    backlogCategories: data.state?.backlogCategories || data.backlogCategories || [],
+                    colors: data.state?.colors || data.colors || DEFAULT_COLORS,
+                    history: data.state?.history || data.history || [],
+                    recurringTasks: data.state?.recurringTasks || data.recurringTasks || [],
+                    taskLog: data.state?.taskLog || data.taskLog || [],
+                }));
+            },
+
             reorderAllTasks: (newAllTasks) => {
                 set((state) => {
                     if (newAllTasks.length === 0) return { currentTask: null, taskStack: [], backlogTasks: [] };
@@ -1080,11 +1102,23 @@ export const useTaskStore = create<TaskState>()(
             },
 
             toggleRecurringMinimized: () => {
-                set((state) => ({ isRecurringMinimized: !state.isRecurringMinimized }));
+                set((state) => {
+                    const newValue = !state.isRecurringMinimized;
+                    if (typeof window !== 'undefined') {
+                        localStorage.setItem('timetask-ui-recurring-minimized', String(newValue));
+                    }
+                    return { isRecurringMinimized: newValue };
+                });
             },
 
             toggleHistoryMinimized: () => {
-                set((state) => ({ isHistoryMinimized: !state.isHistoryMinimized }));
+                set((state) => {
+                    const newValue = !state.isHistoryMinimized;
+                    if (typeof window !== 'undefined') {
+                        localStorage.setItem('timetask-ui-history-minimized', String(newValue));
+                    }
+                    return { isHistoryMinimized: newValue };
+                });
             }
         }),
         {
@@ -1110,6 +1144,10 @@ export const useTaskStore = create<TaskState>()(
                     delete persistedState.backlog;
                 }
                 return persistedState as TaskState;
+            },
+            partialize: (state) => {
+                const { isRecurringMinimized, isHistoryMinimized, ...rest } = state;
+                return rest;
             }
         }
     )

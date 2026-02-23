@@ -6,6 +6,7 @@ import { useState } from 'react';
 import { Tooltip } from './Tooltip';
 import { DatePicker } from './DatePicker';
 import { DraggablePanel } from './DraggablePanel';
+import { TaskScheduleInput } from './TaskScheduleInput';
 
 export function RecurringTasks() {
     const {
@@ -177,33 +178,28 @@ export function RecurringTasks() {
                                         {task.status === 'completed' ? <CheckCircle2 size={18} /> : <Circle size={18} />}
                                     </button>
 
-                                    <div className="text-sm text-slate-300 truncate flex-1 flex flex-col gap-0.5">
-                                        <div className="flex items-center gap-2">
-                                            <div className="cursor-grab text-slate-600 hover:text-slate-400 shrink-0">
-                                                <GripVertical size={14} />
-                                            </div>
+                                    <div className="flex-1 flex items-center gap-3 min-w-0">
+                                        <div className="cursor-grab text-slate-600 hover:text-slate-400 shrink-0">
+                                            <GripVertical size={14} />
+                                        </div>
+
+                                        <div className="flex-1 min-w-0">
                                             <Tooltip text={task.name}>
-                                                <span className={`truncate block ${task.status === 'completed' ? 'line-through text-slate-500' : ''}`}>
+                                                <span className={`truncate block text-sm text-slate-300 ${task.status === 'completed' ? 'line-through text-slate-500' : ''}`}>
                                                     {task.name}
                                                 </span>
                                             </Tooltip>
                                         </div>
-                                        {/* Scheduled Time Input */}
-                                        <div className="flex items-center gap-1 pl-5">
-                                            <DatePicker
-                                                value={task.scheduledDate}
-                                                onChange={(date) => updateTaskSchedule(task.id, date, undefined)}
-                                            />
-                                            <input
-                                                type="time"
-                                                value={task.scheduledTime || ''}
-                                                onChange={(e) => updateTaskSchedule(task.id, undefined, e.target.value)}
-                                                className="bg-transparent text-[10px] text-slate-500 focus:text-slate-300 focus:outline-none w-16"
-                                            />
-                                        </div>
+
+                                        <TaskScheduleInput
+                                            date={task.scheduledDate}
+                                            time={task.scheduledTime}
+                                            onUpdate={(date, time) => updateTaskSchedule(task.id, date, time)}
+                                            className="ml-auto"
+                                        />
                                     </div>
 
-                                    <div className="flex items-center opacity-0 group-hover:opacity-100 transition-opacity gap-1">
+                                    <div className="flex items-center opacity-0 group-hover:opacity-100 transition-opacity gap-1 shrink-0">
                                         <button
                                             onClick={() => startEditing(task)}
                                             className="text-slate-400 hover:text-slate-200 p-1 rounded"

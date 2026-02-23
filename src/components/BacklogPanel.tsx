@@ -2,6 +2,7 @@ import { useTaskStore, BacklogCategory, Task } from '@/store/useTaskStore';
 import { Tooltip } from './Tooltip';
 import { DatePicker } from './DatePicker';
 import { DraggablePanel } from './DraggablePanel';
+import { TaskScheduleInput } from './TaskScheduleInput';
 import { format, parseISO } from 'date-fns';
 import { ListTodo, Play, Plus, Pencil, Check, X, Trash2, GripVertical, Copy, Minimize2, Calendar, Clock } from 'lucide-react';
 import { useState, useRef, useEffect } from 'react';
@@ -56,8 +57,8 @@ export const BacklogPanel = ({ category, defaultPosition }: BacklogPanelProps) =
     useEffect(() => {
         const updateTime = () => {
             const now = new Date();
-            const timeString = `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')} `;
-            const dateString = `${now.getFullYear()} -${(now.getMonth() + 1).toString().padStart(2, '0')} -${now.getDate().toString().padStart(2, '0')} `;
+            const timeString = `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}`;
+            const dateString = `${now.getFullYear()}-${(now.getMonth() + 1).toString().padStart(2, '0')}-${now.getDate().toString().padStart(2, '0')}`;
             setCurrentTime(timeString);
             setCurrentDate(dateString);
         };
@@ -97,7 +98,7 @@ export const BacklogPanel = ({ category, defaultPosition }: BacklogPanelProps) =
         const totalMin = Math.floor(totalMs / 60000);
         const hours = Math.floor(totalMin / 60);
         const minutes = totalMin % 60;
-        return hours > 0 ? `${hours}h ${minutes} m` : `${minutes} m`;
+        return hours > 0 ? `${hours}h ${minutes}m` : `${minutes}m`;
     };
 
     const handleAdd = (e: React.FormEvent) => {
@@ -163,7 +164,7 @@ export const BacklogPanel = ({ category, defaultPosition }: BacklogPanelProps) =
 
     return (
         <DraggablePanel
-            id={`backlog - panel - ${category.id} `}
+            id={`backlog-panel-${category.id}`}
             defaultPosition={defaultPosition}
             defaultSize={{ width: 320, height: 400 }}
             minSize={{ width: 320, height: 200 }}
@@ -191,7 +192,7 @@ export const BacklogPanel = ({ category, defaultPosition }: BacklogPanelProps) =
                         />
                     </div>
                 ) : (
-                    <div className="flex items-center gap-2 uppercase tracking-wider font-bold w-full">
+                    <div className="flex items-center gap-2 font-bold w-full">
                         <ListTodo size={16} />
                         <span className="truncate">{category.name}</span>
                     </div>
@@ -282,13 +283,6 @@ export const BacklogPanel = ({ category, defaultPosition }: BacklogPanelProps) =
                     const isDateDue = !task.scheduledDate || task.scheduledDate === currentDate;
                     const isDue = isTimeDue && isDateDue;
                     const activeColorDef = colors.find(c => c.id === task.colorId);
-                    const borderColorClass = activeColorDef ? activeColorDef.colorCode.replace('bg-', 'border-') : 'border-transparent';
-                    const pillClasses = getPillClasses(activeColorDef?.colorCode);
-
-                    const dateDisplay = task.scheduledDate
-                        ? format(parseISO(task.scheduledDate), 'MM/dd')
-                        : '--/--';
-                    const timeDisplay = task.scheduledTime || '--:--';
 
                     return (
                         <div
@@ -297,105 +291,68 @@ export const BacklogPanel = ({ category, defaultPosition }: BacklogPanelProps) =
                             onDragStart={(e) => handleDragStart(e, task.id)}
                             onDragOver={(e) => handleDragOver(e, index)}
                             onDrop={(e) => { e.stopPropagation(); handleDrop(e, index); }}
-                            className={`group bg - slate - 900 / 50 hover: bg - slate - 800 / 80 p - 3 rounded - lg border - l - 4 hover: border - r - slate - 600 border - t - transparent border - b - transparent border - r - transparent transition - all flex flex - col gap - 2
-                                ${borderColorClass}
+                            className={`group bg-slate-900/50 hover:bg-slate-800/80 px-3 py-2 rounded-lg transition-all flex items-center gap-3
                                 ${draggedTaskId === task.id ? 'opacity-50' : ''}
-                                ${isDue ? 'animate-blink border-yellow-500/50 shadow-[0_0_10px_rgba(234,179,8,0.3)]' : ''} `}
+                                ${isDue ? 'animate-blink border-yellow-500/50 shadow-[0_0_10px_rgba(234,179,8,0.3)]' : ''}`}
                         >
-                            {/* Top Row: Grip, Name, Play */}
-                            <div className="flex items-center gap-2">
-                                <div className="cursor-grab text-slate-500 hover:text-slate-300">
-                                    <GripVertical size={14} />
-                                </div>
+                            {/* Color Dot Tag */}
+                            <div className="relative shrink-0">
+                                <select
+                                    value={task.colorId || ''}
+                                    onChange={(e) => updateTaskColorId(task.id, e.target.value === '' ? undefined : e.target.value)}
+                                    className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
+                                    title="タグを設定"
+                                >
+                                    <option value="">NONE</option>
+                                    {colors.map(c => (
+                                        <option key={c.id} value={c.id}>{c.name.toUpperCase()}</option>
+                                    ))}
+                                </select>
+                                <div className={`w-3 h-3 rounded-full border border-white/10 ${activeColorDef?.colorCode || 'bg-slate-700'}`} />
+                            </div>
+
+                            <div className="cursor-grab text-slate-600 hover:text-slate-400 shrink-0">
+                                <GripVertical size={14} />
+                            </div>
+
+                            <Tooltip text={task.name}>
                                 <input
                                     type="text"
                                     value={task.name}
                                     onChange={(e) => updateTaskName(task.id, e.target.value)}
-                                    className="flex-1 bg-transparent border-b border-transparent hover:border-slate-700 focus:border-blue-500 focus:outline-none text-sm text-slate-200 transition-colors truncate"
+                                    className="flex-1 bg-transparent border-b border-transparent hover:border-slate-700 focus:border-blue-500 focus:outline-none text-sm text-slate-200 transition-colors truncate min-w-0"
                                     placeholder="Task Name"
                                 />
+                            </Tooltip>
+
+                            <TaskScheduleInput
+                                date={task.scheduledDate}
+                                time={task.scheduledTime}
+                                onUpdate={(date, time) => updateTaskSchedule(task.id, date, time)}
+                                className="shrink-0"
+                            />
+
+                            <div className="flex items-center gap-1 shrink-0">
                                 <button
                                     onClick={() => pickFromBacklog(task.id)}
-                                    className="text-blue-500 hover:text-blue-400 p-1 rounded-full bg-blue-500/10 hover:bg-blue-500/20 transition-colors ml-auto shrink-0"
+                                    className="text-blue-500 hover:text-blue-400 p-1.5 rounded-full bg-blue-500/10 hover:bg-blue-500/20 transition-all"
                                     title="Start Task"
                                 >
                                     <Play size={14} className="fill-current" />
                                 </button>
-                            </div>
 
-                            {/* Bottom Row: Priority, Date, Time, Actions */}
-                            <div className="flex items-center justify-between pl-6 gap-2 opacity-60 group-hover:opacity-100 transition-opacity">
-
-                                <div className="flex items-center gap-2 flex-wrap">
-                                    {/* Priority Pill Select */}
-                                    <div className="relative inline-block">
-                                        <select
-                                            value={task.colorId || ''}
-                                            onChange={(e) => updateTaskColorId(task.id, e.target.value === '' ? undefined : e.target.value)}
-                                            className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
-                                            title="タグを設定"
-                                        >
-                                            <option value="">NONE</option>
-                                            {colors.map(c => (
-                                                <option key={c.id} value={c.id}>{c.name.toUpperCase()}</option>
-                                            ))}
-                                        </select>
-                                        <div className={`inline - flex items - center gap - 1.5 px - 2 py - 0.5 rounded text - [9px] font - bold tracking - widest uppercase border pointer - events - none ${pillClasses} `}>
-                                            <div className={`w - 1 h - 1 rounded - full ${activeColorDef?.colorCode || 'bg-slate-500'} `} />
-                                            <span>{activeColorDef ? activeColorDef.name : 'NONE'}</span>
-                                        </div>
-                                    </div>
-
-                                    {/* Date & Time Select */}
-                                    <div className="flex items-center gap-2 bg-slate-950/30 px-2 py-0.5 rounded border border-slate-800 text-[11px] text-slate-400">
-                                        <div className="relative flex items-center gap-1 group/date hover:text-slate-300 transition-colors">
-                                            <Calendar size={10} />
-                                            <span>{dateDisplay}</span>
-                                            <input
-                                                type="date"
-                                                value={task.scheduledDate || ''}
-                                                onChange={(e) => updateTaskSchedule(task.id, e.target.value, undefined)}
-                                                className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
-                                            />
-                                        </div>
-                                        <div className="relative flex items-center gap-1 group/time hover:text-slate-300 transition-colors">
-                                            <Clock size={10} />
-                                            <span>{timeDisplay}</span>
-                                            <input
-                                                type="time"
-                                                value={task.scheduledTime || ''}
-                                                onChange={(e) => updateTaskSchedule(task.id, undefined, e.target.value)}
-                                                className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
-                                            />
-                                        </div>
-                                    </div>
-                                </div>
-
-                                {/* Actions */}
-                                <div className="flex items-center gap-1 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity">
-                                    <button
-                                        onClick={(e) => {
-                                            e.stopPropagation();
-                                            copyToRecurring(task.id);
-                                        }}
-                                        className="p-1 text-slate-500 hover:text-blue-400 transition-colors"
-                                        title="Copy to Recurring"
-                                    >
-                                        <Copy size={12} />
-                                    </button>
-                                    <button
-                                        onClick={(e) => {
-                                            e.stopPropagation();
-                                            if (window.confirm('Delete this task?')) {
-                                                deleteTask(task.id);
-                                            }
-                                        }}
-                                        className="p-1 text-slate-500 hover:text-red-400 transition-colors"
-                                        title="Delete Task"
-                                    >
-                                        <Trash2 size={12} />
-                                    </button>
-                                </div>
+                                <button
+                                    onClick={(e) => {
+                                        e.stopPropagation();
+                                        if (window.confirm('Delete this task?')) {
+                                            deleteTask(task.id);
+                                        }
+                                    }}
+                                    className="p-1.5 text-slate-600 hover:text-red-400 transition-all opacity-0 group-hover:opacity-100"
+                                    title="Delete Task"
+                                >
+                                    <Trash2 size={14} />
+                                </button>
                             </div>
                         </div>
                     );
