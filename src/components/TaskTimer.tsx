@@ -121,14 +121,14 @@ export function TaskTimer() {
                 </div>
             ) : (
                 <div className="group flex flex-col items-center justify-center gap-3 mb-4 w-[calc(100%-40px)] mx-auto relative text-center min-h-[5rem]">
-                    <Tooltip text={currentTask.name}>
-                        <h2 className="text-3xl font-medium text-glow line-clamp-2 break-words px-8">
+                    <Tooltip text={currentTask.name} className="w-full relative">
+                        <h2 className="text-3xl font-medium text-glow line-clamp-2 break-words px-4">
                             {currentTask.name}
                         </h2>
                     </Tooltip>
 
-                    {/* Floating tools overlay, positioned bottom-right relative to the container */}
-                    <div className="opacity-0 group-hover:opacity-100 transition-opacity absolute bottom-0 right-0 flex items-center gap-2 bg-slate-900/80 backdrop-blur-sm px-2 py-1 rounded-tl-lg shadow shadow-slate-900/50">
+                    {/* Floating tools overlay, positioned above the text on the right */}
+                    <div className="opacity-0 group-hover:opacity-100 transition-opacity absolute -top-8 right-0 flex items-center gap-2 bg-slate-800/90 border border-slate-700 backdrop-blur-sm px-2 py-1 rounded-lg shadow-lg">
                         <button
                             onClick={startEditing}
                             className="text-slate-400 hover:text-slate-200 transition-colors p-1"

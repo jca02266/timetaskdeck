@@ -6,9 +6,10 @@ import { createPortal } from 'react-dom';
 interface TooltipProps {
     text: string;
     children: React.ReactNode;
+    className?: string;
 }
 
-export function Tooltip({ text, children }: TooltipProps) {
+export function Tooltip({ text, children, className = "truncate" }: TooltipProps) {
     const [isVisible, setIsVisible] = useState(false);
     const [coords, setCoords] = useState({ top: 0, left: 0 });
     const triggerRef = useRef<HTMLDivElement>(null);
@@ -48,7 +49,7 @@ export function Tooltip({ text, children }: TooltipProps) {
             onMouseLeave={handleMouseLeave}
             onFocus={handleFocus}
             onBlur={handleBlur}
-            className="truncate" // Ensure wrapper triggers truncation if needed
+            className={className}
             tabIndex={0} // Make focusable
         >
             {children}
