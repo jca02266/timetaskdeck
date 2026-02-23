@@ -157,6 +157,7 @@ export function HistoryView() {
                                                 e.stopPropagation();
                                                 useTaskStore.getState().openMemo(task.id);
                                             }}
+                                            onPointerDown={(e) => e.stopPropagation()}
                                             className="p-1 text-slate-400 hover:text-blue-400 transition-colors"
                                             title="Open Memo"
                                         >

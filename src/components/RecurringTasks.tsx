@@ -235,8 +235,12 @@ export function RecurringTasks() {
                                             <Pencil size={14} />
                                         </button>
                                         <button
-                                            onClick={() => useTaskStore.getState().openMemo(task.id)}
-                                            className="text-slate-400 hover:text-blue-400 p-1 rounded"
+                                            onClick={(e) => {
+                                                e.stopPropagation();
+                                                useTaskStore.getState().openMemo(task.id);
+                                            }}
+                                            onPointerDown={(e) => e.stopPropagation()}
+                                            className="p-1.5 text-slate-400 hover:text-blue-400 rounded hover:bg-slate-700/50 transition-colors"
                                             title="Open Memo"
                                         >
                                             <FileText size={14} />

@@ -368,7 +368,11 @@ export function TaskTableView({ isOpen, onClose }: TaskTableViewProps) {
                                             <td className="px-6 py-4 text-right flex items-center justify-end gap-1">
                                                 <button
                                                     className="text-slate-600 hover:text-blue-400 transition-colors opacity-0 group-hover:opacity-100 p-2 rounded-lg hover:bg-slate-800/80"
-                                                    onClick={() => useTaskStore.getState().openMemo(task.id)}
+                                                    onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        useTaskStore.getState().openMemo(task.id);
+                                                    }}
+                                                    onPointerDown={(e) => e.stopPropagation()}
                                                     title="Open Memo"
                                                 >
                                                     <FileText size={16} />
