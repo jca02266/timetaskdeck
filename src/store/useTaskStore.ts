@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
+import { useMemoStore } from './useMemoStore';
 
 export type TaskStatus = 'pending' | 'completed' | 'paused' | 'interrupted';
 
@@ -117,6 +118,14 @@ interface TaskState {
     bringToFront: (id: string) => void;
     draggedTaskId: string | null;
     setDraggedTaskId: (id: string | null) => void;
+
+    // Memo Feature State
+    activeMemoTaskId: string | null;
+    isMemoMinimized: boolean;
+    openMemo: (taskId: string) => void;
+    closeMemo: () => void;
+    toggleMemoMinimized: () => void;
+    getTaskById: (taskId: string) => Task | undefined;
 }
 
 export const useTaskStore = create<TaskState>()(
@@ -135,6 +144,41 @@ export const useTaskStore = create<TaskState>()(
             frontPanelId: null,
             draggedTaskId: null,
 
+            // Memo Initialization
+            activeMemoTaskId: null,
+            isMemoMinimized: typeof window !== 'undefined' ? localStorage.getItem('timetask-ui-memo-minimized') === 'true' : false,
+
+            openMemo: (taskId: string) => {
+                set({ activeMemoTaskId: taskId, isMemoMinimized: false });
+                get().bringToFront('memo-panel');
+            },
+
+            closeMemo: () => {
+                set({ activeMemoTaskId: null });
+            },
+
+            toggleMemoMinimized: () => {
+                set((state) => {
+                    const newValue = !state.isMemoMinimized;
+                    if (typeof window !== 'undefined') {
+                        localStorage.setItem('timetask-ui-memo-minimized', String(newValue));
+                    }
+                    return { isMemoMinimized: newValue };
+                });
+            },
+
+            getTaskById: (taskId: string) => {
+                const state = get();
+                if (state.currentTask?.id === taskId) return state.currentTask;
+                const inStack = state.taskStack.find(t => t.id === taskId);
+                if (inStack) return inStack;
+                const inBacklog = state.backlogTasks.find(t => t.id === taskId);
+                if (inBacklog) return inBacklog;
+                const inHistory = state.history.find(t => t.id === taskId);
+                if (inHistory) return inHistory;
+                return undefined;
+            },
+
             bringToFront: (id: string) => {
                 set({ frontPanelId: id });
             },
@@ -145,16 +189,27 @@ export const useTaskStore = create<TaskState>()(
 
             startTask: (name, recurringTaskId) => {
                 const state = get();
+
+                // Parse multi-line input
+                const lines = name.split('\n');
+                const taskName = lines[0].trim();
+                const memoContent = lines.slice(1).join('\n').trim();
+
                 const defaultBacklogId = state.backlogCategories.length > 0 ? state.backlogCategories[0].id : 'main';
                 const newTask: Task = {
                     id: crypto.randomUUID(),
-                    name,
+                    name: taskName, // Use parsed name
                     startTime: Date.now(),
                     duration: 0,
                     status: 'pending',
                     recurringTaskId,
                     backlogId: defaultBacklogId
                 };
+
+                // Save memo if present
+                if (memoContent) {
+                    useMemoStore.getState().setMemo(newTask.id, memoContent);
+                }
 
                 set((state) => {
                     let newStack = state.taskStack;

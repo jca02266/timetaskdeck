@@ -3,7 +3,7 @@
 import { useTaskStore } from "@/store/useTaskStore";
 import { useMemoStore } from "@/store/useMemoStore";
 import { DraggablePanel } from "./DraggablePanel";
-import { FileText, Maximize2, Minimize2, Edit2, Eye, Copy, Check } from "lucide-react";
+import { FileText, Maximize2, Minimize2, Edit2, Eye, Copy, Check, X } from "lucide-react";
 import { useState, useEffect, useRef } from "react";
 
 // Helper to detect and render URLs and Windows paths
@@ -77,53 +77,65 @@ function WindowsPathCopy({ path }: { path: string }) {
 }
 
 export function TaskMemoEditor() {
-    const currentTask = useTaskStore((state) => state.currentTask);
-    const getMemo = useMemoStore((state) => state.getMemo);
+    const activeMemoTaskId = useTaskStore((state) => state.activeMemoTaskId);
+    const isMemoMinimized = useTaskStore((state) => state.isMemoMinimized);
+    const toggleMemoMinimized = useTaskStore((state) => state.toggleMemoMinimized);
+    const closeMemo = useTaskStore((state) => state.closeMemo);
+    const getTaskById = useTaskStore((state) => state.getTaskById);
+
     const setMemo = useMemoStore((state) => state.setMemo);
+    const memos = useMemoStore((state) => state.memos);
 
     const [isMaximized, setIsMaximized] = useState(false);
-    const [isMinimized, setIsMinimized] = useState(false);
     const [isEditing, setIsEditing] = useState(false);
 
     // Auto-save typing state
     const [localText, setLocalText] = useState("");
     const textareaRef = useRef<HTMLTextAreaElement>(null);
 
-    // Sync content when currentTask changes
+    // Sync content when activeMemoTaskId or memos change
     useEffect(() => {
-        if (currentTask) {
-            setLocalText(getMemo(currentTask.id));
-            // Default to view mode if there is text, edit mode if empty
-            setIsEditing(!getMemo(currentTask.id));
+        if (activeMemoTaskId) {
+            const currentMemo = memos[activeMemoTaskId] || "";
+            setLocalText(currentMemo);
+            // Default to editing if it's empty, otherwise viewing
+            setIsEditing(!currentMemo);
         } else {
             setLocalText("");
+            setIsMaximized(false);
+            setIsEditing(false);
         }
-    }, [currentTask?.id, getMemo]);
+    }, [activeMemoTaskId, memos]);
 
     const handleTextChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
         const newText = e.target.value;
         setLocalText(newText);
-        if (currentTask) {
-            setMemo(currentTask.id, newText);
+        if (activeMemoTaskId) {
+            setMemo(activeMemoTaskId, newText);
         }
     };
 
-    if (!currentTask) return null;
+    if (!activeMemoTaskId || isMemoMinimized) return null;
 
-    const defaultSize = { width: 300, height: 250 };
-    const maxZSize = { width: Math.min(600, window.innerWidth - 40), height: Math.min(500, window.innerHeight - 40) };
-    const minZSize = { width: 250, height: 40 }; // Just header
+    const task = getTaskById(activeMemoTaskId);
+    const taskName = task ? task.name : "不明なタスク";
+
+    const defaultSize = { width: 400, height: 350 };
+    // We don't change size state for maximize anymore; we use CSS to override position/size.
 
     const toggleMaximize = (e: React.MouseEvent) => {
         e.stopPropagation();
         setIsMaximized(!isMaximized);
-        if (isMinimized) setIsMinimized(false);
     };
 
     const toggleMinimize = (e: React.MouseEvent) => {
         e.stopPropagation();
-        setIsMinimized(!isMinimized);
-        if (isMaximized) setIsMaximized(false);
+        toggleMemoMinimized(); // This will dock it and unmount this component
+    };
+
+    const handleClose = (e: React.MouseEvent) => {
+        e.stopPropagation();
+        closeMemo();
     };
 
     const toggleEditMode = (e: React.MouseEvent) => {
@@ -138,8 +150,8 @@ export function TaskMemoEditor() {
         <div className="flex bg-slate-800/80 rounded border border-slate-700 p-0.5">
             <button
                 onClick={toggleMinimize}
-                className={`p-1 rounded text-slate-400 hover:text-white hover:bg-slate-700 transition-colors ${isMinimized ? 'bg-slate-700 text-white' : ''}`}
-                title={isMinimized ? "元に戻す" : "最小化"}
+                className="p-1 rounded text-slate-400 hover:text-white hover:bg-slate-700 transition-colors"
+                title="デッキにおさめる (最小化)"
             >
                 <Minimize2 size={12} />
             </button>
@@ -150,63 +162,71 @@ export function TaskMemoEditor() {
             >
                 <Maximize2 size={12} />
             </button>
+            <button
+                onClick={handleClose}
+                className="p-1 ml-1 rounded text-slate-400 hover:text-red-400 hover:bg-slate-700 transition-colors"
+                title="閉じる"
+            >
+                <X size={12} />
+            </button>
         </div>
     );
 
     const titleNode = (
-        <div className="flex items-center gap-2 max-w-[150px] sm:max-w-[200px]">
+        <div className="flex items-center gap-2 max-w-[150px] sm:max-w-[300px]" title={taskName}>
             <FileText size={14} className="text-blue-400 shrink-0" />
-            <span className="truncate">{currentTask.name} - メモ</span>
+            <span className="truncate">{taskName} - メモ</span>
         </div>
     );
 
+    // If maximized, we override the draggable panel completely using classes
+    const maximizedClass = isMaximized ? "!fixed !inset-x-0 !inset-y-0 !w-full !h-full !max-w-none !max-h-none !z-[300] !rounded-none" : "";
+
     return (
         <DraggablePanel
-            id={`memo-${currentTask.id}`} // Force re-render/re-position? Actually better to just use "task-memo" so it stays put when switching tasks
-            defaultPosition={{ right: 20, top: 400 }}
-            defaultSize={isMaximized ? maxZSize : isMinimized ? minZSize : defaultSize}
-            minSize={{ width: 200, height: 40 }}
+            id="memo-panel" // Constant ID so its position is remembered globally for memos
+            defaultPosition={{ right: 20, top: 200 }}
+            defaultSize={defaultSize}
+            minSize={{ width: 300, height: 200 }}
             title={titleNode}
             headerControls={renderHeaderControls()}
-            resizable={!isMinimized && !isMaximized}
-            className={`transition-all duration-200 ${isMaximized ? "border-blue-500/50 shadow-blue-500/20" : ""}`}
+            resizable={!isMaximized}
+            className={`transition-all duration-200 border-blue-500/30 shadow-blue-900/10 ${maximizedClass}`}
         >
-            {!isMinimized && (
-                <div className="flex flex-col h-full bg-slate-900/95 relative overflow-hidden group">
-                    {/* View/Edit Toggle Floating Button */}
-                    <button
-                        onPointerDown={toggleEditMode}
-                        className="absolute right-3 top-3 z-10 p-2 rounded-full bg-slate-800/80 hover:bg-slate-700 text-slate-400 hover:text-white border border-slate-700 opacity-50 group-hover:opacity-100 transition-all shadow-lg"
-                        title={isEditing ? "プレビューモード" : "編集モード"}
-                    >
-                        {isEditing ? <Eye size={14} /> : <Edit2 size={14} />}
-                    </button>
+            <div className="flex flex-col h-full bg-slate-900/95 relative overflow-hidden group">
+                {/* View/Edit Toggle Floating Button */}
+                <button
+                    onPointerDown={toggleEditMode}
+                    className="absolute right-3 top-3 z-10 p-2 rounded-full bg-slate-800/80 hover:bg-slate-700 text-slate-400 hover:text-white border border-slate-700 opacity-50 group-hover:opacity-100 transition-all shadow-lg"
+                    title={isEditing ? "プレビューモード" : "編集モード"}
+                >
+                    {isEditing ? <Eye size={14} /> : <Edit2 size={14} />}
+                </button>
 
-                    {isEditing ? (
-                        <textarea
-                            ref={textareaRef}
-                            value={localText}
-                            onChange={handleTextChange}
-                            onDoubleClick={toggleEditMode}
-                            placeholder="Markdownテキスト、URL、Windowsパス(C:\...)を入力...&#10;ダブルクリックでプレビューに戻ります。"
-                            className="flex-1 w-full bg-transparent p-4 text-sm text-slate-300 resize-none focus:outline-none scrollbar-thin scrollbar-thumb-slate-700 scrollbar-track-transparent leading-relaxed"
-                            spellCheck={false}
-                        />
-                    ) : (
-                        <div
-                            className="flex-1 w-full p-4 overflow-y-auto text-sm text-slate-300 scrollbar-thin scrollbar-thumb-slate-700 scrollbar-track-transparent leading-relaxed"
-                            onDoubleClick={toggleEditMode}
-                            title="ダブルクリックで編集"
-                        >
-                            {localText ? renderTextWithLinks(localText) : (
-                                <div className="text-slate-500 italic">
-                                    メモはありません。ダブルクリックで編集を開始します。
-                                </div>
-                            )}
-                        </div>
-                    )}
-                </div>
-            )}
+                {isEditing ? (
+                    <textarea
+                        ref={textareaRef}
+                        value={localText}
+                        onChange={handleTextChange}
+                        onDoubleClick={toggleEditMode}
+                        placeholder="Markdownテキスト、URL、Windowsパス(C:\...)を入力...&#10;ダブルクリックでプレビューに戻ります。"
+                        className="flex-1 w-full bg-transparent p-4 text-sm text-slate-300 resize-none focus:outline-none scrollbar-thin scrollbar-thumb-slate-700 scrollbar-track-transparent leading-relaxed"
+                        spellCheck={false}
+                    />
+                ) : (
+                    <div
+                        className="flex-1 w-full p-4 overflow-y-auto text-sm text-slate-300 scrollbar-thin scrollbar-thumb-slate-700 scrollbar-track-transparent leading-relaxed"
+                        onDoubleClick={toggleEditMode}
+                        title="ダブルクリックで編集"
+                    >
+                        {localText ? renderTextWithLinks(localText) : (
+                            <div className="text-slate-500 italic">
+                                メモはありません。ダブルクリックで編集を開始します。
+                            </div>
+                        )}
+                    </div>
+                )}
+            </div>
         </DraggablePanel>
     );
 }

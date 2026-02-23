@@ -18,7 +18,7 @@ import { StorageOperations } from "@/components/StorageOperations";
 import { useTaskStore } from "@/store/useTaskStore";
 
 /* Icons */
-import { RotateCcw, Plus, Play, List, Layers, Settings, ListPlus, Table, ListTodo, Repeat, Clock } from 'lucide-react';
+import { RotateCcw, Plus, Play, List, Layers, Settings, ListPlus, Table, ListTodo, Repeat, Clock, FileText } from 'lucide-react';
 
 export default function Home() {
   const [isLogOpen, setIsLogOpen] = useState(false);
@@ -34,6 +34,8 @@ export default function Home() {
   const toggleRecurringMinimized = useTaskStore((state) => state.toggleRecurringMinimized);
   const toggleHistoryMinimized = useTaskStore((state) => state.toggleHistoryMinimized);
   const historyCount = useTaskStore((state) => state.history.length);
+  const activeMemoTaskId = useTaskStore((state) => state.activeMemoTaskId);
+  const isMemoMinimized = useTaskStore((state) => state.isMemoMinimized);
 
   return (
     <main className="min-h-screen relative p-8 pb-32 overflow-hidden flex flex-col bg-slate-950 text-slate-200 selection:bg-blue-500/30">
@@ -205,6 +207,23 @@ export default function Home() {
             <Repeat size={16} className={isRecurringMinimized ? 'opacity-50' : 'text-purple-400'} />
             <span>定期タスクデッキ</span>
           </button>
+
+          {/* Memo Dock Item (Only show if memo is active and minimized) */}
+          {activeMemoTaskId && isMemoMinimized && (
+            <button
+              onClick={() => {
+                useTaskStore.getState().toggleMemoMinimized();
+                useTaskStore.getState().bringToFront('memo-panel');
+              }}
+              className="pointer-events-auto flex items-center gap-2 px-4 py-2 backdrop-blur-md border rounded-full text-sm font-medium transition-all shadow-xl hover:-translate-y-0.5 bg-slate-900/90 border-slate-700/50 text-slate-400 hover:text-white hover:bg-slate-800"
+              title="Restore Memo"
+            >
+              <FileText size={16} className="opacity-50" />
+              <span className="max-w-[150px] truncate">
+                {useTaskStore.getState().getTaskById(activeMemoTaskId)?.name || "Task"} - メモ
+              </span>
+            </button>
+          )}
 
           {/* History Dock Item (Only show if there's history) */}
           {historyCount > 0 && (

@@ -18,11 +18,15 @@ export function TaskInput() {
         setShowSuggestions(false);
     };
 
-    const handleKeyDown = (e: React.KeyboardEvent) => {
+    const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
         if (e.nativeEvent.isComposing || e.keyCode === 229) return;
-        if (e.key === 'Enter') {
+
+        // Submit on Enter (without Shift)
+        if (e.key === 'Enter' && !e.shiftKey) {
+            e.preventDefault(); // Prevent default newline
             handleStart();
         }
+        // Allow newline on Shift+Enter implicitly
     };
 
     useEffect(() => {
@@ -62,19 +66,26 @@ export function TaskInput() {
 
     return (
         <div className="relative w-full z-20" ref={dropdownRef}>
-            <div className="flex gap-2">
-                <input
-                    type="text"
+            <div className="flex gap-2 flex-col sm:flex-row">
+                <textarea
                     value={input}
                     onChange={(e) => setInput(e.target.value)}
                     onKeyDown={handleKeyDown}
-                    placeholder="What are you working on?"
-                    className="flex-1 bg-slate-800/50 border border-slate-700 rounded-xl px-6 py-4 text-xl focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-all text-white placeholder-slate-500 glass"
+                    placeholder="New Task... (Shift+Enter for Memo)"
+                    className="flex-1 bg-slate-800/50 border border-slate-700 rounded-xl px-6 py-4 text-xl focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-all text-white placeholder-slate-500 glass resize-none overflow-hidden min-h-[60px]"
                     autoFocus
+                    rows={1}
+                    style={{ height: input ? 'auto' : '60px' }} // Basic auto-expand
+                    ref={(el) => {
+                        if (el && input) {
+                            el.style.height = 'auto';
+                            el.style.height = `${Math.min(el.scrollHeight, 200)}px`; // Max height 200px
+                        }
+                    }}
                 />
                 <button
                     onClick={handleStart}
-                    className="bg-blue-600 hover:bg-blue-500 text-white rounded-xl px-8 flex items-center justify-center transition-colors shadow-lg shadow-blue-500/20"
+                    className="bg-blue-600 hover:bg-blue-500 text-white rounded-xl px-8 py-4 flex items-center justify-center transition-colors shadow-lg shadow-blue-500/20 shrink-0"
                 >
                     <Play fill="currentColor" />
                 </button>

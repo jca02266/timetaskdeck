@@ -1,7 +1,7 @@
 "use client";
 
 import { useTaskStore } from '@/store/useTaskStore';
-import { Download, RotateCcw, Clock, Pencil, Check, X, Trash2, Copy, Minimize2 } from 'lucide-react';
+import { Download, RotateCcw, Clock, Pencil, Check, X, Trash2, Copy, Minimize2, FileText } from 'lucide-react';
 import { format } from 'date-fns';
 import { useState } from 'react';
 import { Tooltip } from './Tooltip';
@@ -151,6 +151,16 @@ export function HistoryView() {
                                             title="定期タスクにコピー"
                                         >
                                             <Copy size={14} />
+                                        </button>
+                                        <button
+                                            onClick={(e) => {
+                                                e.stopPropagation();
+                                                useTaskStore.getState().openMemo(task.id);
+                                            }}
+                                            className="p-1 text-slate-400 hover:text-blue-400 transition-colors"
+                                            title="Open Memo"
+                                        >
+                                            <FileText size={14} />
                                         </button>
                                         <button
                                             onClick={() => {

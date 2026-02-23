@@ -1,7 +1,7 @@
 "use client";
 
 import { useTaskStore } from '@/store/useTaskStore';
-import { Repeat, Play, Plus, Pencil, Check, X, Trash2, GripVertical, CheckCircle2, Circle, Minimize2 } from 'lucide-react';
+import { Repeat, Play, Plus, Pencil, Check, X, Trash2, GripVertical, CheckCircle2, Circle, Minimize2, FileText } from 'lucide-react';
 import { useState } from 'react';
 import { Tooltip } from './Tooltip';
 import { DatePicker } from './DatePicker';
@@ -233,6 +233,13 @@ export function RecurringTasks() {
                                             title="Rename"
                                         >
                                             <Pencil size={14} />
+                                        </button>
+                                        <button
+                                            onClick={() => useTaskStore.getState().openMemo(task.id)}
+                                            className="text-slate-400 hover:text-blue-400 p-1 rounded"
+                                            title="Open Memo"
+                                        >
+                                            <FileText size={14} />
                                         </button>
                                         <button
                                             onClick={() => {

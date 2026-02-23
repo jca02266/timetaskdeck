@@ -4,7 +4,7 @@ import { DatePicker } from './DatePicker';
 import { DraggablePanel } from './DraggablePanel';
 import { TaskScheduleInput } from './TaskScheduleInput';
 import { format, parseISO } from 'date-fns';
-import { ListTodo, Play, Plus, Pencil, Check, X, Trash2, GripVertical, Copy, Minimize2, Calendar, Clock } from 'lucide-react';
+import { ListTodo, Play, Plus, Pencil, Check, X, Trash2, GripVertical, Copy, Minimize2, Calendar, Clock, FileText } from 'lucide-react';
 import { useState, useRef, useEffect } from 'react';
 
 function getPillClasses(colorCode?: string) {
@@ -397,7 +397,22 @@ export const BacklogPanel = ({ category, defaultPosition }: BacklogPanelProps) =
 
                             <div className="flex items-center gap-1 shrink-0">
                                 <button
-                                    onClick={() => pickFromBacklog(task.id)}
+                                    onClick={(e) => {
+                                        e.stopPropagation();
+                                        useTaskStore.getState().openMemo(task.id);
+                                    }}
+                                    onPointerDown={(e) => e.stopPropagation()}
+                                    className="p-1.5 text-slate-400 hover:text-blue-400 rounded hover:bg-slate-700/50 transition-colors"
+                                    title="Open Memo"
+                                >
+                                    <FileText size={14} />
+                                </button>
+                                <button
+                                    onClick={(e) => {
+                                        e.stopPropagation();
+                                        pickFromBacklog(task.id);
+                                    }}
+                                    onPointerDown={(e) => e.stopPropagation()}
                                     className="text-blue-500 hover:text-blue-400 p-1.5 rounded-full bg-blue-500/10 hover:bg-blue-500/20 transition-all"
                                     title="Start Task"
                                 >
@@ -421,6 +436,6 @@ export const BacklogPanel = ({ category, defaultPosition }: BacklogPanelProps) =
                     );
                 })}
             </div>
-        </DraggablePanel>
+        </DraggablePanel >
     );
 }

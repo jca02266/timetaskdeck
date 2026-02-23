@@ -1,7 +1,7 @@
 "use client";
 
 import { useTaskStore, Task } from '@/store/useTaskStore';
-import { Trash2, ArrowUp, ArrowDown, Plus, X, GripVertical, ListFilter, Play } from 'lucide-react';
+import { Trash2, ArrowUp, ArrowDown, Plus, X, GripVertical, ListFilter, Play, FileText } from 'lucide-react';
 import { useState, useMemo, useEffect, useRef } from 'react';
 import { TaskScheduleInput } from './TaskScheduleInput';
 
@@ -365,7 +365,14 @@ export function TaskTableView({ isOpen, onClose }: TaskTableViewProps) {
                                                 />
                                             </td>
 
-                                            <td className="px-6 py-4 text-right">
+                                            <td className="px-6 py-4 text-right flex items-center justify-end gap-1">
+                                                <button
+                                                    className="text-slate-600 hover:text-blue-400 transition-colors opacity-0 group-hover:opacity-100 p-2 rounded-lg hover:bg-slate-800/80"
+                                                    onClick={() => useTaskStore.getState().openMemo(task.id)}
+                                                    title="Open Memo"
+                                                >
+                                                    <FileText size={16} />
+                                                </button>
                                                 <button
                                                     className="text-slate-600 hover:text-red-400 transition-colors opacity-0 group-hover:opacity-100 p-2 rounded-lg hover:bg-slate-800/80"
                                                     onClick={() => handleLocalDelete(task.id)}

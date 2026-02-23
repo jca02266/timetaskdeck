@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { useTaskStore } from '@/store/useTaskStore';
-import { Play, Square, Pause, ArrowDown, Pencil, Check, X } from 'lucide-react';
+import { Play, Square, Pause, ArrowDown, Pencil, Check, X, FileText } from 'lucide-react';
 import { format } from 'date-fns';
 
 export function TaskTimer() {
@@ -119,17 +119,26 @@ export function TaskTimer() {
                     </button>
                 </div>
             ) : (
-                <div className="group flex items-center justify-center gap-3 mb-4 w-full relative">
+                <div className="group flex items-center justify-center gap-3 mb-4 w-[calc(100%-80px)] mx-auto relative">
                     <h2 className="text-3xl font-medium text-center text-glow break-all">
                         {currentTask.name}
                     </h2>
-                    <button
-                        onClick={startEditing}
-                        className="opacity-0 group-hover:opacity-100 transition-opacity text-slate-500 hover:text-slate-300 absolute right-0 translate-x-full pl-2"
-                        title="Edit Name"
-                    >
-                        <Pencil size={18} />
-                    </button>
+                    <div className="opacity-0 group-hover:opacity-100 transition-opacity absolute right-0 flex items-center gap-2">
+                        <button
+                            onClick={startEditing}
+                            className="text-slate-500 hover:text-slate-300"
+                            title="Edit Name"
+                        >
+                            <Pencil size={18} />
+                        </button>
+                        <button
+                            onClick={() => useTaskStore.getState().openMemo(currentTask.id)}
+                            className="text-slate-500 hover:text-blue-400"
+                            title="Open Memo"
+                        >
+                            <FileText size={18} />
+                        </button>
+                    </div>
                 </div>
             )}
 
