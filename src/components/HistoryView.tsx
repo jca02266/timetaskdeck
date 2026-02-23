@@ -75,6 +75,7 @@ export function HistoryView() {
             id="history-panel"
             defaultPosition={{ bottom: 32, left: 32 }}
             defaultSize={{ width: 320, height: 400 }}
+            minSize={{ width: 320, height: 250 }}
             title={
                 <div className="flex items-center gap-2 uppercase tracking-wider">
                     <Clock size={16} />

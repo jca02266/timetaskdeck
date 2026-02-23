@@ -3,6 +3,29 @@ import { persist, createJSONStorage } from 'zustand/middleware';
 
 export type TaskStatus = 'pending' | 'completed' | 'paused' | 'interrupted';
 
+export interface BacklogCategory {
+    id: string;
+    name: string;
+    allocatedMinutes: number;
+}
+
+export interface ColorDefinition {
+    id: string;
+    colorCode: string;
+    name: string;
+}
+
+export const DEFAULT_COLORS: ColorDefinition[] = [
+    { id: 'color-1', colorCode: 'bg-slate-500', name: 'Default' },
+    { id: 'color-2', colorCode: 'bg-red-500', name: 'Urgent' },
+    { id: 'color-3', colorCode: 'bg-orange-500', name: 'Orange' },
+    { id: 'color-4', colorCode: 'bg-yellow-500', name: 'Yellow' },
+    { id: 'color-5', colorCode: 'bg-green-500', name: 'Green' },
+    { id: 'color-6', colorCode: 'bg-blue-500', name: 'Blue' },
+    { id: 'color-7', colorCode: 'bg-purple-500', name: 'Purple' },
+    { id: 'color-8', colorCode: 'bg-pink-500', name: 'Pink' },
+];
+
 export interface Task {
     id: string;
     name: string;
@@ -13,6 +36,8 @@ export interface Task {
     recurringTaskId?: string; // Links back to the recurring task template
     scheduledTime?: string; // HH:mm format
     scheduledDate?: string; // YYYY-MM-DD format
+    backlogId?: string;
+    colorId?: string;
 }
 
 export interface TaskLogEntry {
@@ -28,7 +53,9 @@ export interface TaskLogEntry {
 interface TaskState {
     currentTask: Task | null;
     taskStack: Task[];
-    backlog: Task[];
+    backlogTasks: Task[]; // Replaces old `backlog`
+    backlogCategories: BacklogCategory[];
+    colors: ColorDefinition[];
     history: Task[];
     recurringTasks: Task[];
     taskLog: TaskLogEntry[];
@@ -38,14 +65,26 @@ interface TaskState {
     stopTask: () => void;
     completeTask: () => void;
     interruptTask: (name: string) => void;
-    addToBacklog: (name: string) => void;
+
+    // Backlog Operations
+    addToBacklog: (name: string, backlogId?: string) => void;
     pickFromBacklog: (taskId: string) => void;
+    moveBacklogTask: (taskId: string, targetBacklogId: string, targetIndexInCategory: number) => void;
+    moveHistoryToBacklog: (taskId: string, targetBacklogId: string) => void;
+
+    // Category / Color Operations
+    addBacklogCategory: () => void;
+    updateBacklogCategory: (id: string, updates: Partial<BacklogCategory>) => void;
+    deleteBacklogCategory: (id: string) => void;
+    updateColorName: (id: string, name: string) => void;
+    updateTaskColorId: (taskId: string, colorId?: string) => void;
+    updateTaskBacklogId: (taskId: string, backlogId: string) => void;
+
     reopenTask: (taskId: string) => void;
     updateCurrentTaskName: (name: string) => void;
     switchTask: (taskId: string) => void;
     updateTaskName: (taskId: string, newName: string) => void;
     deleteTask: (taskId: string) => void;
-    reorderBacklog: (fromIndex: number, toIndex: number) => void;
     sendCurrentToBack: () => void;
 
     // Recurring Task Actions
@@ -67,7 +106,9 @@ export const useTaskStore = create<TaskState>()(
         (set, get) => ({
             currentTask: null,
             taskStack: [],
-            backlog: [],
+            backlogTasks: [],
+            backlogCategories: [{ id: 'main', name: 'Main Backlog', allocatedMinutes: 0 }],
+            colors: DEFAULT_COLORS,
             history: [],
             recurringTasks: [],
             taskLog: [],
@@ -87,7 +128,6 @@ export const useTaskStore = create<TaskState>()(
                     let newLog = [...state.taskLog];
 
                     if (state.currentTask) {
-                        // Auto-interrupt: Log session
                         const now = Date.now();
                         const sessionDuration = now - state.currentTask.startTime;
                         newLog.unshift({
@@ -100,7 +140,6 @@ export const useTaskStore = create<TaskState>()(
                             status: 'interrupted' as TaskStatus
                         });
 
-                        // Push current task to stack
                         const pausedTask = {
                             ...state.currentTask,
                             duration: state.currentTask.duration + sessionDuration,
@@ -143,7 +182,7 @@ export const useTaskStore = create<TaskState>()(
 
                     return {
                         currentTask: null,
-                        backlog: [stoppedTask, ...state.backlog],
+                        backlogTasks: [stoppedTask, ...state.backlogTasks],
                         taskLog: [logEntry, ...state.taskLog]
                     };
                 });
@@ -173,7 +212,6 @@ export const useTaskStore = create<TaskState>()(
                         status: 'completed' as TaskStatus
                     };
 
-                    // Auto-complete linked recurring task
                     let newRecurringTasks = state.recurringTasks;
                     if (state.currentTask.recurringTaskId) {
                         const recurringIndex = state.recurringTasks.findIndex(t => t.id === state.currentTask!.recurringTaskId);
@@ -246,25 +284,26 @@ export const useTaskStore = create<TaskState>()(
                 });
             },
 
-            addToBacklog: (name) => {
+            addToBacklog: (name, backlogId) => {
+                const state = get();
+                // Default to first category if none provided
+                const targetBacklogId = backlogId || (state.backlogCategories.length > 0 ? state.backlogCategories[0].id : 'main');
                 const newTask: Task = {
                     id: crypto.randomUUID(),
                     name,
                     startTime: 0,
                     duration: 0,
-                    status: 'pending'
+                    status: 'pending',
+                    backlogId: targetBacklogId
                 };
-                set((state) => ({ backlog: [newTask, ...state.backlog] }));
+                set((state) => ({ backlogTasks: [newTask, ...state.backlogTasks] }));
             },
 
             pickFromBacklog: (taskId) => {
                 set((state) => {
-                    const taskIndex = state.backlog.findIndex(t => t.id === taskId);
+                    const taskIndex = state.backlogTasks.findIndex(t => t.id === taskId);
                     if (taskIndex === -1) return {};
 
-                    // If there is a current task, we should probably pause/log it first?
-                    // The current implementation of pickFromBacklog replaces currentTask.
-                    // Let's assume standard behavior: Pause current if exists.
                     let newStack = state.taskStack;
                     let newLog = [...state.taskLog];
 
@@ -290,18 +329,156 @@ export const useTaskStore = create<TaskState>()(
                         newStack = [...state.taskStack, pausedTask];
                     }
 
-                    const taskToStart = state.backlog[taskIndex];
-                    const newBacklog = [...state.backlog];
-                    newBacklog.splice(taskIndex, 1);
+                    const taskToStart = state.backlogTasks[taskIndex];
+                    const newBacklogTasks = [...state.backlogTasks];
+                    newBacklogTasks.splice(taskIndex, 1);
 
                     return {
                         currentTask: {
                             ...taskToStart,
                             startTime: Date.now(),
                         },
-                        backlog: newBacklog,
+                        backlogTasks: newBacklogTasks,
                         taskStack: newStack,
                         taskLog: newLog
+                    };
+                });
+            },
+
+            moveBacklogTask: (taskId, targetBacklogId, targetIndexInCategory) => {
+                set((state) => {
+                    const taskIndex = state.backlogTasks.findIndex(t => t.id === taskId);
+                    if (taskIndex === -1) return {};
+
+                    const newBacklogTasks = [...state.backlogTasks];
+                    const [movedItem] = newBacklogTasks.splice(taskIndex, 1);
+                    movedItem.backlogId = targetBacklogId;
+
+                    // Now insert it at the correct index within its category
+                    // Find all items belonging to targetBacklogId
+                    let itemsCount = 0;
+                    let insertPos = newBacklogTasks.length; // Default to end
+                    for (let i = 0; i < newBacklogTasks.length; i++) {
+                        if (newBacklogTasks[i].backlogId === targetBacklogId) {
+                            if (itemsCount === targetIndexInCategory) {
+                                insertPos = i;
+                                break;
+                            }
+                            itemsCount++;
+                        }
+                    }
+
+                    // If targetIndexInCategory is greater than or equal to existing items, 
+                    // we need to place it after the last item of that category.
+                    if (itemsCount > 0 && itemsCount <= targetIndexInCategory) {
+                        for (let i = newBacklogTasks.length - 1; i >= 0; i--) {
+                            if (newBacklogTasks[i].backlogId === targetBacklogId) {
+                                insertPos = i + 1;
+                                break;
+                            }
+                        }
+                    } else if (itemsCount === 0) {
+                        // If no items in this category yet, just push to top of list
+                        insertPos = 0;
+                    }
+
+                    newBacklogTasks.splice(insertPos, 0, movedItem);
+
+                    return { backlogTasks: newBacklogTasks };
+                });
+            },
+
+            moveHistoryToBacklog: (taskId, targetBacklogId) => {
+                set((state) => {
+                    const historyIndex = state.history.findIndex(t => t.id === taskId);
+                    if (historyIndex === -1) return {};
+
+                    const newHistory = [...state.history];
+                    const [taskToReopen] = newHistory.splice(historyIndex, 1);
+
+                    const reopenedTask: Task = {
+                        ...taskToReopen,
+                        startTime: Date.now(), // or 0 since it's in backlog
+                        status: 'pending' as TaskStatus,
+                        endTime: undefined,
+                        backlogId: targetBacklogId
+                    };
+
+                    return {
+                        history: newHistory,
+                        backlogTasks: [reopenedTask, ...state.backlogTasks]
+                    };
+                });
+            },
+
+            addBacklogCategory: () => {
+                set((state) => {
+                    const newId = crypto.randomUUID();
+                    const newCategory: BacklogCategory = {
+                        id: newId,
+                        name: `New Backlog`,
+                        allocatedMinutes: 0
+                    };
+                    return {
+                        backlogCategories: [...state.backlogCategories, newCategory]
+                    };
+                });
+            },
+
+            updateBacklogCategory: (id, updates) => {
+                set((state) => ({
+                    backlogCategories: state.backlogCategories.map(c => c.id === id ? { ...c, ...updates } : c)
+                }));
+            },
+
+            deleteBacklogCategory: (id) => {
+                set((state) => {
+                    // Update tasks to orphaned or move to 'main'
+                    const mainId = state.backlogCategories.find(c => c.id !== id)?.id || 'main'; // Fallback
+                    const newBacklogTasks = state.backlogTasks.map(t =>
+                        t.backlogId === id ? { ...t, backlogId: mainId } : t
+                    );
+
+                    return {
+                        backlogCategories: state.backlogCategories.filter(c => c.id !== id),
+                        backlogTasks: newBacklogTasks
+                    };
+                });
+            },
+
+            updateColorName: (id, name) => {
+                set((state) => ({
+                    colors: state.colors.map(c => c.id === id ? { ...c, name } : c)
+                }));
+            },
+
+            updateTaskColorId: (taskId, colorId) => {
+                set((state) => {
+                    // Similar to updateTaskName, try all lists
+                    const updateList = (list: Task[]) => list.map(t => t.id === taskId ? { ...t, colorId } : t);
+
+                    if (state.currentTask && state.currentTask.id === taskId) {
+                        return { currentTask: { ...state.currentTask, colorId } };
+                    }
+                    return {
+                        backlogTasks: updateList(state.backlogTasks),
+                        history: updateList(state.history),
+                        taskStack: updateList(state.taskStack),
+                        recurringTasks: updateList(state.recurringTasks)
+                    };
+                });
+            },
+
+            updateTaskBacklogId: (taskId, backlogId) => {
+                set((state) => {
+                    const updateList = (list: Task[]) => list.map(t => t.id === taskId ? { ...t, backlogId } : t);
+                    if (state.currentTask && state.currentTask.id === taskId) {
+                        return { currentTask: { ...state.currentTask, backlogId } };
+                    }
+                    return {
+                        backlogTasks: updateList(state.backlogTasks),
+                        history: updateList(state.history),
+                        taskStack: updateList(state.taskStack)
                     };
                 });
             },
@@ -414,48 +591,33 @@ export const useTaskStore = create<TaskState>()(
                         return { currentTask: { ...state.currentTask, name: newName } };
                     }
 
-                    const backlogIndex = state.backlog.findIndex(t => t.id === taskId);
-                    if (backlogIndex !== -1) {
-                        const newBacklog = [...state.backlog];
-                        newBacklog[backlogIndex] = { ...newBacklog[backlogIndex], name: newName };
-                        return { backlog: newBacklog };
+                    const updateList = (list: Task[]) => {
+                        const idx = list.findIndex(t => t.id === taskId);
+                        if (idx !== -1) {
+                            const changed = [...list];
+                            changed[idx] = { ...changed[idx], name: newName };
+                            return changed;
+                        }
+                        return list;
                     }
 
-                    const historyIndex = state.history.findIndex(t => t.id === taskId);
-                    if (historyIndex !== -1) {
-                        const newHistory = [...state.history];
-                        newHistory[historyIndex] = { ...newHistory[historyIndex], name: newName };
-                        return { history: newHistory };
-                    }
-
-                    const stackIndex = state.taskStack.findIndex(t => t.id === taskId);
-                    if (stackIndex !== -1) {
-                        const newStack = [...state.taskStack];
-                        newStack[stackIndex] = { ...newStack[stackIndex], name: newName };
-                        return { taskStack: newStack };
-                    }
-
-                    // Check recurring tasks
-                    const recurringIndex = state.recurringTasks.findIndex(t => t.id === taskId);
-                    if (recurringIndex !== -1) {
-                        const newRecurring = [...state.recurringTasks];
-                        newRecurring[recurringIndex] = { ...newRecurring[recurringIndex], name: newName };
-                        return { recurringTasks: newRecurring };
-                    }
-
-                    return {};
+                    return {
+                        backlogTasks: updateList(state.backlogTasks),
+                        history: updateList(state.history),
+                        taskStack: updateList(state.taskStack),
+                        recurringTasks: updateList(state.recurringTasks)
+                    };
                 });
             },
 
             deleteTask: (taskId) => {
                 set((state) => {
-                    // Always filter out logs for the deleted task
                     const updates: Partial<TaskState> = {
                         taskLog: state.taskLog.filter(t => t.taskId !== taskId)
                     };
 
-                    if (state.backlog.some(t => t.id === taskId)) {
-                        updates.backlog = state.backlog.filter(t => t.id !== taskId);
+                    if (state.backlogTasks.some(t => t.id === taskId)) {
+                        updates.backlogTasks = state.backlogTasks.filter(t => t.id !== taskId);
                     } else if (state.history.some(t => t.id === taskId)) {
                         updates.history = state.history.filter(t => t.id !== taskId);
                     } else if (state.taskStack.some(t => t.id === taskId)) {
@@ -467,15 +629,6 @@ export const useTaskStore = create<TaskState>()(
                     }
 
                     return updates;
-                });
-            },
-
-            reorderBacklog: (fromIndex, toIndex) => {
-                set((state) => {
-                    const newBacklog = [...state.backlog];
-                    const [movedItem] = newBacklog.splice(fromIndex, 1);
-                    newBacklog.splice(toIndex, 0, movedItem);
-                    return { backlog: newBacklog };
                 });
             },
 
@@ -529,7 +682,7 @@ export const useTaskStore = create<TaskState>()(
                     name,
                     startTime: 0,
                     duration: 0,
-                    status: 'pending', // Default unchecked
+                    status: 'pending',
                     scheduledTime: ''
                 };
                 set((state) => ({ recurringTasks: [newTask, ...state.recurringTasks] }));
@@ -566,7 +719,6 @@ export const useTaskStore = create<TaskState>()(
                     if (index === -1) return {};
                     const newRecurring = [...state.recurringTasks];
                     const task = newRecurring[index];
-                    // Toggle between 'pending' (unchecked) and 'completed' (checked)
                     newRecurring[index] = {
                         ...task,
                         status: task.status === 'completed' ? 'pending' : 'completed'
@@ -579,14 +731,12 @@ export const useTaskStore = create<TaskState>()(
                 const state = get();
                 const task = state.recurringTasks.find(t => t.id === id);
                 if (!task) return;
-
-                // Call startTask with the name AND recurringTaskId
                 state.startTask(task.name, id);
             },
 
             copyToRecurring: (taskId) => {
                 const state = get();
-                const task = state.backlog.find(t => t.id === taskId) ||
+                const task = state.backlogTasks.find(t => t.id === taskId) ||
                     state.history.find(t => t.id === taskId) ||
                     state.taskStack.find(t => t.id === taskId) ||
                     (state.currentTask && state.currentTask.id === taskId ? state.currentTask : undefined);
@@ -603,7 +753,6 @@ export const useTaskStore = create<TaskState>()(
                     const isPaused = state.currentTask.status === 'paused';
 
                     if (isPaused) {
-                        // Resume
                         return {
                             currentTask: {
                                 ...state.currentTask,
@@ -612,7 +761,6 @@ export const useTaskStore = create<TaskState>()(
                             }
                         };
                     } else {
-                        // Pause
                         const now = Date.now();
                         const sessionDuration = now - state.currentTask.startTime;
 
@@ -644,35 +792,53 @@ export const useTaskStore = create<TaskState>()(
                         let newTime = time !== undefined ? time : task.scheduledTime;
                         let newDate = date !== undefined ? date : task.scheduledDate;
 
-                        // Default time logic: if date is set (or already set) but time is empty, default to 08:30
                         if (newDate && !newTime) {
                             newTime = '08:30';
                         }
-
                         return { ...task, scheduledDate: newDate, scheduledTime: newTime };
                     };
 
-                    const recurringIndex = state.recurringTasks.findIndex(t => t.id === taskId);
-                    if (recurringIndex !== -1) {
-                        const newRecurring = [...state.recurringTasks];
-                        newRecurring[recurringIndex] = updateTask(newRecurring[recurringIndex]);
-                        return { recurringTasks: newRecurring };
+                    const updateList = (list: Task[]) => {
+                        const idx = list.findIndex(t => t.id === taskId);
+                        if (idx !== -1) {
+                            const changed = [...list];
+                            changed[idx] = updateTask(changed[idx]);
+                            return changed;
+                        }
+                        return list;
                     }
 
-                    const backlogIndex = state.backlog.findIndex(t => t.id === taskId);
-                    if (backlogIndex !== -1) {
-                        const newBacklog = [...state.backlog];
-                        newBacklog[backlogIndex] = updateTask(newBacklog[backlogIndex]);
-                        return { backlog: newBacklog };
-                    }
-
-                    return {};
+                    return {
+                        backlogTasks: updateList(state.backlogTasks),
+                        recurringTasks: updateList(state.recurringTasks)
+                    };
                 });
             }
         }),
         {
             name: 'timetask-storage',
             storage: createJSONStorage(() => localStorage),
+            version: 1,
+            migrate: (persistedState: any, version: number) => {
+                if (version === 0) {
+                    const oldBacklog = persistedState.backlog || [];
+                    const defaultCategory: BacklogCategory = {
+                        id: 'main',
+                        name: 'Main Backlog',
+                        allocatedMinutes: 0
+                    };
+                    const newBacklogTasks = oldBacklog.map((t: any) => ({
+                        ...t,
+                        backlogId: 'main'
+                    }));
+
+                    persistedState.backlogTasks = newBacklogTasks;
+                    persistedState.backlogCategories = [defaultCategory];
+                    persistedState.colors = DEFAULT_COLORS;
+                    delete persistedState.backlog;
+                }
+                return persistedState as TaskState;
+            }
         }
     )
 );

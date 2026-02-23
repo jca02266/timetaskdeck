@@ -22,9 +22,10 @@ interface DraggablePanelProps {
     className?: string;
     resizable?: boolean;
     headerControls?: React.ReactNode;
+    minSize?: { width: number; height: number };
 }
 
-export function DraggablePanel({ id, defaultPosition, defaultSize, children, title, className, resizable = true, headerControls }: DraggablePanelProps) {
+export function DraggablePanel({ id, defaultPosition, defaultSize, children, title, className, resizable = true, headerControls, minSize = { width: 200, height: 150 } }: DraggablePanelProps) {
     const [position, setPosition] = useState<Position>({ x: 0, y: 0 });
     const [size, setSize] = useState<Size>(defaultSize);
     const [isLoaded, setIsLoaded] = useState(false);
@@ -70,7 +71,8 @@ export function DraggablePanel({ id, defaultPosition, defaultSize, children, tit
             setSize(defaultSize);
         }
         setIsLoaded(true);
-    }, [id, defaultSize, defaultPosition]);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [id]);
 
     useEffect(() => {
         if (!isLoaded) return;
@@ -124,8 +126,8 @@ export function DraggablePanel({ id, defaultPosition, defaultSize, children, tit
             const deltaX = e.clientX - resizeStart.current.x;
             const deltaY = e.clientY - resizeStart.current.y;
 
-            let newWidth = Math.max(200, resizeStart.current.width + deltaX);
-            let newHeight = Math.max(150, resizeStart.current.height + deltaY);
+            let newWidth = Math.max(minSize.width, resizeStart.current.width + deltaX);
+            let newHeight = Math.max(minSize.height, resizeStart.current.height + deltaY);
 
             // Snapping for resize
             const SNAP = 20;
@@ -157,7 +159,7 @@ export function DraggablePanel({ id, defaultPosition, defaultSize, children, tit
     return (
         <div
             ref={panelRef}
-            className={`fixed glass-panel flex flex-col z-50 shadow-2xl ${className || ''}`}
+            className={`fixed glass-panel flex flex-col z-50 shadow-2xl overflow-hidden ${className || ''}`}
             style={{
                 left: position.x,
                 top: position.y,
@@ -183,7 +185,7 @@ export function DraggablePanel({ id, defaultPosition, defaultSize, children, tit
             </div>
 
             {/* Content Area */}
-            <div className="flex-1 flex flex-col relative rounded-b-xl">
+            <div className="flex-1 flex flex-col relative rounded-b-xl min-h-0">
                 {children}
             </div>
 

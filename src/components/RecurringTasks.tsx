@@ -90,6 +90,7 @@ export function RecurringTasks() {
             id="recurring-panel"
             defaultPosition={{ top: 32, right: 32 }}
             defaultSize={{ width: 320, height: 400 }}
+            minSize={{ width: 320, height: 250 }}
             title={
                 <div className="flex items-center gap-2 uppercase tracking-wider">
                     <Repeat size={16} />

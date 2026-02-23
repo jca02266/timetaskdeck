@@ -5,7 +5,7 @@ import { useTaskStore } from '@/store/useTaskStore';
 import { Play } from 'lucide-react';
 
 export function TaskInput() {
-    const { startTask, history, backlog } = useTaskStore();
+    const { startTask, history, backlogTasks } = useTaskStore();
     const [input, setInput] = useState('');
     const [suggestions, setSuggestions] = useState<string[]>([]);
     const [showSuggestions, setShowSuggestions] = useState(false);
@@ -43,7 +43,7 @@ export function TaskInput() {
 
         // Combine unique names from history and backlog
         const historyNames = history.map(t => t.name);
-        const backlogNames = backlog.map(t => t.name);
+        const backlogNames = backlogTasks.map(t => t.name);
         const allNames = Array.from(new Set([...historyNames, ...backlogNames]));
 
         const matched = allNames
@@ -52,7 +52,7 @@ export function TaskInput() {
 
         setSuggestions(matched);
         setShowSuggestions(matched.length > 0);
-    }, [input, history, backlog]);
+    }, [input, history, backlogTasks]);
 
     const selectSuggestion = (name: string) => {
         setInput(name);

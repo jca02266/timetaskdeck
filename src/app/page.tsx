@@ -3,20 +3,29 @@
 import { TaskTimer } from "@/components/TaskTimer";
 import { TaskInput } from "@/components/TaskInput";
 import { TaskStack } from "@/components/TaskStack";
-import { BacklogList } from "@/components/BacklogList";
+// import { BacklogList } from "@/components/BacklogList";
+import { BacklogPanel } from "@/components/BacklogPanel";
 import { RecurringTasks } from "@/components/RecurringTasks";
 import { HistoryView } from "@/components/HistoryView";
 import { TaskLogModal } from "@/components/TaskLogModal";
+import { BacklogTableView } from "@/components/BacklogTableView";
+import { ColorSettingsModal } from "@/components/ColorSettingsModal";
 import { useState } from "react";
 /* New Components */
 import { DraggablePanel } from "@/components/DraggablePanel";
+import { useTaskStore } from "@/store/useTaskStore";
 
 /* Icons */
-import { RotateCcw, Plus, Play, List, Layers } from 'lucide-react';
+import { RotateCcw, Plus, Play, List, Layers, Settings, ListPlus, Table } from 'lucide-react';
 
 export default function Home() {
   const [isLogOpen, setIsLogOpen] = useState(false);
   const [isStackExpanded, setStackExpanded] = useState(false);
+  const [isColorSettingsOpen, setIsColorSettingsOpen] = useState(false);
+  const [isBacklogTableOpen, setIsBacklogTableOpen] = useState(false);
+
+  const backlogCategories = useTaskStore((state) => state.backlogCategories);
+  const addBacklogCategory = useTaskStore((state) => state.addBacklogCategory);
 
   return (
     <main className="min-h-screen relative p-8 pb-32 overflow-hidden flex flex-col bg-slate-950 text-slate-200 selection:bg-blue-500/30">
@@ -29,18 +38,42 @@ export default function Home() {
       <DraggablePanel
         id="control-panel"
         defaultPosition={{ top: 32, left: 32 }}
-        defaultSize={{ width: 400, height: 140 }}
-        title="New Task"
+        defaultSize={{ width: 400, height: 160 }}
+        minSize={{ width: 400, height: 160 }}
+        title="Control Panel"
       >
         <div className="p-4 flex flex-col gap-4 h-full justify-center">
           <TaskInput />
-          <div className="flex justify-end">
+          <div className="flex justify-between items-center mt-2">
+            <div className="flex gap-2">
+              <button
+                onClick={() => addBacklogCategory()}
+                className="flex items-center gap-1 px-2 py-1 bg-slate-800/50 hover:bg-slate-700/50 rounded text-xs text-slate-400 hover:text-white transition-colors border border-slate-700"
+              >
+                <ListPlus size={14} />
+                <span>Add Backlog</span>
+              </button>
+              <button
+                onClick={() => setIsBacklogTableOpen(true)}
+                className="flex items-center gap-1 px-2 py-1 bg-slate-800/50 hover:bg-slate-700/50 rounded text-xs text-slate-400 hover:text-white transition-colors border border-slate-700"
+              >
+                <Table size={14} />
+                <span>Table View</span>
+              </button>
+              <button
+                onClick={() => setIsColorSettingsOpen(true)}
+                className="flex items-center gap-1 px-2 py-1 bg-slate-800/50 hover:bg-slate-700/50 rounded text-xs text-slate-400 hover:text-white transition-colors border border-slate-700"
+              >
+                <Settings size={14} />
+                <span>Colors</span>
+              </button>
+            </div>
             <button
               onClick={() => setIsLogOpen(true)}
-              className="flex items-center gap-2 px-3 py-1.5 bg-slate-800/50 hover:bg-slate-700/50 rounded text-xs text-slate-400 hover:text-white transition-colors border border-slate-700 hover:border-slate-500"
+              className="flex items-center gap-2 px-3 py-1 bg-slate-800/50 hover:bg-slate-700/50 rounded text-xs text-slate-400 hover:text-white transition-colors border border-slate-700 hover:border-slate-500"
             >
               <List size={14} />
-              <span>一覧表示</span>
+              <span>Timelog</span>
             </button>
           </div>
         </div>
@@ -72,11 +105,22 @@ export default function Home() {
         </div>
       </DraggablePanel>
 
-      <BacklogList />
+      {/* Map through all backlog categories and render a panel for each */}
+      {backlogCategories.map((category, index) => (
+        <BacklogPanel
+          key={category.id}
+          category={category}
+          // Stagger default positions so they don't perfectly overlap
+          defaultPosition={{ bottom: 32, right: 32 + (index * 350) }}
+        />
+      ))}
+
+      <BacklogTableView isOpen={isBacklogTableOpen} onClose={() => setIsBacklogTableOpen(false)} />
       <RecurringTasks />
       <HistoryView />
 
       <TaskLogModal isOpen={isLogOpen} onClose={() => setIsLogOpen(false)} />
+      <ColorSettingsModal isOpen={isColorSettingsOpen} onClose={() => setIsColorSettingsOpen(false)} />
 
     </main>
   );
