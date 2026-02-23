@@ -199,7 +199,11 @@ export function RecurringTasks() {
                             ) : (
                                 <>
                                     <button
-                                        onClick={() => toggleRecurringTaskCheck(task.id)}
+                                        onClick={(e) => {
+                                            e.stopPropagation();
+                                            toggleRecurringTaskCheck(task.id);
+                                        }}
+                                        onPointerDown={(e) => e.stopPropagation()}
                                         className={`shrink-0 transition-colors ${task.status === 'completed' ? 'text-green-400' : 'text-slate-600 hover:text-slate-400'}`}
                                     >
                                         {task.status === 'completed' ? <CheckCircle2 size={18} /> : <Circle size={18} />}
@@ -228,7 +232,11 @@ export function RecurringTasks() {
 
                                     <div className="flex items-center opacity-0 group-hover:opacity-100 transition-opacity gap-1 shrink-0">
                                         <button
-                                            onClick={() => startEditing(task)}
+                                            onClick={(e) => {
+                                                e.stopPropagation();
+                                                startEditing(task);
+                                            }}
+                                            onPointerDown={(e) => e.stopPropagation()}
                                             className="text-slate-400 hover:text-slate-200 p-1 rounded"
                                             title="Rename"
                                         >
@@ -246,18 +254,24 @@ export function RecurringTasks() {
                                             <FileText size={14} />
                                         </button>
                                         <button
-                                            onClick={() => {
+                                            onClick={(e) => {
+                                                e.stopPropagation();
                                                 if (window.confirm('Delete this recurring task?')) {
                                                     deleteRecurringTask(task.id);
                                                 }
                                             }}
+                                            onPointerDown={(e) => e.stopPropagation()}
                                             className="text-red-400 hover:text-red-300 p-1 rounded"
                                             title="Delete Task"
                                         >
                                             <Trash2 size={14} />
                                         </button>
                                         <button
-                                            onClick={() => startRecurringTask(task.id)}
+                                            onClick={(e) => {
+                                                e.stopPropagation();
+                                                startRecurringTask(task.id);
+                                            }}
+                                            onPointerDown={(e) => e.stopPropagation()}
                                             className="text-blue-400 hover:text-blue-300 p-1 rounded"
                                             title="Start Task"
                                         >
