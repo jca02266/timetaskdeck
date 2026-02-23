@@ -116,7 +116,7 @@ export default function Home() {
       </DraggablePanel>
 
       {/* Deck Bar (Always visible) */}
-      <div className="fixed bottom-6 left-0 right-0 flex justify-center gap-3 z-40 pointer-events-none px-4">
+      <div className="fixed bottom-6 left-0 right-0 flex justify-center gap-3 z-[200] pointer-events-none px-4">
         <div className="flex flex-wrap justify-center gap-2 max-w-4xl">
           {backlogCategories.map((category, index) => (
             <button
