@@ -1,7 +1,5 @@
-"use client";
-
 import { useTaskStore } from '@/store/useTaskStore';
-import { Repeat, Play, Plus, Pencil, Check, X, Trash2, GripVertical, CheckCircle2, Circle, Minimize2, FileText } from 'lucide-react';
+import { Repeat, Play, Plus, Pencil, Check, X, Trash2, GripVertical, CheckCircle2, Circle, Minimize2, FileText, CheckSquare } from 'lucide-react';
 import { useState } from 'react';
 import { Tooltip } from './Tooltip';
 import { DatePicker } from './DatePicker';
@@ -16,6 +14,7 @@ export function RecurringTasks() {
         deleteRecurringTask,
         reorderRecurringTasks,
         toggleRecurringTaskCheck,
+        clearAllRecurringTasksChecks,
         startRecurringTask,
         updateTaskSchedule,
         toggleRecurringMinimized
@@ -69,6 +68,8 @@ export function RecurringTasks() {
         setEditValue('');
     };
 
+    const hasCompletedTasks = recurringTasks.some(t => t.status === 'completed');
+
 
     return (
         <DraggablePanel
@@ -83,14 +84,30 @@ export function RecurringTasks() {
                 </div>
             }
             headerControls={
-                <button
-                    onClick={() => toggleRecurringMinimized()}
-                    className="p-1.5 text-slate-400 hover:text-white rounded hover:bg-slate-700/50 transition-colors"
-                    title="Minimize"
-                    onPointerDown={(e) => e.stopPropagation()}
-                >
-                    <Minimize2 size={14} />
-                </button>
+                <div className="flex items-center gap-1">
+                    {hasCompletedTasks && (
+                        <button
+                            onClick={() => {
+                                if (window.confirm('すべての完了済みチェックを未完了に戻しますか？')) {
+                                    clearAllRecurringTasksChecks();
+                                }
+                            }}
+                            className="p-1.5 text-green-400 hover:text-green-300 rounded hover:bg-slate-700/50 transition-colors"
+                            title="すべてのチェックを解除してリセット"
+                            onPointerDown={(e) => e.stopPropagation()}
+                        >
+                            <CheckSquare size={14} />
+                        </button>
+                    )}
+                    <button
+                        onClick={() => toggleRecurringMinimized()}
+                        className="p-1.5 text-slate-400 hover:text-white rounded hover:bg-slate-700/50 transition-colors"
+                        title="Minimize"
+                        onPointerDown={(e) => e.stopPropagation()}
+                    >
+                        <Minimize2 size={14} />
+                    </button>
+                </div>
             }
         >
             <form onSubmit={handleAdd} className="flex gap-2 shrink-0 mb-3 px-4 pt-2">
@@ -129,6 +146,7 @@ export function RecurringTasks() {
                                 const startTime = Date.now();
                                 const startPos = { x: e.clientX, y: e.clientY };
                                 let hasMoved = false;
+                                let currentIndex = index;
 
                                 const target = e.currentTarget as HTMLElement;
                                 target.setPointerCapture(e.pointerId);
@@ -141,7 +159,7 @@ export function RecurringTasks() {
 
                                     if (dist > 8 && !hasMoved) {
                                         hasMoved = true;
-                                        setDraggedIndex(index);
+                                        setDraggedIndex(currentIndex);
                                     }
 
                                     if (hasMoved) {
@@ -151,9 +169,10 @@ export function RecurringTasks() {
                                             const overIndexAttr = overRow.getAttribute('data-index');
                                             if (overIndexAttr !== null) {
                                                 const overIndex = parseInt(overIndexAttr);
-                                                if (overIndex !== index) {
-                                                    reorderRecurringTasks(index, overIndex);
+                                                if (overIndex !== currentIndex) {
+                                                    reorderRecurringTasks(currentIndex, overIndex);
                                                     setDraggedIndex(overIndex);
+                                                    currentIndex = overIndex;
                                                 }
                                             }
                                         }
