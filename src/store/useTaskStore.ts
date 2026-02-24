@@ -100,6 +100,7 @@ interface TaskState {
     deleteRecurringTask: (id: string) => void;
     reorderRecurringTasks: (fromIndex: number, toIndex: number) => void;
     toggleRecurringTaskCheck: (id: string) => void;
+    clearAllRecurringTasksChecks: () => void;
     startRecurringTask: (id: string) => void;
     copyToRecurring: (taskId: string) => void;
 
@@ -876,6 +877,15 @@ export const useTaskStore = create<TaskState>()(
                         ...task,
                         status: task.status === 'completed' ? 'pending' : 'completed'
                     };
+                    return { recurringTasks: newRecurring };
+                });
+            },
+
+            clearAllRecurringTasksChecks: () => {
+                set((state) => {
+                    const newRecurring = state.recurringTasks.map(task =>
+                        task.status === 'completed' ? { ...task, status: 'pending' as TaskStatus } : task
+                    );
                     return { recurringTasks: newRecurring };
                 });
             },
