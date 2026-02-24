@@ -15,6 +15,18 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   title: "TimeTaskDeck",
   description: "Focus-first task management with a deck-style interface",
+  openGraph: {
+    title: "TimeTaskDeck",
+    description: "Focus-first task management with a deck-style interface",
+    url: "https://timetaskdeck.netlify.app/",
+    siteName: "TimeTaskDeck",
+    type: "website",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "TimeTaskDeck",
+    description: "Focus-first task management with a deck-style interface",
+  },
 };
 
 export default function RootLayout({
