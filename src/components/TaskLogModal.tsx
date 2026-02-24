@@ -37,7 +37,39 @@ export function TaskLogModal() {
         ...taskLog
     ] : taskLog;
 
-    const displayLogs = allLogs.filter(log => isSameDay(new Date(log.startTime), selectedDate));
+    // Sort by startTime so timeline goes chronologically
+    const sortedLogs = [...allLogs.filter(log => isSameDay(new Date(log.startTime), selectedDate))].sort((a, b) => a.startTime - b.startTime);
+
+    // Calculate gaps and insert artificial "Break" tasks
+    const displayLogs: typeof allLogs = [];
+    for (let i = 0; i < sortedLogs.length; i++) {
+        const currentLog = sortedLogs[i];
+
+        // If there's a previous log, check the gap between its end and current's start
+        if (i > 0) {
+            const previousLog = sortedLogs[i - 1];
+            // Only calculate gap if previous log actually ended (has endTime)
+            // If it's the "current running task", it doesn't have an endTime, so it won't trigger a gap before itself in history unless it started way after the last task ended.
+            if (previousLog.endTime) {
+                const gapMs = currentLog.startTime - previousLog.endTime;
+                const gapMinutes = gapMs / 1000 / 60;
+
+                if (gapMinutes >= 5) {
+                    displayLogs.push({
+                        id: `gap-${previousLog.id}-${currentLog.id}`,
+                        taskId: 'break',
+                        name: 'Break / 休憩',
+                        startTime: previousLog.endTime,
+                        endTime: currentLog.startTime,
+                        duration: gapMs,
+                        status: 'completed'
+                    });
+                }
+            }
+        }
+
+        displayLogs.push(currentLog);
+    }
 
     // Helper functions for formatting duration
     const formatDurationHHmm = (ms: number) => {
@@ -154,8 +186,8 @@ export function TaskLogModal() {
                         <button
                             onClick={handleCopy}
                             className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-colors border ${copied
-                                    ? 'bg-green-500/20 text-green-400 border-green-500/30'
-                                    : 'bg-slate-800 hover:bg-slate-700 text-slate-300 border-slate-700 hover:text-white'
+                                ? 'bg-green-500/20 text-green-400 border-green-500/30'
+                                : 'bg-slate-800 hover:bg-slate-700 text-slate-300 border-slate-700 hover:text-white'
                                 }`}
                             disabled={dataToDisplay.length === 0}
                         >
