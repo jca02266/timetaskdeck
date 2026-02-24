@@ -7,7 +7,7 @@ export function TaskLogModal() {
     const isLogOpen = useTaskStore((state) => state.isLogOpen);
     const setIsLogOpen = useTaskStore((state) => state.setIsLogOpen);
     const currentTask = useTaskStore((state) => state.currentTask);
-    const { taskLog } = useTaskStore();
+    const { taskLog, addManualTaskLogEntry } = useTaskStore();
 
     const [now, setNow] = useState(Date.now());
     const [selectedDate, setSelectedDate] = useState<Date>(startOfDay(new Date()));
@@ -37,6 +37,15 @@ export function TaskLogModal() {
         ...taskLog
     ] : taskLog;
 
+    // Build a unique list of actual task names for the convert dropdown
+    const uniqueTasks = Array.from(
+        new Map(
+            taskLog
+                .filter(log => log.taskId !== 'break' && log.id !== 'current-active-task')
+                .map(log => [log.taskId, { id: log.taskId, name: log.name }])
+        ).values()
+    );
+
     // Sort by startTime so timeline goes chronologically
     const sortedLogs = [...allLogs.filter(log => isSameDay(new Date(log.startTime), selectedDate))].sort((a, b) => a.startTime - b.startTime);
 
@@ -58,7 +67,7 @@ export function TaskLogModal() {
                     displayLogs.push({
                         id: `gap-${previousLog.id}-${currentLog.id}`,
                         taskId: 'break',
-                        name: 'Break / 休憩',
+                        name: 'BreakTime',
                         startTime: previousLog.endTime,
                         endTime: currentLog.startTime,
                         duration: gapMs,
@@ -227,9 +236,39 @@ export function TaskLogModal() {
                             ) : (
                                 dataToDisplay.map((log, i) => {
                                     return (
-                                        <tr key={log.id || `agg-${i}`} className={`transition-colors ${log.id === 'current-active-task' ? 'bg-blue-900/20 hover:bg-blue-900/30' : 'hover:bg-slate-800/50'}`}>
-                                            <td className="p-4 font-medium truncate max-w-[200px]" title={log.name}>
-                                                {log.name}
+                                        <tr key={log.id || `agg-${i}`} className={`transition-colors ${log.id === 'current-active-task' ? 'bg-blue-900/20 hover:bg-blue-900/30' :
+                                                log.taskId === 'break' ? 'bg-slate-800/30 text-slate-500' :
+                                                    'hover:bg-slate-800/50'
+                                            }`}>
+                                            <td className={`p-4 font-medium truncate max-w-[200px] ${log.taskId === 'break' ? 'italic' : ''}`} title={log.name}>
+                                                <div className="flex items-center gap-2">
+                                                    <span>{log.name}</span>
+                                                    {log.taskId === 'break' && viewMode === 'timeline' && (
+                                                        <select
+                                                            className="ml-2 bg-slate-800 border border-slate-700 outline-none text-slate-400 p-1 rounded text-xs hover:text-white"
+                                                            value=""
+                                                            onChange={(e) => {
+                                                                if (!e.target.value) return;
+                                                                const selectedMatch = uniqueTasks.find(t => t.id === e.target.value);
+                                                                if (selectedMatch) {
+                                                                    addManualTaskLogEntry(
+                                                                        selectedMatch.id,
+                                                                        selectedMatch.name,
+                                                                        log.startTime,
+                                                                        log.endTime!,
+                                                                        log.duration,
+                                                                        'completed'
+                                                                    );
+                                                                }
+                                                            }}
+                                                        >
+                                                            <option value="">＋ Task</option>
+                                                            {uniqueTasks.map(t => (
+                                                                <option key={t.id} value={t.id}>{t.name}</option>
+                                                            ))}
+                                                        </select>
+                                                    )}
+                                                </div>
                                             </td>
                                             {viewMode === 'timeline' && (
                                                 <td className="p-4 font-mono text-slate-400">

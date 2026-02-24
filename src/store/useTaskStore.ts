@@ -135,6 +135,8 @@ interface TaskState {
     setIsTaskTableOpen: (open: boolean) => void;
     setIsLogOpen: (open: boolean) => void;
     setIsColorSettingsOpen: (open: boolean) => void;
+
+    addManualTaskLogEntry: (taskId: string, name: string, startTime: number, endTime: number, duration: number, status: TaskStatus) => void;
 }
 
 export const useTaskStore = create<TaskState>()(
@@ -1207,6 +1209,21 @@ export const useTaskStore = create<TaskState>()(
                         localStorage.setItem('timetask-ui-history-minimized', String(newValue));
                     }
                     return { isHistoryMinimized: newValue };
+                });
+            },
+
+            addManualTaskLogEntry: (taskId, name, startTime, endTime, duration, status) => {
+                set((state) => {
+                    const newEntry: TaskLogEntry = {
+                        id: crypto.randomUUID(),
+                        taskId,
+                        name,
+                        startTime,
+                        endTime,
+                        duration,
+                        status
+                    };
+                    return { taskLog: [...state.taskLog, newEntry] };
                 });
             }
         }),
