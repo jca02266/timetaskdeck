@@ -1,9 +1,10 @@
 "use client";
 
 import { useTaskStore } from '@/store/useTaskStore';
-import { Download, RotateCcw, Clock, Pencil, Check, X, Trash2, Copy, Minimize2, FileText } from 'lucide-react';
-import { format } from 'date-fns';
+import { Download, RotateCcw, Clock, Pencil, Check, X, Trash2, Copy, Minimize2, FileText, ChevronLeft, ChevronRight } from 'lucide-react';
+import { format, startOfDay, addDays, subDays, isSameDay, parseISO } from 'date-fns';
 import { useState } from 'react';
+import { DatePicker } from './DatePicker';
 import { Tooltip } from './Tooltip';
 import { DraggablePanel } from './DraggablePanel';
 
@@ -16,6 +17,9 @@ export function HistoryView() {
     const toggleHistoryMinimized = useTaskStore((state) => state.toggleHistoryMinimized);
     const [editingId, setEditingId] = useState<string | null>(null);
     const [editValue, setEditValue] = useState('');
+    const [selectedDate, setSelectedDate] = useState<Date>(startOfDay(new Date()));
+
+    const displayHistory = history.filter(task => isSameDay(new Date(task.startTime), selectedDate));
 
     const startEditing = (task: { id: string, name: string }) => {
         setEditingId(task.id);
@@ -84,28 +88,59 @@ export function HistoryView() {
                 </div>
             }
             headerControls={
-                <div className="flex items-center gap-1" onPointerDown={(e) => e.stopPropagation()}>
-                    <button
-                        onClick={exportCSV}
-                        className="p-1.5 text-slate-400 hover:text-white rounded hover:bg-slate-700/50 transition-colors"
-                        title="Export CSV"
-                    >
-                        <Download size={14} />
-                    </button>
-                    <button
-                        onClick={() => toggleHistoryMinimized()}
-                        className="p-1.5 text-slate-400 hover:text-white rounded hover:bg-slate-700/50 transition-colors"
-                        title="Minimize"
-                    >
-                        <Minimize2 size={14} />
-                    </button>
+                <div className="flex items-center gap-2" onPointerDown={(e) => e.stopPropagation()}>
+                    {/* Date Navigation */}
+                    <div className="flex items-center bg-slate-900/50 rounded-lg border border-slate-700">
+                        <button
+                            onClick={() => setSelectedDate(subDays(selectedDate, 1))}
+                            className="p-1 rounded-l hover:bg-slate-800 text-slate-400 hover:text-white transition-colors"
+                        >
+                            <ChevronLeft size={16} />
+                        </button>
+                        <div className="flex items-center justify-center min-w-[100px]">
+                            <DatePicker
+                                value={format(selectedDate, 'yyyy-MM-dd')}
+                                onChange={(val) => {
+                                    if (val) setSelectedDate(startOfDay(parseISO(val)));
+                                }}
+                                className="bg-transparent border-none text-xs font-mono text-slate-200 hover:text-white justify-center h-auto py-1 px-1 pointer-cursor text-center"
+                            />
+                        </div>
+                        <button
+                            onClick={() => setSelectedDate(addDays(selectedDate, 1))}
+                            className="p-1 rounded-r hover:bg-slate-800 text-slate-400 hover:text-white transition-colors disabled:opacity-30 disabled:hover:bg-transparent"
+                            disabled={isSameDay(selectedDate, startOfDay(new Date()))}
+                        >
+                            <ChevronRight size={16} />
+                        </button>
+                    </div>
+
+                    <div className="flex items-center gap-1">
+                        <button
+                            onClick={exportCSV}
+                            className="p-1.5 text-slate-400 hover:text-white rounded hover:bg-slate-700/50 transition-colors"
+                            title="Export CSV"
+                        >
+                            <Download size={14} />
+                        </button>
+                        <button
+                            onClick={() => toggleHistoryMinimized()}
+                            className="p-1.5 text-slate-400 hover:text-white rounded hover:bg-slate-700/50 transition-colors"
+                            title="Minimize"
+                        >
+                            <Minimize2 size={14} />
+                        </button>
+                    </div>
                 </div>
             }
         >
 
 
             <div className="overflow-y-auto flex-1 min-h-0 space-y-2 p-4 pt-2 scrollbar-thin scrollbar-thumb-slate-700 scrollbar-track-transparent">
-                {history.map((task) => (
+                {displayHistory.length === 0 && (
+                    <div className="text-center text-slate-500 text-sm mt-4 italic">No tasks completed on this date.</div>
+                )}
+                {displayHistory.map((task) => (
                     <div key={task.id} className="group bg-slate-800/30 hover:bg-slate-800/80 p-3 rounded-lg border border-transparent hover:border-slate-600 transition-all">
                         <div className="flex justify-between items-start mb-1">
                             {editingId === task.id ? (

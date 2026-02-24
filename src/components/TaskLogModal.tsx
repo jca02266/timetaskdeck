@@ -1,7 +1,8 @@
 import { useTaskStore } from '@/store/useTaskStore';
 import { X, Clock, ChevronLeft, ChevronRight, Copy, Check, List, Layers } from 'lucide-react';
-import { format, startOfDay, addDays, subDays, isSameDay } from 'date-fns';
+import { format, startOfDay, addDays, subDays, isSameDay, parseISO } from 'date-fns';
 import { useState, useEffect } from 'react';
+import { DatePicker } from './DatePicker';
 
 export function TaskLogModal() {
     const isLogOpen = useTaskStore((state) => state.isLogOpen);
@@ -161,9 +162,15 @@ export function TaskLogModal() {
                             >
                                 <ChevronLeft size={16} />
                             </button>
-                            <span className="text-sm font-mono text-slate-200 min-w-[110px] text-center">
-                                {format(selectedDate, 'yyyy-MM-dd')}
-                            </span>
+                            <div className="flex items-center justify-center w-[130px]">
+                                <DatePicker
+                                    value={format(selectedDate, 'yyyy-MM-dd')}
+                                    onChange={(val) => {
+                                        if (val) setSelectedDate(startOfDay(parseISO(val)));
+                                    }}
+                                    className="bg-transparent border-none text-sm font-mono text-slate-200 hover:text-white justify-center h-auto py-1 px-2 pointer-cursor"
+                                />
+                            </div>
                             <button
                                 onClick={() => setSelectedDate(addDays(selectedDate, 1))}
                                 className="p-1 rounded hover:bg-slate-800 text-slate-400 hover:text-white transition-colors disabled:opacity-30 disabled:hover:bg-transparent"
@@ -237,8 +244,8 @@ export function TaskLogModal() {
                                 dataToDisplay.map((log, i) => {
                                     return (
                                         <tr key={log.id || `agg-${i}`} className={`transition-colors ${log.id === 'current-active-task' ? 'bg-blue-900/20 hover:bg-blue-900/30' :
-                                                log.taskId === 'break' ? 'bg-slate-800/30 text-slate-500' :
-                                                    'hover:bg-slate-800/50'
+                                            log.taskId === 'break' ? 'bg-slate-800/30 text-slate-500' :
+                                                'hover:bg-slate-800/50'
                                             }`}>
                                             <td className={`p-4 font-medium truncate max-w-[200px] ${log.taskId === 'break' ? 'italic' : ''}`} title={log.name}>
                                                 <div className="flex items-center gap-2">
