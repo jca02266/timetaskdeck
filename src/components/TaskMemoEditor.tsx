@@ -98,19 +98,20 @@ export function TaskMemoEditor() {
     const [localText, setLocalText] = useState("");
     const textareaRef = useRef<HTMLTextAreaElement>(null);
 
-    // Sync content when activeMemoTaskId or memos change
+    // Synchronize localText initially and when active memo changes
     useEffect(() => {
         if (activeMemoTaskId) {
             const currentMemo = memos[activeMemoTaskId] || "";
             setLocalText(currentMemo);
-            // Default to editing if it's empty, otherwise viewing
+            // Default to editing if it's empty, otherwise viewing (only on task switch)
             setIsEditing(!currentMemo);
         } else {
             setLocalText("");
             setIsMaximized(false);
             setIsEditing(false);
         }
-    }, [activeMemoTaskId, memos]);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [activeMemoTaskId]); // Intentionally removed 'memos' to avoid resetting state while typing
 
     const handleTextChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
         const newText = e.target.value;
