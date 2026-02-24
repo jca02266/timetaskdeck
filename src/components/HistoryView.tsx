@@ -97,7 +97,7 @@ export function HistoryView() {
                         >
                             <ChevronLeft size={16} />
                         </button>
-                        <div className="flex items-center justify-center min-w-[100px]">
+                        <div className="flex items-center justify-center px-1">
                             <DatePicker
                                 value={format(selectedDate, 'yyyy-MM-dd')}
                                 onChange={(val) => {
