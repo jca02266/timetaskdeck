@@ -1,5 +1,5 @@
 import { useTaskStore } from '@/store/useTaskStore';
-import { X, Clock, ChevronLeft, ChevronRight, Copy, Check, List, Layers } from 'lucide-react';
+import { X, Clock, ChevronLeft, ChevronRight, Copy, Check, List, Layers, Trash2, Plus } from 'lucide-react';
 import { format, startOfDay, addDays, subDays, isSameDay, parseISO } from 'date-fns';
 import { useState, useEffect } from 'react';
 import { DatePicker } from './DatePicker';
@@ -8,7 +8,7 @@ export function TaskLogModal() {
     const isLogOpen = useTaskStore((state) => state.isLogOpen);
     const setIsLogOpen = useTaskStore((state) => state.setIsLogOpen);
     const currentTask = useTaskStore((state) => state.currentTask);
-    const { taskLog, addManualTaskLogEntry } = useTaskStore();
+    const { taskLog, history, backlogTasks, taskStack, addManualTaskLogEntry } = useTaskStore();
 
     const [now, setNow] = useState(Date.now());
     const [selectedDate, setSelectedDate] = useState<Date>(startOfDay(new Date()));
@@ -17,6 +17,7 @@ export function TaskLogModal() {
     const [localLogs, setLocalLogs] = useState<typeof taskLog>([]);
     const [hasChanges, setHasChanges] = useState(false);
     const [orderMap, setOrderMap] = useState<Record<string, number>>({});
+    const [isSortDescending, setIsSortDescending] = useState(true);
 
     useEffect(() => {
         if (!isLogOpen) return;
@@ -57,12 +58,23 @@ export function TaskLogModal() {
 
     // Build a unique list of actual task names for the convert dropdown
     const uniqueTasks = Array.from(
-        new Map(
-            localLogs
+        new Map([
+            // Tasks currently in today's local logs
+            ...localLogs
                 .filter(log => log.taskId !== 'break' && log.id !== 'current-active-task')
-                .map(log => [log.taskId, { id: log.taskId, name: log.name }])
-        ).values()
-    );
+                .map(log => [log.name, { id: log.taskId, name: log.name }]),
+            // Active tasks from backlog
+            ...backlogTasks.map(t => [t.name, { id: t.id, name: t.name }]),
+            // Active tasks from stack
+            ...taskStack.map(t => [t.name, { id: t.id, name: t.name }]),
+            // Current task if any
+            ...(currentTask ? [[currentTask.name, { id: currentTask.id, name: currentTask.name }]] : []),
+            // Completed tasks from history ONLY IF finished on the selected date
+            ...history
+                .filter(t => t.endTime && isSameDay(new Date(t.endTime), selectedDate))
+                .map(t => [t.name, { id: t.id, name: t.name }])
+        ] as [string, { id: string, name: string }][]).values()
+    ).sort((a, b) => a.name.localeCompare(b.name));
 
     // Sort using the initial orderMap to ensure tasks don't jump around while editing
     const sortedLogs = [...allLogs.filter(log => isSameDay(new Date(log.startTime), selectedDate))].sort((a, b) => {
@@ -111,14 +123,13 @@ export function TaskLogModal() {
         return `${isNegative ? '-' : ''}${hours.toString().padStart(2, '0')}:${mins.toString().padStart(2, '0')}`;
     };
 
-    const formatRounded15m = (ms: number) => {
+    const formatRoundedDecimal = (ms: number) => {
         const isNegative = ms < 0;
         const absMs = Math.abs(ms);
         const totalMinutes = absMs / 1000 / 60;
         const roundedMinutes = Math.round(totalMinutes / 15) * 15;
-        const hours = Math.floor(roundedMinutes / 60);
-        const mins = roundedMinutes % 60;
-        return `${isNegative ? '-' : ''}${hours.toString().padStart(2, '0')}:${mins.toString().padStart(2, '0')}`;
+        const decimalHours = roundedMinutes / 60;
+        return `${isNegative ? '-' : ''}${decimalHours.toFixed(2)}`;
     };
 
     // Aggregation logic
@@ -132,8 +143,9 @@ export function TaskLogModal() {
         }
         return acc;
     }, [] as typeof displayLogs).sort((a, b) => b.duration - a.duration);
-
-    const dataToDisplay = viewMode === 'timeline' ? displayLogs : aggregatedLogs;
+    const dataToDisplay = viewMode === 'timeline'
+        ? (isSortDescending ? [...displayLogs].reverse() : displayLogs)
+        : aggregatedLogs;
 
     const handleCopy = async () => {
         let text = `Task Activity Log - ${format(selectedDate, 'yyyy-MM-dd')} (${viewMode === 'timeline' ? 'Timeline' : 'Aggregated'})\n\n`;
@@ -144,7 +156,7 @@ export function TaskLogModal() {
                 const start = format(log.startTime, 'HH:mm');
                 const end = log.endTime ? format(log.endTime, 'HH:mm') : '--:--';
                 const dur = formatDurationHHmm(log.duration);
-                const rounded = formatRounded15m(log.duration);
+                const rounded = formatRoundedDecimal(log.duration);
                 const status = log.status === 'running' ? 'Running' : log.status;
                 text += `${log.name}\t${start}\t${end}\t${dur}\t${rounded}\t${status}\n`;
             });
@@ -152,7 +164,7 @@ export function TaskLogModal() {
             text += `Task Name\tTotal Duration (HH:mm)\tRounded (15m)\tStatus\n`;
             dataToDisplay.forEach(log => {
                 const dur = formatDurationHHmm(log.duration);
-                const rounded = formatRounded15m(log.duration);
+                const rounded = formatRoundedDecimal(log.duration);
                 const status = log.status === 'running' ? 'Running' : '';
                 text += `${log.name}\t${dur}\t${rounded}\t${status}\n`;
             });
@@ -253,6 +265,87 @@ export function TaskLogModal() {
         });
     };
 
+    const handleDeleteLog = (logId: string) => {
+        setLocalLogs(prev => {
+            setHasChanges(true);
+            return prev.filter(l => l.id !== logId);
+        });
+    };
+
+    const handleChangeTask = (logId: string, newTaskId: string, newName: string) => {
+        setLocalLogs(prev => {
+            const index = prev.findIndex(l => l.id === logId);
+            if (index === -1) return prev;
+
+            const newLogs = [...prev];
+            newLogs[index] = {
+                ...newLogs[index],
+                taskId: newTaskId,
+                name: newName
+            };
+            setHasChanges(true);
+            return newLogs;
+        });
+    };
+
+    const handleAddLog = (beforeLogId?: string) => {
+        // Find typical start/end based on current day logs to place the new one sensibly
+        const currentDayLogs = [...localLogs]
+            .filter(l => isSameDay(new Date(l.startTime), selectedDate))
+            .sort((a, b) => {
+                const orderA = orderMap[a.id] ?? a.startTime;
+                const orderB = orderMap[b.id] ?? b.startTime;
+                return orderA - orderB;
+            });
+
+        let newStart = startOfDay(selectedDate).getTime() + 9 * 60 * 60 * 1000;
+        let newEnd = newStart + 30 * 60 * 1000;
+        let newOrderValue = Object.keys(orderMap).length + 2000;
+
+        if (beforeLogId) {
+            const targetIndex = currentDayLogs.findIndex(l => l.id === beforeLogId);
+            if (targetIndex !== -1) {
+                const targetLog = currentDayLogs[targetIndex];
+                newStart = targetLog.startTime;
+                newEnd = targetLog.endTime || targetLog.startTime;
+
+                const targetOrder = orderMap[targetLog.id] ?? targetLog.startTime;
+                if (targetIndex > 0) {
+                    const prevLog = currentDayLogs[targetIndex - 1];
+                    const prevOrder = orderMap[prevLog.id] ?? prevLog.startTime;
+                    newOrderValue = (prevOrder + targetOrder) / 2;
+                } else {
+                    newOrderValue = targetOrder - 1000;
+                }
+            }
+        } else if (currentDayLogs.length > 0) {
+            const lastLog = currentDayLogs[currentDayLogs.length - 1];
+            newStart = lastLog.endTime || (lastLog.startTime + 30 * 60 * 1000);
+            newEnd = newStart + 30 * 60 * 1000;
+            newOrderValue = (orderMap[lastLog.id] ?? lastLog.startTime) + 1000;
+        }
+
+        const newId = `manual-log-${Date.now()}`;
+        const newLog = {
+            id: newId,
+            taskId: 'manual',
+            name: 'New Task',
+            startTime: newStart,
+            endTime: newEnd,
+            duration: newEnd - newStart,
+            status: 'completed' as const
+        };
+
+        setLocalLogs(prev => {
+            setHasChanges(true);
+            setOrderMap(order => ({
+                ...order,
+                [newId]: newOrderValue
+            }));
+            return [...prev, newLog];
+        });
+    };
+
     const handleClose = () => {
         if (hasChanges) {
             const hasInvalid = localLogs.some(l => l.endTime !== null && l.startTime > l.endTime);
@@ -323,6 +416,18 @@ export function TaskLogModal() {
                                 <Layers size={14} /> Aggregated
                             </button>
                         </div>
+                        {/* Sort Toggle (Timeline Only) */}
+                        {viewMode === 'timeline' && (
+                            <div className="flex items-center gap-1 bg-slate-900/50 rounded-lg p-1 border border-slate-700 ml-4">
+                                <button
+                                    onClick={() => setIsSortDescending(!isSortDescending)}
+                                    className="px-2 py-1 rounded text-xs flex items-center gap-1 transition-colors text-slate-400 hover:text-white hover:bg-slate-800"
+                                    title={isSortDescending ? "Sort: Newest First" : "Sort: Oldest First"}
+                                >
+                                    {isSortDescending ? "↓ Newest First" : "↑ Oldest First"}
+                                </button>
+                            </div>
+                        )}
                     </div>
 
                     <div className="flex items-center gap-2">
@@ -380,7 +485,23 @@ export function TaskLogModal() {
                                             }`}>
                                             <td className={`p-4 font-medium truncate max-w-[200px] ${log.taskId === 'break' ? 'italic' : ''} ${invalidTextClass}`} title={log.name}>
                                                 <div className="flex items-center gap-2">
-                                                    <span>{log.name}</span>
+                                                    {log.id !== 'current-active-task' && log.taskId !== 'break' ? (
+                                                        <select
+                                                            value={log.taskId}
+                                                            onChange={(e) => {
+                                                                const opt = e.target.options[e.target.selectedIndex];
+                                                                handleChangeTask(log.id, e.target.value, opt.text);
+                                                            }}
+                                                            className={`bg-transparent border-b border-transparent focus:outline-none flex-1 max-w-[250px] truncate ${isInvalid ? 'text-red-500' : 'hover:border-slate-700 focus:border-blue-500 text-slate-200'}`}
+                                                        >
+                                                            <option key={`${log.taskId}-${log.id}`} value={log.taskId}>{log.name}</option>
+                                                            {uniqueTasks.filter(t => t.name !== log.name).map(t => (
+                                                                <option key={`${t.id}-${t.name}`} value={t.id} className="bg-slate-800">{t.name}</option>
+                                                            ))}
+                                                        </select>
+                                                    ) : (
+                                                        <span>{log.name}</span>
+                                                    )}
                                                     {log.taskId === 'break' && viewMode === 'timeline' && (
                                                         <select
                                                             className="ml-2 bg-slate-800 border border-slate-700 outline-none text-slate-400 p-1 rounded text-xs hover:text-white"
@@ -389,20 +510,30 @@ export function TaskLogModal() {
                                                                 if (!e.target.value) return;
                                                                 const selectedMatch = uniqueTasks.find(t => t.id === e.target.value);
                                                                 if (selectedMatch) {
-                                                                    addManualTaskLogEntry(
-                                                                        selectedMatch.id,
-                                                                        selectedMatch.name,
-                                                                        log.startTime,
-                                                                        log.endTime!,
-                                                                        log.duration,
-                                                                        'completed'
-                                                                    );
+                                                                    const newId = `manual-log-${Date.now()}`;
+                                                                    const convLog = {
+                                                                        id: newId,
+                                                                        taskId: selectedMatch.id,
+                                                                        name: selectedMatch.name,
+                                                                        startTime: log.startTime,
+                                                                        endTime: log.endTime!,
+                                                                        duration: log.duration,
+                                                                        status: 'completed' as const
+                                                                    };
+                                                                    setLocalLogs(prev => {
+                                                                        setHasChanges(true);
+                                                                        setOrderMap(order => ({
+                                                                            ...order,
+                                                                            [newId]: (orderMap[log.id] ?? 0) // Keep order position from break
+                                                                        }));
+                                                                        return [...prev, convLog];
+                                                                    });
                                                                 }
                                                             }}
                                                         >
                                                             <option value="">＋ Task</option>
                                                             {uniqueTasks.map(t => (
-                                                                <option key={t.id} value={t.id}>{t.name}</option>
+                                                                <option key={`${t.id}-${t.name}`} value={t.id}>{t.name}</option>
                                                             ))}
                                                         </select>
                                                     )}
@@ -444,19 +575,39 @@ export function TaskLogModal() {
                                                 {formatDurationHHmm(Math.abs(log.duration))}
                                                 {log.duration < 0 && <span className="text-red-500 text-xs ml-1">(Negative)</span>}
                                             </td>
-                                            <td className="p-4 font-mono text-slate-500">
-                                                {formatRounded15m(log.duration)}
+                                            <td className={`p-4 font-mono text-slate-500 ${isInvalid ? 'opacity-50' : ''}`}>
+                                                {formatRoundedDecimal(log.duration)}
                                             </td>
                                             <td className="p-4 capitalize text-xs">
                                                 {viewMode === 'aggregated' && log.status !== 'running' ? null : (
-                                                    <span className={`px-2 py-1 rounded-full whitespace-nowrap ${log.status === 'completed' ? 'bg-green-500/20 text-green-400' :
-                                                        log.status === 'running' ? 'bg-blue-500/20 text-blue-400 animate-pulse font-bold border border-blue-500/30' :
-                                                            log.status === 'paused' ? 'bg-yellow-500/20 text-yellow-400' :
-                                                                log.status === 'interrupted' ? 'bg-orange-500/20 text-orange-400' :
-                                                                    'bg-slate-700 text-slate-300'
-                                                        }`}>
-                                                        {log.status === 'running' ? 'Running' : log.status}
-                                                    </span>
+                                                    <div className="flex items-center gap-2 justify-between">
+                                                        <span className={`px-2 py-1 rounded-full whitespace-nowrap ${log.status === 'completed' ? 'bg-green-500/20 text-green-400' :
+                                                            log.status === 'running' ? 'bg-blue-500/20 text-blue-400 animate-pulse font-bold border border-blue-500/30' :
+                                                                log.status === 'paused' ? 'bg-yellow-500/20 text-yellow-400' :
+                                                                    log.status === 'interrupted' ? 'bg-orange-500/20 text-orange-400' :
+                                                                        'bg-slate-700 text-slate-300'
+                                                            }`}>
+                                                            {log.status === 'running' ? 'Running' : log.status}
+                                                        </span>
+                                                        {viewMode === 'timeline' && log.id !== 'current-active-task' && log.taskId !== 'break' && (
+                                                            <div className="flex items-center gap-1">
+                                                                <button
+                                                                    onClick={() => handleAddLog(log.id)}
+                                                                    className="text-slate-500 hover:text-blue-400 p-1 rounded hover:bg-slate-800 transition-colors"
+                                                                    title="Insert log entry above"
+                                                                >
+                                                                    <Plus size={14} />
+                                                                </button>
+                                                                <button
+                                                                    onClick={() => handleDeleteLog(log.id)}
+                                                                    className="text-slate-500 hover:text-red-400 p-1 rounded hover:bg-slate-800 transition-colors"
+                                                                    title="Delete this entry"
+                                                                >
+                                                                    <Trash2 size={14} />
+                                                                </button>
+                                                            </div>
+                                                        )}
+                                                    </div>
                                                 )}
                                             </td>
                                         </tr>
@@ -465,6 +616,17 @@ export function TaskLogModal() {
                             )}
                         </tbody>
                     </table>
+                    {viewMode === 'timeline' && (
+                        <div className="p-4 border-t border-slate-800 flex justify-center bg-slate-800/20">
+                            <button
+                                onClick={handleAddLog}
+                                className="flex items-center gap-2 px-6 py-2 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded-lg text-sm transition-all border border-slate-700 hover:border-slate-500 group shadow-lg"
+                            >
+                                <span className="text-xl leading-none group-hover:scale-125 transition-transform">＋</span>
+                                <span>Add Log Entry</span>
+                            </button>
+                        </div>
+                    )}
                 </div>
             </div>
         </div>
