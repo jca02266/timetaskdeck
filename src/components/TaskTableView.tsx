@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useEffect, useRef, useCallback, memo } from 'react';
 import { useTaskStore, Task } from '@/store/useTaskStore';
-import { Trash2, ArrowUp, ArrowDown, Plus, X, GripVertical, ListFilter, Play, FileText } from 'lucide-react';
+import { Trash2, ArrowUp, ArrowDown, Plus, X, GripVertical, ListFilter, Play, FileText, Search } from 'lucide-react';
 import { TaskScheduleInput } from './TaskScheduleInput';
 
 type SortKey = 'name' | 'color' | 'backlog' | 'scheduled';
@@ -28,6 +28,7 @@ export function TaskTableView() {
     const taskStack = useTaskStore((state) => state.taskStack);
     const categories = useTaskStore((state) => state.backlogCategories);
     const colors = useTaskStore((state) => state.colors);
+    const memos = useTaskStore((state) => state.memos);
 
     // Store actions
     const reorderAllTasks = useTaskStore((state) => state.reorderAllTasks);
@@ -43,6 +44,7 @@ export function TaskTableView() {
     const [sortDir, setSortDir] = useState<SortDirection>('asc');
     const [isSortActive, setIsSortActive] = useState(false);
     const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
+    const [searchQuery, setSearchQuery] = useState('');
     const wasPausedRef = useRef<boolean>(false);
     const hasInitializedRef = useRef<boolean>(false);
 
@@ -88,9 +90,21 @@ export function TaskTableView() {
     };
 
     const displayTasks = useMemo(() => {
-        if (!isSortActive) return localTasks;
+        let filteredTasks = localTasks;
 
-        return [...localTasks].sort((a, b) => {
+        if (searchQuery.trim()) {
+            const query = searchQuery.toLowerCase();
+            filteredTasks = filteredTasks.filter(task => {
+                const nameMatch = task.name.toLowerCase().includes(query);
+                const memoContent = memos[task.id] || '';
+                const memoMatch = memoContent.toLowerCase().includes(query);
+                return nameMatch || memoMatch;
+            });
+        }
+
+        if (!isSortActive) return filteredTasks;
+
+        return [...filteredTasks].sort((a, b) => {
             let valA: any = '';
             let valB: any = '';
 
@@ -127,7 +141,7 @@ export function TaskTableView() {
             if (valA > valB) return sortDir === 'asc' ? 1 : -1;
             return 0;
         });
-    }, [localTasks, isSortActive, sortKey, sortDir, categories, colors]);
+    }, [localTasks, isSortActive, sortKey, sortDir, categories, colors, searchQuery, memos]);
 
     const handleClose = () => {
         // Commit local state to store then close
@@ -215,6 +229,16 @@ export function TaskTableView() {
                 </div>
 
                 <div className="flex items-center gap-4">
+                    <div className="relative">
+                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" size={16} />
+                        <input
+                            type="text"
+                            placeholder="Search tasks or memos..."
+                            value={searchQuery}
+                            onChange={(e) => setSearchQuery(e.target.value)}
+                            className="bg-slate-900 border border-slate-700/50 rounded-lg pl-9 pr-4 py-2 text-sm text-slate-200 focus:outline-none focus:border-blue-500/50 focus:ring-1 focus:ring-blue-500/30 transition-all w-64 placeholder:text-slate-600"
+                        />
+                    </div>
                     <button
                         onClick={() => setIsSortActive(!isSortActive)}
                         className={`flex items-center gap-2 px-4 py-2 border rounded-lg text-sm transition-all ${isSortActive

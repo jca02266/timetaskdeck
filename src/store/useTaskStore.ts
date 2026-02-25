@@ -137,6 +137,7 @@ interface TaskState {
     setIsColorSettingsOpen: (open: boolean) => void;
 
     addManualTaskLogEntry: (taskId: string, name: string, startTime: number, endTime: number, duration: number, status: TaskStatus) => void;
+    updateTaskLogs: (logs: TaskLogEntry[]) => void;
 }
 
 export const useTaskStore = create<TaskState>()(
@@ -1224,6 +1225,20 @@ export const useTaskStore = create<TaskState>()(
                         status
                     };
                     return { taskLog: [...state.taskLog, newEntry] };
+                });
+            },
+
+            updateTaskLogs: (logs) => {
+                set((state) => {
+                    const newLog = [...state.taskLog];
+                    logs.forEach(log => {
+                        const index = newLog.findIndex(l => l.id === log.id);
+                        if (index >= 0) {
+                            newLog[index] = log;
+                        }
+                    });
+                    // Removed sorting here to preserve the original task order exactly as it was before editing
+                    return { taskLog: newLog };
                 });
             }
         }),

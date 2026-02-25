@@ -280,12 +280,18 @@ export const BacklogPanel = ({ category, defaultPosition }: BacklogPanelProps) =
                     </div>
                 )}
                 {backlogTasks.map((task, index) => {
-                    const isTimeDue = task.scheduledTime === currentTime;
-                    const isDateDue = !task.scheduledDate || task.scheduledDate === currentDate;
-                    const isDue = isTimeDue && isDateDue;
+                    const isMatchingMinute = task.scheduledTime === currentTime && (!task.scheduledDate || task.scheduledDate === currentDate);
+
+                    let isDue = false;
+                    if (task.scheduledDate && task.scheduledTime) {
+                        isDue = `${currentDate}T${currentTime}` >= `${task.scheduledDate}T${task.scheduledTime}`;
+                    } else if (task.scheduledTime) {
+                        isDue = (!task.scheduledDate || task.scheduledDate === currentDate) && currentTime >= task.scheduledTime;
+                    }
+
                     const activeColorDef = colors.find(c => c.id === task.colorId);
 
-                    if (isDue) {
+                    if (isMatchingMinute) {
                         sendNotification(`backlog-${task.id}`, 'バックログタスクの時間です', task.name);
                     }
 

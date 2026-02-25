@@ -14,6 +14,23 @@ export function TaskLogModal() {
     const [selectedDate, setSelectedDate] = useState<Date>(startOfDay(new Date()));
     const [copied, setCopied] = useState(false);
     const [viewMode, setViewMode] = useState<'timeline' | 'aggregated'>('timeline');
+    const [localLogs, setLocalLogs] = useState<typeof taskLog>([]);
+    const [hasChanges, setHasChanges] = useState(false);
+    const [orderMap, setOrderMap] = useState<Record<string, number>>({});
+
+    useEffect(() => {
+        if (!isLogOpen) return;
+        if (!hasChanges) {
+            setLocalLogs(taskLog);
+            const map: Record<string, number> = {};
+            const sorted = [...taskLog].sort((a, b) => {
+                if (a.startTime !== b.startTime) return a.startTime - b.startTime;
+                return a.id.localeCompare(b.id);
+            });
+            sorted.forEach((l, i) => map[l.id] = i);
+            setOrderMap(map);
+        }
+    }, [isLogOpen, taskLog, hasChanges]);
 
     useEffect(() => {
         if (!isLogOpen) return;
@@ -35,20 +52,24 @@ export function TaskLogModal() {
             duration: currentTask.status === 'pending' ? Math.max(0, now - currentTask.startTime) : 0,
             status: currentTask.status === 'pending' ? 'running' : currentTask.status
         },
-        ...taskLog
-    ] : taskLog;
+        ...localLogs
+    ] : localLogs;
 
     // Build a unique list of actual task names for the convert dropdown
     const uniqueTasks = Array.from(
         new Map(
-            taskLog
+            localLogs
                 .filter(log => log.taskId !== 'break' && log.id !== 'current-active-task')
                 .map(log => [log.taskId, { id: log.taskId, name: log.name }])
         ).values()
     );
 
-    // Sort by startTime so timeline goes chronologically
-    const sortedLogs = [...allLogs.filter(log => isSameDay(new Date(log.startTime), selectedDate))].sort((a, b) => a.startTime - b.startTime);
+    // Sort using the initial orderMap to ensure tasks don't jump around while editing
+    const sortedLogs = [...allLogs.filter(log => isSameDay(new Date(log.startTime), selectedDate))].sort((a, b) => {
+        const orderA = a.id === 'current-active-task' ? Infinity : (orderMap[a.id] ?? a.startTime);
+        const orderB = b.id === 'current-active-task' ? Infinity : (orderMap[b.id] ?? b.startTime);
+        return orderA - orderB;
+    });
 
     // Calculate gaps and insert artificial "Break" tasks
     const displayLogs: typeof allLogs = [];
@@ -56,7 +77,7 @@ export function TaskLogModal() {
         const currentLog = sortedLogs[i];
 
         // If there's a previous log, check the gap between its end and current's start
-        if (i > 0) {
+        if (i > 0 && !hasChanges) {
             const previousLog = sortedLogs[i - 1];
             // Only calculate gap if previous log actually ended (has endTime)
             // If it's the "current running task", it doesn't have an endTime, so it won't trigger a gap before itself in history unless it started way after the last task ended.
@@ -81,20 +102,23 @@ export function TaskLogModal() {
         displayLogs.push(currentLog);
     }
 
-    // Helper functions for formatting duration
     const formatDurationHHmm = (ms: number) => {
-        const totalMinutes = Math.floor(ms / 1000 / 60);
+        const isNegative = ms < 0;
+        const absMs = Math.abs(ms);
+        const totalMinutes = Math.floor(absMs / 1000 / 60);
         const hours = Math.floor(totalMinutes / 60);
         const mins = totalMinutes % 60;
-        return `${hours.toString().padStart(2, '0')}:${mins.toString().padStart(2, '0')}`;
+        return `${isNegative ? '-' : ''}${hours.toString().padStart(2, '0')}:${mins.toString().padStart(2, '0')}`;
     };
 
     const formatRounded15m = (ms: number) => {
-        const totalMinutes = ms / 1000 / 60;
+        const isNegative = ms < 0;
+        const absMs = Math.abs(ms);
+        const totalMinutes = absMs / 1000 / 60;
         const roundedMinutes = Math.round(totalMinutes / 15) * 15;
         const hours = Math.floor(roundedMinutes / 60);
         const mins = roundedMinutes % 60;
-        return `${hours.toString().padStart(2, '0')}:${mins.toString().padStart(2, '0')}`;
+        return `${isNegative ? '-' : ''}${hours.toString().padStart(2, '0')}:${mins.toString().padStart(2, '0')}`;
     };
 
     // Aggregation logic
@@ -141,6 +165,109 @@ export function TaskLogModal() {
         } catch (err) {
             console.error('Failed to copy', err);
         }
+    };
+
+    const handleTimeChange = (logId: string, type: 'start' | 'end', timeStr: string) => {
+        if (!timeStr) return;
+        const [hours, minutes] = timeStr.split(':').map(Number);
+        if (isNaN(hours) || isNaN(minutes)) return;
+
+        setLocalLogs(prev => {
+            const newLogs = [...prev];
+            // DO NOT sort by start time here to prevent records from swapping order while editing.
+            // The list will be sorted when saved to the store.
+
+            const index = newLogs.findIndex(l => l.id === logId);
+            if (index === -1) return prev;
+
+            const log = { ...newLogs[index] };
+            const baseDate = new Date(type === 'start' ? log.startTime : log.endTime);
+            const newTimestamp = new Date(baseDate.getFullYear(), baseDate.getMonth(), baseDate.getDate(), hours, minutes).getTime();
+
+            if (type === 'start') {
+                if (log.startTime === newTimestamp) return prev;
+                log.startTime = newTimestamp;
+                log.duration = log.endTime - log.startTime;
+                newLogs[index] = log;
+            } else {
+                if (log.endTime === newTimestamp) return prev;
+                log.endTime = newTimestamp;
+                log.duration = log.endTime - log.startTime;
+                newLogs[index] = log;
+            }
+
+            setHasChanges(true);
+            return newLogs;
+        });
+    };
+
+    const handleTimeBlur = (logId: string, type: 'start' | 'end') => {
+        setLocalLogs(prev => {
+            const newLogs = [...prev];
+
+            // Reconstruct the exact visual order sequence for the current day to cascade correctly
+            const dayLogsIndexes = newLogs
+                .map((log, i) => ({ log, i }))
+                .filter(x => isSameDay(new Date(x.log.startTime), selectedDate))
+                .sort((a, b) => {
+                    const orderA = a.log.id === 'current-active-task' ? Infinity : (orderMap[a.log.id] ?? a.log.startTime);
+                    const orderB = b.log.id === 'current-active-task' ? Infinity : (orderMap[b.log.id] ?? b.log.startTime);
+                    return orderA - orderB;
+                });
+
+            const visualIndex = dayLogsIndexes.findIndex(x => x.log.id === logId);
+            if (visualIndex === -1) return prev;
+
+            const logInfo = dayLogsIndexes[visualIndex];
+            let changed = false;
+
+            if (type === 'start') {
+                // Cascade backward
+                if (visualIndex > 0) {
+                    const prevLogInfo = dayLogsIndexes[visualIndex - 1];
+                    if (prevLogInfo.log.endTime !== null && prevLogInfo.log.endTime > logInfo.log.startTime) {
+                        prevLogInfo.log.endTime = logInfo.log.startTime;
+                        prevLogInfo.log.duration = prevLogInfo.log.endTime - prevLogInfo.log.startTime;
+                        newLogs[prevLogInfo.i] = prevLogInfo.log;
+                        changed = true;
+                    }
+                }
+            } else {
+                // Cascade forward
+                if (visualIndex < dayLogsIndexes.length - 1) {
+                    const nextLogInfo = dayLogsIndexes[visualIndex + 1];
+                    if (nextLogInfo.log.startTime < logInfo.log.endTime!) {
+                        nextLogInfo.log.startTime = logInfo.log.endTime!;
+                        nextLogInfo.log.duration = (nextLogInfo.log.endTime || nextLogInfo.log.startTime) - nextLogInfo.log.startTime;
+                        newLogs[nextLogInfo.i] = nextLogInfo.log;
+                        changed = true;
+                    }
+                }
+            }
+
+            if (changed) {
+                setHasChanges(true);
+                return newLogs;
+            }
+            return prev;
+        });
+    };
+
+    const handleClose = () => {
+        if (hasChanges) {
+            const hasInvalid = localLogs.some(l => l.endTime !== null && l.startTime > l.endTime);
+            if (hasInvalid) {
+                if (window.confirm('開始時刻が終了時刻より後になっている不正なタスクがあります。変更を破棄して閉じますか？\n（キャンセルを押すと編集に戻ります）')) {
+                    setHasChanges(false);
+                    // Reset to original on next open
+                    setIsLogOpen(false);
+                }
+                return;
+            }
+            useTaskStore.getState().updateTaskLogs(localLogs);
+            setHasChanges(false);
+        }
+        setIsLogOpen(false);
     };
 
     return (
@@ -212,8 +339,9 @@ export function TaskLogModal() {
                         </button>
                         <div className="w-[1px] h-6 bg-slate-700 mx-1"></div>
                         <button
-                            onClick={() => setIsLogOpen(false)}
-                            className="text-slate-400 hover:text-white transition-colors p-1.5 rounded-md hover:bg-slate-800"
+                            onClick={handleClose}
+                            className={`transition-colors p-1.5 rounded-md hover:bg-slate-800 ${hasChanges ? 'text-blue-400 hover:text-blue-300' : 'text-slate-400 hover:text-white'}`}
+                            title={hasChanges ? "Save changes and close" : "Close"}
                         >
                             <X size={20} />
                         </button>
@@ -242,12 +370,15 @@ export function TaskLogModal() {
                                 </tr>
                             ) : (
                                 dataToDisplay.map((log, i) => {
+                                    const isInvalid = log.endTime !== null && log.startTime > log.endTime;
+                                    const invalidTextClass = isInvalid ? "text-red-500 font-bold" : "";
+
                                     return (
-                                        <tr key={log.id || `agg-${i}`} className={`transition-colors ${log.id === 'current-active-task' ? 'bg-blue-900/20 hover:bg-blue-900/30' :
+                                        <tr key={log.id || `agg-${i}`} className={`transition-colors ${isInvalid ? 'bg-red-900/10 hover:bg-red-900/20' : log.id === 'current-active-task' ? 'bg-blue-900/20 hover:bg-blue-900/30' :
                                             log.taskId === 'break' ? 'bg-slate-800/30 text-slate-500' :
                                                 'hover:bg-slate-800/50'
                                             }`}>
-                                            <td className={`p-4 font-medium truncate max-w-[200px] ${log.taskId === 'break' ? 'italic' : ''}`} title={log.name}>
+                                            <td className={`p-4 font-medium truncate max-w-[200px] ${log.taskId === 'break' ? 'italic' : ''} ${invalidTextClass}`} title={log.name}>
                                                 <div className="flex items-center gap-2">
                                                     <span>{log.name}</span>
                                                     {log.taskId === 'break' && viewMode === 'timeline' && (
@@ -278,17 +409,40 @@ export function TaskLogModal() {
                                                 </div>
                                             </td>
                                             {viewMode === 'timeline' && (
-                                                <td className="p-4 font-mono text-slate-400">
-                                                    {format(log.startTime, 'HH:mm')}
+                                                <td className={`p-4 font-mono ${invalidTextClass || 'text-slate-400'}`}>
+                                                    {log.id === 'current-active-task' || log.taskId === 'break' ? (
+                                                        format(log.startTime, 'HH:mm')
+                                                    ) : (
+                                                        <input
+                                                            type="time"
+                                                            value={format(log.startTime, 'HH:mm')}
+                                                            onChange={(e) => handleTimeChange(log.id, 'start', e.target.value)}
+                                                            onBlur={() => handleTimeBlur(log.id, 'start')}
+                                                            className={`bg-transparent border-b border-transparent focus:outline-none w-24 ${isInvalid ? 'border-red-500/50 focus:border-red-500' : 'hover:border-slate-700 focus:border-blue-500'}`}
+                                                        />
+                                                    )}
                                                 </td>
                                             )}
                                             {viewMode === 'timeline' && (
-                                                <td className="p-4 font-mono text-slate-400">
-                                                    {log.endTime ? format(log.endTime, 'HH:mm') : '--:--'}
+                                                <td className={`p-4 font-mono ${invalidTextClass || 'text-slate-400'}`}>
+                                                    {log.id === 'current-active-task' ? (
+                                                        '--:--'
+                                                    ) : log.taskId === 'break' ? (
+                                                        log.endTime ? format(log.endTime, 'HH:mm') : '--:--'
+                                                    ) : (
+                                                        <input
+                                                            type="time"
+                                                            value={log.endTime ? format(log.endTime, 'HH:mm') : ''}
+                                                            onChange={(e) => handleTimeChange(log.id, 'end', e.target.value)}
+                                                            onBlur={() => handleTimeBlur(log.id, 'end')}
+                                                            className={`bg-transparent border-b border-transparent focus:outline-none w-24 ${isInvalid ? 'border-red-500/50 focus:border-red-500' : 'hover:border-slate-700 focus:border-blue-500'}`}
+                                                        />
+                                                    )}
                                                 </td>
                                             )}
-                                            <td className="p-4 font-mono font-medium text-slate-200">
-                                                {formatDurationHHmm(log.duration)}
+                                            <td className={`p-4 font-mono font-medium ${invalidTextClass || 'text-slate-200'}`}>
+                                                {formatDurationHHmm(Math.abs(log.duration))}
+                                                {log.duration < 0 && <span className="text-red-500 text-xs ml-1">(Negative)</span>}
                                             </td>
                                             <td className="p-4 font-mono text-slate-500">
                                                 {formatRounded15m(log.duration)}

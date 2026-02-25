@@ -135,11 +135,18 @@ export function RecurringTasks() {
                     </div>
                 )}
                 {recurringTasks.map((task, index) => {
-                    const isTimeDue = task.scheduledTime === currentTime;
-                    const isDateDue = !task.scheduledDate || task.scheduledDate === currentDate;
-                    const isDue = isTimeDue && isDateDue && task.status !== 'completed';
+                    const isMatchingMinute = task.scheduledTime === currentTime && (!task.scheduledDate || task.scheduledDate === currentDate);
 
-                    if (isDue) {
+                    let isDue = false;
+                    if (task.status !== 'completed') {
+                        if (task.scheduledDate && task.scheduledTime) {
+                            isDue = `${currentDate}T${currentTime}` >= `${task.scheduledDate}T${task.scheduledTime}`;
+                        } else if (task.scheduledTime) {
+                            isDue = (!task.scheduledDate || task.scheduledDate === currentDate) && currentTime >= task.scheduledTime;
+                        }
+                    }
+
+                    if (isMatchingMinute && task.status !== 'completed') {
                         sendNotification(`recurring-${task.id}`, '定期タスクの時間です', task.name);
                     }
 
