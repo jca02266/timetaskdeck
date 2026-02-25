@@ -1,5 +1,6 @@
 import React, { useState, useMemo, useEffect, useRef, useCallback, memo } from 'react';
 import { useTaskStore, Task } from '@/store/useTaskStore';
+import { useMemoStore } from '@/store/useMemoStore';
 import { Trash2, ArrowUp, ArrowDown, Plus, X, GripVertical, ListFilter, Play, FileText, Search } from 'lucide-react';
 import { TaskScheduleInput } from './TaskScheduleInput';
 
@@ -28,7 +29,7 @@ export function TaskTableView() {
     const taskStack = useTaskStore((state) => state.taskStack);
     const categories = useTaskStore((state) => state.backlogCategories);
     const colors = useTaskStore((state) => state.colors);
-    const memos = useTaskStore((state) => state.memos);
+    const memos = useMemoStore((state) => state.memos);
 
     // Store actions
     const reorderAllTasks = useTaskStore((state) => state.reorderAllTasks);
