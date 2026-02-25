@@ -5,6 +5,7 @@ import { Tooltip } from './Tooltip';
 import { DatePicker } from './DatePicker';
 import { DraggablePanel } from './DraggablePanel';
 import { TaskScheduleInput } from './TaskScheduleInput';
+import { useNotification } from '@/hooks/useNotification';
 
 export function RecurringTasks() {
     const {
@@ -26,6 +27,7 @@ export function RecurringTasks() {
     const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
     const [currentTime, setCurrentTime] = useState('');
     const [currentDate, setCurrentDate] = useState('');
+    const { sendNotification } = useNotification();
 
     // Update current time every minute to check schedules
     useState(() => {
@@ -136,6 +138,10 @@ export function RecurringTasks() {
                     const isTimeDue = task.scheduledTime === currentTime;
                     const isDateDue = !task.scheduledDate || task.scheduledDate === currentDate;
                     const isDue = isTimeDue && isDateDue && task.status !== 'completed';
+
+                    if (isDue) {
+                        sendNotification(`recurring-${task.id}`, '定期タスクの時間です', task.name);
+                    }
 
                     return (
                         <div

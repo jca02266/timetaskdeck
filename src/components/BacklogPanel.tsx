@@ -6,6 +6,7 @@ import { TaskScheduleInput } from './TaskScheduleInput';
 import { format, parseISO } from 'date-fns';
 import { ListTodo, Play, Plus, Pencil, Check, X, Trash2, GripVertical, Copy, Minimize2, Calendar, Clock, FileText } from 'lucide-react';
 import { useState, useRef, useEffect } from 'react';
+import { useNotification } from '@/hooks/useNotification';
 
 function getPillClasses(colorCode?: string) {
     if (!colorCode) return 'bg-slate-800 border-slate-700 text-slate-400';
@@ -53,6 +54,7 @@ export const BacklogPanel = ({ category, defaultPosition }: BacklogPanelProps) =
 
     const [currentTime, setCurrentTime] = useState('');
     const [currentDate, setCurrentDate] = useState('');
+    const { sendNotification } = useNotification();
 
     useEffect(() => {
         const updateTime = () => {
@@ -282,6 +284,10 @@ export const BacklogPanel = ({ category, defaultPosition }: BacklogPanelProps) =
                     const isDateDue = !task.scheduledDate || task.scheduledDate === currentDate;
                     const isDue = isTimeDue && isDateDue;
                     const activeColorDef = colors.find(c => c.id === task.colorId);
+
+                    if (isDue) {
+                        sendNotification(`backlog-${task.id}`, 'バックログタスクの時間です', task.name);
+                    }
 
                     return (
                         <div
