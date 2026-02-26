@@ -77,7 +77,10 @@ export function TaskLogModal() {
     ).sort((a, b) => a.name.localeCompare(b.name));
 
     // Sort using the initial orderMap to ensure tasks don't jump around while editing
-    const sortedLogs = [...allLogs.filter(log => isSameDay(new Date(log.startTime), selectedDate))].sort((a, b) => {
+    const sortedLogs = [...allLogs.filter(log =>
+        isSameDay(new Date(log.startTime), selectedDate) &&
+        (log.id === 'current-active-task' || Math.abs(log.duration) > 5000)
+    )].sort((a, b) => {
         const orderA = a.id === 'current-active-task' ? Infinity : (orderMap[a.id] ?? a.startTime);
         const orderB = b.id === 'current-active-task' ? Infinity : (orderMap[b.id] ?? b.startTime);
         return orderA - orderB;
