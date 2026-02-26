@@ -1,6 +1,6 @@
 import { useTaskStore } from '@/store/useTaskStore';
 import { Repeat, Play, Plus, Pencil, Check, X, Trash2, GripVertical, CheckCircle2, Circle, Minimize2, FileText, CheckSquare } from 'lucide-react';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Tooltip } from './Tooltip';
 import { DatePicker } from './DatePicker';
 import { DraggablePanel } from './DraggablePanel';
@@ -27,21 +27,45 @@ export function RecurringTasks() {
     const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
     const [currentTime, setCurrentTime] = useState('');
     const [currentDate, setCurrentDate] = useState('');
+    const [currentDay, setCurrentDay] = useState<number>(new Date().getDay());
     const { sendNotification } = useNotification();
 
-    // Update current time every minute to check schedules
-    useState(() => {
+    useEffect(() => {
         const updateTime = () => {
             const now = new Date();
             const timeString = `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}`;
             const dateString = `${now.getFullYear()}-${(now.getMonth() + 1).toString().padStart(2, '0')}-${now.getDate().toString().padStart(2, '0')}`;
+            const dayOfWeek = now.getDay();
             setCurrentTime(timeString);
             setCurrentDate(dateString);
+            setCurrentDay(dayOfWeek);
         };
         updateTime();
         const interval = setInterval(updateTime, 10000); // Check every 10s
         return () => clearInterval(interval);
-    });
+    }, []);
+
+    const isTaskScheduledNow = (task: any) => {
+        if (task.status === 'completed') return { isDue: false, shouldNotify: false };
+
+        const isMatchingMinute = task.scheduledTime === currentTime;
+        const isMatchingDate = !task.scheduledDate || task.scheduledDate === currentDate;
+        const isMatchingDay = !task.scheduledDaysOfWeek || task.scheduledDaysOfWeek.includes(currentDay);
+
+        let isDue = false;
+        const isDaily = task.scheduledDaysOfWeek && task.scheduledDaysOfWeek.length === 7;
+
+        if (task.scheduledDate && task.scheduledTime) {
+            isDue = `${currentDate}T${currentTime}` >= `${task.scheduledDate}T${task.scheduledTime}`;
+        } else if (task.scheduledTime) {
+            const timeMatch = isDaily || isMatchingDate || (task.scheduledDaysOfWeek ? isMatchingDay : isMatchingDate);
+            isDue = timeMatch && currentTime >= task.scheduledTime;
+        }
+
+        const shouldNotify = isMatchingMinute && (isMatchingDate && (task.scheduledDaysOfWeek ? isMatchingDay : true));
+
+        return { isDue, shouldNotify };
+    };
 
     const handleAdd = (e: React.FormEvent) => {
         e.preventDefault();
@@ -135,18 +159,9 @@ export function RecurringTasks() {
                     </div>
                 )}
                 {recurringTasks.map((task, index) => {
-                    const isMatchingMinute = task.scheduledTime === currentTime && (!task.scheduledDate || task.scheduledDate === currentDate);
+                    const { isDue, shouldNotify } = isTaskScheduledNow(task);
 
-                    let isDue = false;
-                    if (task.status !== 'completed') {
-                        if (task.scheduledDate && task.scheduledTime) {
-                            isDue = `${currentDate}T${currentTime}` >= `${task.scheduledDate}T${task.scheduledTime}`;
-                        } else if (task.scheduledTime) {
-                            isDue = (!task.scheduledDate || task.scheduledDate === currentDate) && currentTime >= task.scheduledTime;
-                        }
-                    }
-
-                    if (isMatchingMinute && task.status !== 'completed') {
+                    if (shouldNotify) {
                         sendNotification(`recurring-${task.id}`, '定期タスクの時間です', task.name);
                     }
 
@@ -258,7 +273,8 @@ export function RecurringTasks() {
                                         <TaskScheduleInput
                                             date={task.scheduledDate}
                                             time={task.scheduledTime}
-                                            onUpdate={(date, time) => updateTaskSchedule(task.id, date, time)}
+                                            daysOfWeek={task.scheduledDaysOfWeek}
+                                            onUpdate={(date, time, days) => updateTaskSchedule(task.id, date, time, days)}
                                             className="ml-auto"
                                         />
                                     </div>

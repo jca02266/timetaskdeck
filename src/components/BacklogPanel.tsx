@@ -54,6 +54,7 @@ export const BacklogPanel = ({ category, defaultPosition }: BacklogPanelProps) =
 
     const [currentTime, setCurrentTime] = useState('');
     const [currentDate, setCurrentDate] = useState('');
+    const [currentDay, setCurrentDay] = useState<number>(new Date().getDay());
     const { sendNotification } = useNotification();
 
     useEffect(() => {
@@ -61,13 +62,39 @@ export const BacklogPanel = ({ category, defaultPosition }: BacklogPanelProps) =
             const now = new Date();
             const timeString = `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}`;
             const dateString = `${now.getFullYear()}-${(now.getMonth() + 1).toString().padStart(2, '0')}-${now.getDate().toString().padStart(2, '0')}`;
+            const dayOfWeek = now.getDay();
             setCurrentTime(timeString);
             setCurrentDate(dateString);
+            setCurrentDay(dayOfWeek);
         };
         updateTime();
         const interval = setInterval(updateTime, 10000); // Check every 10s
         return () => clearInterval(interval);
     }, []);
+
+    const isTaskScheduledNow = (task: Task) => {
+        if (task.status === 'completed') return { isDue: false, shouldNotify: false };
+
+        // Notification check (exact minute)
+        const isMatchingMinute = task.scheduledTime === currentTime;
+        const isMatchingDate = !task.scheduledDate || task.scheduledDate === currentDate;
+        const isMatchingDay = !task.scheduledDaysOfWeek || task.scheduledDaysOfWeek.includes(currentDay);
+
+        const isDaily = task.scheduledDaysOfWeek && task.scheduledDaysOfWeek.length === 7;
+
+        // Due check (any time past the scheduled time)
+        let isDue = false;
+        if (task.scheduledDate && task.scheduledTime) {
+            isDue = `${currentDate}T${currentTime}` >= `${task.scheduledDate}T${task.scheduledTime}`;
+        } else if (task.scheduledTime) {
+            const timeMatch = isDaily || isMatchingDate || isMatchingDay;
+            isDue = timeMatch && currentTime >= task.scheduledTime;
+        }
+
+        const shouldNotify = isMatchingMinute && (isMatchingDate && (task.scheduledDaysOfWeek ? isMatchingDay : true));
+
+        return { isDue, shouldNotify };
+    };
 
     const formatTime = (ms: number) => {
         const totalSeconds = Math.floor(ms / 1000);
@@ -280,18 +307,11 @@ export const BacklogPanel = ({ category, defaultPosition }: BacklogPanelProps) =
                     </div>
                 )}
                 {backlogTasks.map((task, index) => {
-                    const isMatchingMinute = task.scheduledTime === currentTime && (!task.scheduledDate || task.scheduledDate === currentDate);
-
-                    let isDue = false;
-                    if (task.scheduledDate && task.scheduledTime) {
-                        isDue = `${currentDate}T${currentTime}` >= `${task.scheduledDate}T${task.scheduledTime}`;
-                    } else if (task.scheduledTime) {
-                        isDue = (!task.scheduledDate || task.scheduledDate === currentDate) && currentTime >= task.scheduledTime;
-                    }
+                    const { isDue, shouldNotify } = isTaskScheduledNow(task);
 
                     const activeColorDef = colors.find(c => c.id === task.colorId);
 
-                    if (isMatchingMinute) {
+                    if (shouldNotify) {
                         sendNotification(`backlog-${task.id}`, 'バックログタスクの時間です', task.name);
                     }
 
@@ -405,8 +425,9 @@ export const BacklogPanel = ({ category, defaultPosition }: BacklogPanelProps) =
                             <TaskScheduleInput
                                 date={task.scheduledDate}
                                 time={task.scheduledTime}
-                                onUpdate={(date, time) => updateTaskSchedule(task.id, date, time)}
-                                className="shrink-0"
+                                daysOfWeek={task.scheduledDaysOfWeek}
+                                onUpdate={(date, time, days) => updateTaskSchedule(task.id, date, time, days)}
+                                className="ml-auto"
                             />
 
                             <div className="flex items-center gap-1 shrink-0">

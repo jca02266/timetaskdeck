@@ -38,6 +38,7 @@ export interface Task {
     recurringTaskId?: string; // Links back to the recurring task template
     scheduledTime?: string; // HH:mm format
     scheduledDate?: string; // YYYY-MM-DD format
+    scheduledDaysOfWeek?: number[]; // 0=Sun, 6=Sat
     backlogId?: string;
     colorId?: string;
 }
@@ -106,7 +107,7 @@ interface TaskState {
 
     // Timer Control
     togglePause: () => void;
-    updateTaskSchedule: (taskId: string, date?: string, time?: string) => void;
+    updateTaskSchedule: (taskId: string, date?: string, time?: string, daysOfWeek?: number[]) => void;
     resumeFromStack: () => void;
     reorderBacklogTasks: (startIndex: number, endIndex: number) => void;
     moveTaskToLocation: (taskId: string, location: 'current' | 'stack' | 'backlog', backlogId?: string) => void;
@@ -952,17 +953,23 @@ export const useTaskStore = create<TaskState>()(
                 });
             },
 
-            updateTaskSchedule: (taskId, date, time) => {
+            updateTaskSchedule: (taskId, date, time, daysOfWeek) => {
                 set((state) => {
                     const updateTask = (task: Task) => {
                         let newTime = time !== undefined ? time : task.scheduledTime;
                         let newDate = date !== undefined ? date : task.scheduledDate;
+                        let newDays = daysOfWeek !== undefined ? daysOfWeek : task.scheduledDaysOfWeek;
 
                         // If explicitly cleared (to undefined or null or empty string)
                         if (date === null || date === '') newDate = undefined;
                         if (time === null || time === '') newTime = undefined;
+                        if (daysOfWeek === null) newDays = undefined;
 
-                        return { ...task, scheduledDate: newDate, scheduledTime: newTime };
+                        // Consistency: If one-time date is set, clear recurring days, and vice versa
+                        if (date) newDays = undefined;
+                        if (daysOfWeek && daysOfWeek.length > 0) newDate = undefined;
+
+                        return { ...task, scheduledDate: newDate, scheduledTime: newTime, scheduledDaysOfWeek: newDays };
                     };
 
                     const updateList = (list: Task[]) => {

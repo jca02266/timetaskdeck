@@ -1,58 +1,74 @@
 "use client";
 
-import { Clock, X } from 'lucide-react';
-import { DatePicker } from './DatePicker';
+import { useState } from 'react';
+import { Clock, Calendar, Repeat } from 'lucide-react';
+import { AdvancedScheduleDialog } from './AdvancedScheduleDialog';
 
 interface TaskScheduleInputProps {
     date?: string;
     time?: string;
-    onUpdate: (date?: string, time?: string) => void;
+    daysOfWeek?: number[];
+    onUpdate: (date?: string, time?: string, daysOfWeek?: number[]) => void;
     className?: string;
 }
 
-export function TaskScheduleInput({ date, time, onUpdate, className }: TaskScheduleInputProps) {
-    const dateDisplay = date ? date.split('-').slice(1).join('/') : '--/--';
-    const timeDisplay = time || '--:--';
+const WEEKDAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+
+export function TaskScheduleInput({ date, time, daysOfWeek, onUpdate, className }: TaskScheduleInputProps) {
+    const [isDialogOpen, setIsDialogOpen] = useState(false);
+
+    const hasDays = daysOfWeek && daysOfWeek.length > 0;
+    const isDaily = hasDays && daysOfWeek.length === 7;
+
+    let displayLabel = '--:--';
+    if (time) {
+        if (date) {
+            const dateParts = date.split('-');
+            displayLabel = `${dateParts[1]}/${dateParts[2]} ${time}`;
+        } else if (isDaily) {
+            displayLabel = `Daily ${time}`;
+        } else if (hasDays) {
+            const dayLabels = daysOfWeek.map(d => WEEKDAYS[d].slice(0, 3)).join(',');
+            displayLabel = `${dayLabels} ${time}`;
+        } else {
+            displayLabel = `${time}`;
+        }
+    }
+
+    const hasSchedule = !!(date || time || hasDays);
 
     return (
-        <div
-            onPointerDown={(e) => e.stopPropagation()}
-            className={`relative flex flex-col items-center justify-center bg-slate-950/30 px-2 py-1 rounded border border-slate-800 text-[9px] leading-tight transition-colors group/schedule ${className || ''}`}
-        >
-            <div className="flex items-center gap-1">
-                <DatePicker
-                    value={date}
-                    onChange={(newDate) => onUpdate(newDate, time)}
-                />
+        <>
+            <div
+                onPointerDown={(e) => e.stopPropagation()}
+                onClick={(e) => {
+                    e.stopPropagation();
+                    setIsDialogOpen(true);
+                }}
+                className={`relative flex items-center justify-center bg-slate-950/30 px-2 py-1.5 rounded border border-slate-800 text-[10px] leading-tight transition-all cursor-pointer hover:bg-slate-800/50 hover:border-slate-600 group/schedule min-w-[60px] ${className || ''}`}
+            >
+                <div className="flex items-center gap-1.5">
+                    {date ? (
+                        <Calendar size={10} className="text-blue-400" />
+                    ) : hasDays ? (
+                        <Repeat size={10} className="text-blue-400" />
+                    ) : (
+                        <Clock size={10} className={time ? 'text-blue-400' : 'text-slate-500'} />
+                    )}
+                    <span className={`font-medium ${hasSchedule ? 'text-blue-400' : 'text-slate-500'}`}>
+                        {displayLabel}
+                    </span>
+                </div>
             </div>
 
-            {/* Divider (Horizontal) */}
-            <div className="w-full h-[1px] bg-slate-800 my-0.5" />
-
-            <div className="relative w-full flex items-center justify-center gap-1 group/time text-slate-500 hover:text-slate-300 py-0.5 cursor-pointer">
-                <Clock size={8} className={time ? 'text-blue-400' : 'text-slate-500'} />
-                <span className={time ? 'text-blue-400' : ''}>{timeDisplay}</span>
-                <input
-                    type="time"
-                    value={time || ''}
-                    onChange={(e) => onUpdate(date, e.target.value || undefined)}
-                    className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
-                />
-            </div>
-
-            {/* Clear Button - Absolute positioned to not break layout */}
-            {(date || time) && (
-                <button
-                    onClick={(e) => {
-                        e.stopPropagation();
-                        onUpdate('', ''); // Explicitly clear
-                    }}
-                    className="absolute -top-1.5 -right-1.5 bg-slate-800 text-slate-400 hover:text-red-400 p-0.5 rounded-full border border-slate-700 opacity-0 group-hover/schedule:opacity-100 transition-opacity z-20"
-                    title="Clear Schedule"
-                >
-                    <X size={8} />
-                </button>
-            )}
-        </div>
+            <AdvancedScheduleDialog
+                isOpen={isDialogOpen}
+                onClose={() => setIsDialogOpen(false)}
+                currentDate={date}
+                currentTime={time}
+                currentDaysOfWeek={daysOfWeek}
+                onSave={onUpdate}
+            />
+        </>
     );
 }
