@@ -46,6 +46,11 @@ export default function Home() {
 
   const deckTaskCount = (currentTask ? 1 : 0) + taskStack.length;
 
+  // Responsive default sizes
+  const isMobile = typeof window !== 'undefined' && window.innerWidth < 640;
+  const controlPanelWidth = isMobile ? Math.min(window.innerWidth - 32, 440) : 440;
+  const timerPanelWidth = isMobile ? Math.min(window.innerWidth - 32, 500) : 500;
+
   const historyCount = history.length;
 
   return (
@@ -58,9 +63,9 @@ export default function Home() {
       {/* Control Panel (Input + List Button) */}
       <DraggablePanel
         id="control-panel"
-        defaultPosition={{ top: 32, left: 32 }}
-        defaultSize={{ width: 440, height: 180 }}
-        minSize={{ width: 440, height: 180 }}
+        defaultPosition={{ top: 32, left: isMobile ? 16 : 32 }}
+        defaultSize={{ width: controlPanelWidth, height: 180 }}
+        minSize={{ width: Math.min(320, controlPanelWidth), height: 180 }}
         title="Control Panel"
       >
         <div className="p-4 flex flex-col gap-4 h-full justify-center">
@@ -105,8 +110,8 @@ export default function Home() {
       {/*- カレントタスクデッキ (`TaskTimer`, `TaskStack`): 現在実行中のタスクと一時的にスタックに積んだ背面に並んだタスクの一覧*/}
       <DraggablePanel
         id="timer-panel"
-        defaultPosition={{ top: 120, left: 300 }} // Safe default, center logic handled on client if needed
-        defaultSize={{ width: 500, height: 500 }}
+        defaultPosition={{ top: 120, left: isMobile ? 16 : 300 }} // Safe default, center logic handled on client if needed
+        defaultSize={{ width: timerPanelWidth, height: 500 }}
         title={`カレントタスクデッキ (${deckTaskCount})`}
         resizable={false}
         className="!bg-transparent !shadow-none !border-none"
