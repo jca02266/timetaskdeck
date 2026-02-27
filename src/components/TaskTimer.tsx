@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { useTaskStore } from '@/store/useTaskStore';
-import { Play, Square, Pause, ArrowDown, Pencil, Check, X, FileText } from 'lucide-react';
+import { Play, Square, Pause, ArrowDown, Pencil, Check, X, FileText, ListTodo } from 'lucide-react';
 import { format } from 'date-fns';
 import { Tooltip } from './Tooltip';
 
@@ -169,7 +169,7 @@ export function TaskTimer() {
                     title="Move to Backlog"
                 >
                     <div className="w-14 h-14 rounded-full glass flex items-center justify-center border border-slate-600 group-hover:border-red-400 transition-all">
-                        <Pause size={24} fill="currentColor" />
+                        <ListTodo size={24} />
                     </div>
                     <span className="text-sm">バックログ</span>
                 </button>

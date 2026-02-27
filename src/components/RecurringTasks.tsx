@@ -106,7 +106,7 @@ export function RecurringTasks() {
             title={
                 <div className="flex items-center gap-2 uppercase tracking-wider">
                     <Repeat size={16} />
-                    <span>定期タスクデッキ</span>
+                    <span>定期タスクデッキ ({recurringTasks.length})</span>
                 </div>
             }
             headerControls={

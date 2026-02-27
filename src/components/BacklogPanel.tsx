@@ -223,7 +223,7 @@ export const BacklogPanel = ({ category, defaultPosition }: BacklogPanelProps) =
                 ) : (
                     <div className="flex items-center gap-2 font-bold w-full">
                         <ListTodo size={16} />
-                        <span className="truncate">{category.name}</span>
+                        <span className="truncate">{category.name} ({backlogTasks.length})</span>
                     </div>
                 )
             }

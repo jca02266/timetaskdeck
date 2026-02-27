@@ -146,7 +146,24 @@ export function TaskTableView() {
 
     const handleClose = () => {
         // Commit local state to store then close
-        reorderAllTasks(localTasks);
+        // We need to merge updates into current store records to preserve ALL data
+        // because localTasks might have had some fields stripped if display logic changes
+        const currentTasks = useTaskStore.getState().backlogTasks;
+        const currentStack = useTaskStore.getState().taskStack;
+        const currentTask = useTaskStore.getState().currentTask;
+
+        const merged = localTasks.map(updatedTask => {
+            const original = currentTasks.find(t => t.id === updatedTask.id) ||
+                currentStack.find(t => t.id === updatedTask.id) ||
+                (currentTask?.id === updatedTask.id ? currentTask : null);
+
+            if (original) {
+                return { ...original, ...updatedTask };
+            }
+            return updatedTask;
+        });
+
+        reorderAllTasks(merged);
         setIsTaskTableOpen(false);
     };
 
@@ -465,7 +482,8 @@ const TaskTableRow = memo(function TaskTableRow({
                 <TaskScheduleInput
                     date={task.scheduledDate}
                     time={task.scheduledTime}
-                    onUpdate={(d, t) => onUpdate(task.id, { scheduledDate: d, scheduledTime: t })}
+                    daysOfWeek={task.scheduledDaysOfWeek}
+                    onUpdate={(d, t, days) => onUpdate(task.id, { scheduledDate: d, scheduledTime: t, scheduledDaysOfWeek: days })}
                 />
             </td>
 

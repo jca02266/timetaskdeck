@@ -39,8 +39,12 @@ export default function Home() {
     toggleHistoryMinimized,
     activeMemoTaskId,
     isMemoMinimized,
-    history
+    history,
+    currentTask,
+    taskStack
   } = useTaskStore();
+
+  const deckTaskCount = (currentTask ? 1 : 0) + taskStack.length;
 
   const historyCount = history.length;
 
@@ -103,7 +107,7 @@ export default function Home() {
         id="timer-panel"
         defaultPosition={{ top: 120, left: 300 }} // Safe default, center logic handled on client if needed
         defaultSize={{ width: 500, height: 500 }}
-        title="カレントタスクデッキ"
+        title={`カレントタスクデッキ (${deckTaskCount})`}
         resizable={false}
         className="!bg-transparent !shadow-none !border-none"
         headerControls={

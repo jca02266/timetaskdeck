@@ -22,14 +22,19 @@ const STACK_CONFIG = {
 };
 
 export function TaskStack({ isExpanded, onToggle }: TaskStackProps) {
-    const { taskStack, switchTask } = useTaskStore();
+    const { currentTask, taskStack, switchTask } = useTaskStore();
 
-    if (taskStack.length === 0) return null;
+    // Combine currentTask and stack for the view
+    // To make sure currentTask is on TOP of the 3D stack, it must be the LAST element mapped
+    // (since absolute positioned elements later in the DOM are on top by default)
+    const allTasks = currentTask ? [...taskStack, currentTask] : taskStack;
+
+    if (allTasks.length === 0) return null;
 
     return (
         <div
             // Use justify-end to align bottom with Timer, p-8 matches page padding
-            className={`absolute inset-0 -z-10 flex flex-col items-center transition-all duration-500 ${isExpanded ? 'z-50 bg-slate-950/95 backdrop-blur-md overflow-y-auto pt-20 pb-10 justify-start' : 'justify-end pb-8 overflow-hidden'}`}
+            className={`absolute inset-0 -z-10 flex flex-col items-center transition-all duration-500 ${isExpanded ? 'z-[150] bg-slate-950/95 backdrop-blur-md overflow-y-auto pt-20 pb-10 justify-start' : 'justify-end pb-8 overflow-hidden'}`}
             style={{ perspective: '1000px' }}
             onClick={() => !isExpanded && onToggle(true)}
         >
@@ -44,30 +49,21 @@ export function TaskStack({ isExpanded, onToggle }: TaskStackProps) {
                 />
             )}
 
-            {taskStack.map((task, index) => {
-                const reverseIndex = taskStack.length - 1 - index;
+            {allTasks.map((task, index) => {
+                const isCurrent = task.id === currentTask?.id;
+                const reverseIndex = allTasks.length - 1 - index;
 
                 // Limit visible items in collapsed mode, show all in expanded
                 if (!isExpanded && reverseIndex >= STACK_CONFIG.VISIBLE_COUNT) return null;
 
                 // 3D Transform Logic (Collapsed)
-                // Recede into background (translateZ) and move up slightly (translateY)
                 const zOffset = -reverseIndex * 50;
-
-                // Align to bottom, then shift UP based on config
-                // Base shift moves the entire stack
-                // Step shift spaces them out
                 const yOffset = STACK_CONFIG.OFFSET_BASE - (reverseIndex * STACK_CONFIG.OFFSET_STEP);
 
                 const scale = 1 - (reverseIndex * STACK_CONFIG.SCALE_STEP);
                 const opacity = Math.max(0.4, 1 - (reverseIndex * 0.08));
 
-                // Grid Logic (Expanded)
-                // Simple vertical list for scrolling
-                // Position relative to the top of the container
-                const expandedY = index * 100 + 80; // Start with offset, spacing 100px
                 const expandedScale = 1;
-                const expandedOpacity = 1;
 
                 return (
                     <div
@@ -75,33 +71,35 @@ export function TaskStack({ isExpanded, onToggle }: TaskStackProps) {
                         onClick={(e) => {
                             e.stopPropagation();
                             if (isExpanded) {
-                                switchTask(task.id);
+                                if (!isCurrent) {
+                                    switchTask(task.id);
+                                }
                                 onToggle(false);
                             } else {
                                 onToggle(true);
                             }
                         }}
-                        className={`absolute w-[80%] max-w-sm h-[300px] glass-panel flex flex-col items-center cursor-pointer transition-all duration-500 ease-out border-slate-600/50 hover:border-blue-400 bg-slate-900 shadow-2xl ${isExpanded ? 'justify-center pointer-events-auto' : 'justify-start pt-1 pointer-events-none'}`}
+                        className={`absolute w-[80%] max-w-sm h-[300px] glass-panel flex flex-col items-center cursor-pointer transition-all duration-500 ease-out border-slate-600/50 hover:border-blue-400 bg-slate-900 shadow-2xl ${isExpanded ? 'justify-center pointer-events-auto' : 'justify-start pt-1 pointer-events-none'} ${isCurrent ? 'ring-2 ring-blue-500/50 ring-offset-4 ring-offset-slate-950 border-blue-500/50' : ''}`}
                         style={{
                             transform: isExpanded
-                                ? `translateY(0) scale(${expandedScale}) translateZ(0)` // Remove transform positioning in expanded
+                                ? `translateY(0) scale(${expandedScale}) translateZ(0)`
                                 : `translateY(${yOffset}px) translateZ(${zOffset}px)`,
-                            opacity: isExpanded ? expandedOpacity : opacity,
-                            zIndex: isExpanded ? 100 : -1 - reverseIndex,
-                            position: isExpanded ? 'relative' : 'absolute', // Use relative for scroll flow in expanded
-                            marginTop: isExpanded ? '1rem' : '0',
+                            opacity: isExpanded ? 1 : opacity,
+                            zIndex: isExpanded ? 100 : (10 - reverseIndex), // Ensure positive zIndex so they are above background
+                            position: isExpanded ? 'relative' : 'absolute',
+                            marginTop: isExpanded ? '1.5rem' : '0',
                         }}
                     >
-                        <div className={`text-lg font-bold text-slate-200 truncate max-w-[90%] px-4 w-full text-center tracking-wider transition-opacity duration-300 ${(!isExpanded && reverseIndex > 0) ? 'opacity-0' : 'opacity-100'}`}>
+                        <div className={`text-lg font-bold text-slate-200 truncate max-w-[90%] px-4 w-full text-center tracking-wider transition-opacity duration-300 ${(!isExpanded && !isCurrent) ? 'opacity-0' : 'opacity-100'}`}>
+                            {isCurrent && <span className="text-blue-400 text-xs block mb-1 uppercase tracking-widest animate-pulse font-black">Executing</span>}
                             {task.name}
                         </div>
-
                     </div>
                 );
             })}
 
             {/* Instruction Hint */}
-            {!isExpanded && taskStack.length > 0 && (
+            {!isExpanded && allTasks.length > 0 && (
                 <div className="absolute top-[-80px] text-xs text-slate-500 opacity-0 hover:opacity-100 transition-opacity">
                     Click stack to expand
                 </div>

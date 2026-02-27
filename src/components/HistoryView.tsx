@@ -84,7 +84,7 @@ export function HistoryView() {
             title={
                 <div className="flex items-center gap-2 uppercase tracking-wider">
                     <Clock size={16} />
-                    <span>完了タスクデッキ</span>
+                    <span>完了タスクデッキ ({displayHistory.length})</span>
                 </div>
             }
             headerControls={
