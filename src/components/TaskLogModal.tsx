@@ -1,8 +1,9 @@
-import { useTaskStore } from '@/store/useTaskStore';
+import { useTaskStore, getLogicalDate } from '@/store/useTaskStore';
 import { X, Clock, ChevronLeft, ChevronRight, Copy, Check, List, Layers, Trash2, Plus } from 'lucide-react';
 import { format, startOfDay, addDays, subDays, isSameDay, parseISO } from 'date-fns';
 import { useState, useEffect } from 'react';
 import { DatePicker } from './DatePicker';
+import { TaskSelectionDialog } from './TaskSelectionDialog';
 
 export function TaskLogModal() {
     const isLogOpen = useTaskStore((state) => state.isLogOpen);
@@ -10,14 +11,16 @@ export function TaskLogModal() {
     const currentTask = useTaskStore((state) => state.currentTask);
     const { taskLog, history, backlogTasks, taskStack, addManualTaskLogEntry } = useTaskStore();
 
+    const dayStartHour = useTaskStore((state) => state.dayStartHour);
     const [now, setNow] = useState(Date.now());
-    const [selectedDate, setSelectedDate] = useState<Date>(startOfDay(new Date()));
+    const [selectedDate, setSelectedDate] = useState<Date>(() => getLogicalDate(Date.now(), dayStartHour));
     const [copied, setCopied] = useState(false);
     const [viewMode, setViewMode] = useState<'timeline' | 'aggregated'>('timeline');
     const [localLogs, setLocalLogs] = useState<typeof taskLog>([]);
     const [hasChanges, setHasChanges] = useState(false);
     const [orderMap, setOrderMap] = useState<Record<string, number>>({});
     const [isSortDescending, setIsSortDescending] = useState(true);
+    const [activeSelectionLogId, setActiveSelectionLogId] = useState<string | null>(null);
 
     useEffect(() => {
         if (!isLogOpen) return;
@@ -36,10 +39,10 @@ export function TaskLogModal() {
     useEffect(() => {
         if (!isLogOpen) return;
         setNow(Date.now());
-        setSelectedDate(startOfDay(new Date()));
+        setSelectedDate(getLogicalDate(Date.now(), dayStartHour));
         const interval = setInterval(() => setNow(Date.now()), 1000);
         return () => clearInterval(interval);
-    }, [isLogOpen]);
+    }, [isLogOpen, dayStartHour]);
 
     if (!isLogOpen) return null;
 
@@ -56,29 +59,9 @@ export function TaskLogModal() {
         ...localLogs
     ] : localLogs;
 
-    // Build a unique list of actual task names for the convert dropdown
-    const uniqueTasks = Array.from(
-        new Map([
-            // Tasks currently in today's local logs
-            ...localLogs
-                .filter(log => log.taskId !== 'break' && log.id !== 'current-active-task')
-                .map(log => [log.name, { id: log.taskId, name: log.name }]),
-            // Active tasks from backlog
-            ...backlogTasks.map(t => [t.name, { id: t.id, name: t.name }]),
-            // Active tasks from stack
-            ...taskStack.map(t => [t.name, { id: t.id, name: t.name }]),
-            // Current task if any
-            ...(currentTask ? [[currentTask.name, { id: currentTask.id, name: currentTask.name }]] : []),
-            // Completed tasks from history ONLY IF finished on the selected date
-            ...history
-                .filter(t => t.endTime && isSameDay(new Date(t.endTime), selectedDate))
-                .map(t => [t.name, { id: t.id, name: t.name }])
-        ] as [string, { id: string, name: string }][]).values()
-    ).sort((a, b) => a.name.localeCompare(b.name));
-
     // Sort using the initial orderMap to ensure tasks don't jump around while editing
     const sortedLogs = [...allLogs.filter(log =>
-        isSameDay(new Date(log.startTime), selectedDate) &&
+        isSameDay(getLogicalDate(log.startTime, dayStartHour), selectedDate) &&
         (log.id === 'current-active-task' || Math.abs(log.duration) > 5000)
     )].sort((a, b) => {
         const orderA = a.id === 'current-active-task' ? Infinity : (orderMap[a.id] ?? a.startTime);
@@ -489,56 +472,23 @@ export function TaskLogModal() {
                                             <td className={`p-4 font-medium truncate max-w-[200px] ${log.taskId === 'break' ? 'italic' : ''} ${invalidTextClass}`} title={log.name}>
                                                 <div className="flex items-center gap-2">
                                                     {log.id !== 'current-active-task' && log.taskId !== 'break' ? (
-                                                        <select
-                                                            value={log.taskId}
-                                                            onChange={(e) => {
-                                                                const opt = e.target.options[e.target.selectedIndex];
-                                                                handleChangeTask(log.id, e.target.value, opt.text);
-                                                            }}
-                                                            className={`bg-transparent border-b border-transparent focus:outline-none flex-1 max-w-[250px] truncate ${isInvalid ? 'text-red-500' : 'hover:border-slate-700 focus:border-blue-500 text-slate-200'}`}
+                                                        <button
+                                                            onClick={() => setActiveSelectionLogId(log.id)}
+                                                            className={`text-left flex-1 max-w-[250px] truncate border-b border-transparent hover:border-slate-700 transition-all ${isInvalid ? 'text-red-500' : 'text-slate-200 hover:text-white'}`}
+                                                            title="Click to change task"
                                                         >
-                                                            <option key={`${log.taskId}-${log.id}`} value={log.taskId}>{log.name}</option>
-                                                            {uniqueTasks.filter(t => t.name !== log.name).map(t => (
-                                                                <option key={`${t.id}-${t.name}`} value={t.id} className="bg-slate-800">{t.name}</option>
-                                                            ))}
-                                                        </select>
+                                                            {log.name}
+                                                        </button>
                                                     ) : (
                                                         <span>{log.name}</span>
                                                     )}
                                                     {log.taskId === 'break' && viewMode === 'timeline' && (
-                                                        <select
-                                                            className="ml-2 bg-slate-800 border border-slate-700 outline-none text-slate-400 p-1 rounded text-xs hover:text-white"
-                                                            value=""
-                                                            onChange={(e) => {
-                                                                if (!e.target.value) return;
-                                                                const selectedMatch = uniqueTasks.find(t => t.id === e.target.value);
-                                                                if (selectedMatch) {
-                                                                    const newId = `manual-log-${Date.now()}`;
-                                                                    const convLog = {
-                                                                        id: newId,
-                                                                        taskId: selectedMatch.id,
-                                                                        name: selectedMatch.name,
-                                                                        startTime: log.startTime,
-                                                                        endTime: log.endTime!,
-                                                                        duration: log.duration,
-                                                                        status: 'completed' as const
-                                                                    };
-                                                                    setLocalLogs(prev => {
-                                                                        setHasChanges(true);
-                                                                        setOrderMap(order => ({
-                                                                            ...order,
-                                                                            [newId]: (orderMap[log.id] ?? 0) // Keep order position from break
-                                                                        }));
-                                                                        return [...prev, convLog];
-                                                                    });
-                                                                }
-                                                            }}
+                                                        <button
+                                                            onClick={() => setActiveSelectionLogId(log.id)}
+                                                            className="ml-2 px-1.5 py-0.5 bg-slate-800 border border-slate-700 rounded text-[10px] text-slate-400 hover:text-blue-400 hover:border-blue-500/50 transition-all uppercase tracking-tighter"
                                                         >
-                                                            <option value="">＋ Task</option>
-                                                            {uniqueTasks.map(t => (
-                                                                <option key={`${t.id}-${t.name}`} value={t.id}>{t.name}</option>
-                                                            ))}
-                                                        </select>
+                                                            ＋ Task
+                                                        </button>
                                                     )}
                                                 </div>
                                             </td>
@@ -632,6 +582,41 @@ export function TaskLogModal() {
                     )}
                 </div>
             </div>
+            {activeSelectionLogId && (
+                <TaskSelectionDialog
+                    onSelect={(taskId, name) => {
+                        const log = sortedLogs.find(l => l.id === activeSelectionLogId);
+                        if (log) {
+                            if (log.taskId === 'break') {
+                                // Conversion logic for break
+                                const newId = `manual-log-${Date.now()}`;
+                                const convLog = {
+                                    id: newId,
+                                    taskId,
+                                    name,
+                                    startTime: log.startTime,
+                                    endTime: log.endTime!,
+                                    duration: log.duration,
+                                    status: 'completed' as const
+                                };
+                                setLocalLogs(prev => {
+                                    setHasChanges(true);
+                                    setOrderMap(order => ({
+                                        ...order,
+                                        [newId]: (orderMap[log.id] ?? 0)
+                                    }));
+                                    return [...prev, convLog];
+                                });
+                            } else {
+                                // Normal update
+                                handleChangeTask(activeSelectionLogId, taskId, name);
+                            }
+                        }
+                        setActiveSelectionLogId(null);
+                    }}
+                    onClose={() => setActiveSelectionLogId(null)}
+                />
+            )}
         </div>
     );
 }

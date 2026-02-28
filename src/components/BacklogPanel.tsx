@@ -8,6 +8,7 @@ import { format, parseISO } from 'date-fns';
 import { ListTodo, Play, Plus, Pencil, Check, X, Trash2, GripVertical, Copy, Minimize2, Calendar, Clock, FileText } from 'lucide-react';
 import { useState, useRef, useEffect } from 'react';
 import { useNotification } from '@/hooks/useNotification';
+import { ColorPickerDialog } from './ColorPickerDialog';
 
 function getPillClasses(colorCode?: string) {
     if (!colorCode) return 'bg-slate-800 border-slate-700 text-slate-400';
@@ -59,6 +60,9 @@ export const BacklogPanel = ({ category, defaultPosition }: BacklogPanelProps) =
     const [titleValue, setTitleValue] = useState(category.name);
     const [editingId, setEditingId] = useState<string | null>(null);
     const [editValue, setEditValue] = useState('');
+
+    const [activeColorPickerTaskId, setActiveColorPickerTaskId] = useState<string | null>(null);
+    const [colorPickerRect, setColorPickerRect] = useState<DOMRect | undefined>(undefined);
 
     const startEditing = (task: { id: string, name: string }) => {
         setEditingId(task.id);
@@ -435,26 +439,34 @@ export const BacklogPanel = ({ category, defaultPosition }: BacklogPanelProps) =
                                     window.addEventListener('pointerup', onPointerUp);
                                 }}
                             >
-                                {/* 1. Tag (Color Pulse) */}
-                                <div className="relative shrink-0">
-                                    <select
-                                        value={task.colorId || ''}
-                                        onChange={(e) => updateTaskColorId(task.id, e.target.value === '' ? undefined : e.target.value)}
-                                        onPointerDown={(e) => e.stopPropagation()}
-                                        className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
-                                        title="タグを設定"
-                                    >
-                                        <option value="">NONE</option>
-                                        {colors.map(c => (
-                                            <option key={c.id} value={c.id}>{c.name.toUpperCase()}</option>
-                                        ))}
-                                    </select>
-                                    <div className={`w-3 h-3 rounded-full border border-white/10 ${activeColorDef?.colorCode || 'bg-slate-700'}`} />
-                                </div>
-
-                                {/* 2. Drag Handle */}
+                                {/* 1. Drag Handle */}
                                 <div className="cursor-grab text-slate-600 hover:text-slate-400 shrink-0">
                                     <GripVertical size={14} />
+                                </div>
+
+                                {/* 2. Tag (Color Pulse) */}
+                                <div className="relative shrink-0 ml-1">
+                                    <button
+                                        onClick={(e) => {
+                                            e.stopPropagation();
+                                            const rect = e.currentTarget.getBoundingClientRect();
+                                            setColorPickerRect(rect);
+                                            setActiveColorPickerTaskId(task.id);
+                                        }}
+                                        onPointerDown={(e) => e.stopPropagation()}
+                                        className="w-6 h-6 flex items-center justify-center rounded-full hover:bg-slate-700/50 transition-all"
+                                        title="タグを設定"
+                                    >
+                                        <div className={`w-3 h-3 rounded-full border border-white/10 shadow-sm ${activeColorDef?.colorCode || 'bg-slate-700'}`} />
+                                    </button>
+                                    {activeColorPickerTaskId === task.id && (
+                                        <ColorPickerDialog
+                                            currentColorId={task.colorId}
+                                            onSelect={(colorId) => updateTaskColorId(task.id, colorId)}
+                                            onClose={() => setActiveColorPickerTaskId(null)}
+                                            triggerRect={colorPickerRect}
+                                        />
+                                    )}
                                 </div>
 
                                 {/* 3. Start Task */}

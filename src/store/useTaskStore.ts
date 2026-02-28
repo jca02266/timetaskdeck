@@ -1,6 +1,18 @@
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import { useMemoStore } from './useMemoStore';
+import { startOfDay, subDays } from 'date-fns';
+
+export const getLogicalDate = (timestamp: number, dayStartHour: number): Date => {
+    const date = new Date(timestamp);
+    const hours = date.getHours();
+
+    // If before dayStartHour, it belongs to the previous calendar day
+    if (hours < dayStartHour) {
+        return startOfDay(subDays(date, 1));
+    }
+    return startOfDay(date);
+};
 
 export type TaskStatus = 'pending' | 'completed' | 'paused' | 'interrupted';
 export type PanelType = 'backlog' | 'recurring';
@@ -139,10 +151,12 @@ interface TaskState {
     // Modal Global States
     isTaskTableOpen: boolean;
     isLogOpen: boolean;
-    isColorSettingsOpen: boolean;
+    isSettingsOpen: boolean;
+    dayStartHour: number;
     setIsTaskTableOpen: (open: boolean) => void;
     setIsLogOpen: (open: boolean) => void;
-    setIsColorSettingsOpen: (open: boolean) => void;
+    setIsSettingsOpen: (open: boolean) => void;
+    setDayStartHour: (hour: number) => void;
 
     addManualTaskLogEntry: (taskId: string, name: string, startTime: number, endTime: number, duration: number, status: TaskStatus) => void;
     updateTaskLogs: (logs: TaskLogEntry[]) => void;
@@ -176,11 +190,13 @@ export const useTaskStore = create<TaskState>()(
             // Modal Global States Initialization
             isTaskTableOpen: false,
             isLogOpen: false,
-            isColorSettingsOpen: false,
+            isSettingsOpen: false,
+            dayStartHour: 5,
 
             setIsTaskTableOpen: (open) => set({ isTaskTableOpen: open }),
             setIsLogOpen: (open) => set({ isLogOpen: open }),
-            setIsColorSettingsOpen: (open) => set({ isColorSettingsOpen: open }),
+            setIsSettingsOpen: (open) => set({ isSettingsOpen: open }),
+            setDayStartHour: (hour) => set({ dayStartHour: hour }),
             dropTarget: null,
 
             setDropTarget: (target) => set({ dropTarget: target }),

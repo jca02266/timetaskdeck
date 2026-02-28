@@ -1,6 +1,6 @@
 "use client";
 
-import { useTaskStore } from '@/store/useTaskStore';
+import { useTaskStore, getLogicalDate } from '@/store/useTaskStore';
 import { useMemoStore } from '@/store/useMemoStore';
 import { Download, RotateCcw, Clock, Pencil, Check, X, Trash2, Copy, Minimize2, FileText, ChevronLeft, ChevronRight } from 'lucide-react';
 import { format, startOfDay, addDays, subDays, isSameDay, parseISO } from 'date-fns';
@@ -17,11 +17,15 @@ export function HistoryView() {
     const copyToRecurring = useTaskStore((state) => state.copyToRecurring);
     const toggleHistoryMinimized = useTaskStore((state) => state.toggleHistoryMinimized);
     const memos = useMemoStore((state) => state.memos);
+    const dayStartHour = useTaskStore((state) => state.dayStartHour);
     const [editingId, setEditingId] = useState<string | null>(null);
     const [editValue, setEditValue] = useState('');
-    const [selectedDate, setSelectedDate] = useState<Date>(startOfDay(new Date()));
+    const [selectedDate, setSelectedDate] = useState<Date>(() => getLogicalDate(Date.now(), dayStartHour));
 
-    const displayHistory = history.filter(task => isSameDay(new Date(task.startTime), selectedDate));
+    const displayHistory = history.filter(task => {
+        const taskLogicalDate = getLogicalDate(task.startTime, dayStartHour);
+        return isSameDay(taskLogicalDate, selectedDate);
+    });
 
     const startEditing = (task: { id: string, name: string }) => {
         setEditingId(task.id);

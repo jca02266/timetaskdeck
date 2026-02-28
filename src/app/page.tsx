@@ -8,8 +8,8 @@ import { BacklogPanel } from "@/components/BacklogPanel";
 import { RecurringTasks } from "@/components/RecurringTasks";
 import { HistoryView } from "@/components/HistoryView";
 import { TaskLogModal } from "@/components/TaskLogModal";
+import { SettingsDialog } from "@/components/SettingsDialog";
 import { TaskTableView } from "@/components/TaskTableView";
-import { ColorSettingsModal } from "@/components/ColorSettingsModal";
 import { TaskMemoEditor } from "@/components/TaskMemoEditor";
 import { useState } from "react";
 /* New Components */
@@ -26,10 +26,10 @@ export default function Home() {
 
   const {
     isLogOpen,
-    isColorSettingsOpen,
+    isSettingsOpen,
     isTaskTableOpen,
     setIsLogOpen,
-    setIsColorSettingsOpen,
+    setIsSettingsOpen,
     setIsTaskTableOpen,
     backlogCategories,
     addBacklogCategory,
@@ -87,14 +87,12 @@ export default function Home() {
                 <span>Table View</span>
               </button>
               <button
-                onClick={() => setIsColorSettingsOpen(true)}
+                onClick={() => setIsSettingsOpen(true)}
                 className="flex items-center gap-1 px-2 py-1 bg-slate-800/50 hover:bg-slate-700/50 rounded text-xs text-slate-400 hover:text-white transition-colors border border-slate-700"
               >
                 <Settings size={14} />
-                <span>Colors</span>
+                <span>Settings</span>
               </button>
-              <div className="w-[1px] h-4 bg-slate-700 mx-1 self-center" />
-              <StorageOperations />
             </div>
             <button
               onClick={() => setIsLogOpen(true)}
@@ -279,7 +277,7 @@ export default function Home() {
       <TaskMemoEditor />
 
       <TaskLogModal />
-      <ColorSettingsModal />
+      <SettingsDialog />
 
     </main>
   );

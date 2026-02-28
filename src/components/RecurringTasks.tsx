@@ -5,6 +5,7 @@ import { useState } from 'react';
 import { TaskScheduleInput } from './TaskScheduleInput';
 import { Tooltip } from './Tooltip';
 import { DraggablePanel } from './DraggablePanel';
+import { ColorPickerDialog } from './ColorPickerDialog';
 
 export function RecurringTasks() {
     const {
@@ -32,6 +33,9 @@ export function RecurringTasks() {
     const [newItem, setNewItem] = useState('');
     const [editingId, setEditingId] = useState<string | null>(null);
     const [editValue, setEditValue] = useState('');
+
+    const [activeColorPickerTaskId, setActiveColorPickerTaskId] = useState<string | null>(null);
+    const [colorPickerRect, setColorPickerRect] = useState<DOMRect | undefined>(undefined);
 
     const startEditing = (task: { id: string, name: string }) => {
         setEditingId(task.id);
@@ -115,7 +119,7 @@ export function RecurringTasks() {
                         className="p-1.5 text-slate-400 hover:text-blue-400 rounded hover:bg-slate-700/50 transition-colors"
                         title="全てのチェックを外す"
                     >
-                        <RotateCcw size={14} />
+                        <CheckCircle2 size={14} />
                     </button>
                     <button
                         onClick={() => toggleRecurringMinimized()}
@@ -262,38 +266,46 @@ export function RecurringTasks() {
                                 </div>
                             ) : (
                                 <>
-                                    {/* 1. Checkmark */}
+                                    {/* 1. Drag Handle */}
+                                    <div className="cursor-grab text-slate-600 hover:text-slate-400 shrink-0">
+                                        <GripVertical size={14} />
+                                    </div>
+
+                                    {/* 2. Checkmark */}
                                     <button
                                         onClick={(e) => {
                                             e.stopPropagation();
                                             toggleRecurringTaskCheck(task.id);
                                         }}
                                         onPointerDown={(e) => e.stopPropagation()}
-                                        className={`shrink-0 transition-colors ${task.status === 'completed' ? 'text-green-400' : 'text-slate-600 hover:text-slate-400'}`}
+                                        className={`shrink-0 ml-1 transition-colors ${task.status === 'completed' ? 'text-green-400' : 'text-slate-600 hover:text-slate-400'}`}
                                     >
                                         {task.status === 'completed' ? <CheckCircle2 size={18} /> : <Circle size={18} />}
                                     </button>
 
-                                    {/* 2. Tag (Color Pulse) */}
+                                    {/* 3. Tag (Color Pulse) */}
                                     <div className="relative shrink-0 ml-1">
-                                        <select
-                                            value={task.colorId || ''}
-                                            onChange={(e) => updateTaskColorId(task.id, e.target.value === '' ? undefined : e.target.value)}
+                                        <button
+                                            onClick={(e) => {
+                                                e.stopPropagation();
+                                                const rect = e.currentTarget.getBoundingClientRect();
+                                                setColorPickerRect(rect);
+                                                setActiveColorPickerTaskId(task.id);
+                                            }}
                                             onPointerDown={(e) => e.stopPropagation()}
-                                            className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
+                                            className="w-6 h-6 flex items-center justify-center rounded-full hover:bg-slate-700/50 transition-all"
                                             title="タグを設定"
                                         >
-                                            <option value="">NONE</option>
-                                            {colors.map(c => (
-                                                <option key={c.id} value={c.id}>{c.name.toUpperCase()}</option>
-                                            ))}
-                                        </select>
-                                        <div className={`w-3 h-3 rounded-full border border-white/10 ${activeColorDef?.colorCode || 'bg-slate-700'}`} />
-                                    </div>
-
-                                    {/* 3. Drag Handle */}
-                                    <div className="cursor-grab text-slate-600 hover:text-slate-400 shrink-0 ml-1">
-                                        <GripVertical size={14} />
+                                            <div className={`w-3 h-3 rounded-full border border-white/10 shadow-sm ${activeColorDef?.colorCode || 'bg-slate-700'}`} />
+                                        </button>
+                                        {activeColorPickerTaskId === task.id && (
+                                            <ColorPickerDialog
+                                                currentColorId={task.colorId}
+                                                onSelect={(colorId) => updateTaskColorId(task.id, colorId)}
+                                                onClose={() => setActiveColorPickerTaskId(null)}
+                                                triggerRect={colorPickerRect}
+                                            />
+                                        )}
                                     </div>
 
                                     {/* 4. Start Task */}
