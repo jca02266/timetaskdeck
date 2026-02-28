@@ -85,8 +85,8 @@ export function TaskMemoEditor() {
 
     const isTaskTableOpen = useTaskStore((state) => state.isTaskTableOpen);
     const isLogOpen = useTaskStore((state) => state.isLogOpen);
-    const isColorSettingsOpen = useTaskStore((state) => state.isColorSettingsOpen);
-    const isAnyModalOpen = isTaskTableOpen || isLogOpen || isColorSettingsOpen;
+    const isSettingsOpen = useTaskStore((state) => state.isSettingsOpen);
+    const isAnyModalOpen = isTaskTableOpen || isLogOpen || isSettingsOpen;
 
     const setMemo = useMemoStore((state) => state.setMemo);
     const memos = useMemoStore((state) => state.memos);

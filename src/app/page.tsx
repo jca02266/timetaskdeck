@@ -14,7 +14,6 @@ import { TaskMemoEditor } from "@/components/TaskMemoEditor";
 import { useState } from "react";
 /* New Components */
 import { DraggablePanel } from "@/components/DraggablePanel";
-import { StorageOperations } from "@/components/StorageOperations";
 import { useTaskStore } from "@/store/useTaskStore";
 
 /* Icons */
