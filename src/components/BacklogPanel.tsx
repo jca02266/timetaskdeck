@@ -57,6 +57,26 @@ export const BacklogPanel = ({ category, defaultPosition }: BacklogPanelProps) =
     const [newItem, setNewItem] = useState('');
     const [isEditingTitle, setIsEditingTitle] = useState(false);
     const [titleValue, setTitleValue] = useState(category.name);
+    const [editingId, setEditingId] = useState<string | null>(null);
+    const [editValue, setEditValue] = useState('');
+
+    const startEditing = (task: { id: string, name: string }) => {
+        setEditingId(task.id);
+        setEditValue(task.name);
+    };
+
+    const saveEdit = () => {
+        if (editingId && editValue.trim()) {
+            updateTaskName(editingId, editValue.trim());
+        }
+        setEditingId(null);
+        setEditValue('');
+    };
+
+    const cancelEdit = () => {
+        setEditingId(null);
+        setEditValue('');
+    };
 
     // Drag and drop state removed (moved to store)
 
@@ -451,16 +471,37 @@ export const BacklogPanel = ({ category, defaultPosition }: BacklogPanelProps) =
                                 </button>
 
                                 {/* 4. Subject */}
-                                <Tooltip text={task.name}>
-                                    <input
-                                        type="text"
-                                        value={task.name}
-                                        onChange={(e) => updateTaskName(task.id, e.target.value)}
-                                        onPointerDown={(e) => e.stopPropagation()}
-                                        className="flex-1 bg-transparent border-b border-transparent hover:border-slate-700 focus:border-blue-500 focus:outline-none text-sm text-slate-200 transition-colors truncate min-w-0"
-                                        placeholder="Task Name"
-                                    />
-                                </Tooltip>
+                                <div className="flex-1 min-w-0">
+                                    {editingId === task.id ? (
+                                        <div className="flex items-center gap-1 w-full">
+                                            <input
+                                                type="text"
+                                                value={editValue}
+                                                onChange={(e) => setEditValue(e.target.value)}
+                                                onPointerDown={(e) => e.stopPropagation()}
+                                                className="flex-1 bg-slate-900 border border-slate-600 rounded px-2 py-1 text-xs text-white focus:outline-none focus:border-blue-500"
+                                                autoFocus
+                                                onKeyDown={(e) => {
+                                                    if (e.nativeEvent.isComposing || e.keyCode === 229) return;
+                                                    if (e.key === 'Enter') saveEdit();
+                                                    if (e.key === 'Escape') cancelEdit();
+                                                }}
+                                            />
+                                            <button onClick={saveEdit} className="text-green-400 hover:text-green-300 p-1">
+                                                <Check size={14} />
+                                            </button>
+                                            <button onClick={cancelEdit} className="text-red-400 hover:text-red-300 p-1">
+                                                <X size={14} />
+                                            </button>
+                                        </div>
+                                    ) : (
+                                        <Tooltip text={task.name}>
+                                            <span className="truncate block text-sm text-slate-300">
+                                                {task.name}
+                                            </span>
+                                        </Tooltip>
+                                    )}
+                                </div>
 
                                 {/* 5. Schedule */}
                                 <TaskScheduleInput
@@ -472,7 +513,20 @@ export const BacklogPanel = ({ category, defaultPosition }: BacklogPanelProps) =
                                 />
 
                                 <div className="flex items-center gap-1 shrink-0">
-                                    {/* 7. Open Memo - (rename button not explicitly requested but kept consistent if needed) */}
+                                    {/* 6. Rename */}
+                                    <button
+                                        onClick={(e) => {
+                                            e.stopPropagation();
+                                            startEditing(task);
+                                        }}
+                                        onPointerDown={(e) => e.stopPropagation()}
+                                        className="text-slate-400 hover:text-slate-200 p-1 rounded opacity-0 group-hover:opacity-100 transition-opacity"
+                                        title="Rename"
+                                    >
+                                        <Pencil size={14} />
+                                    </button>
+
+                                    {/* 7. Open Memo */}
                                     <button
                                         onClick={(e) => {
                                             e.stopPropagation();
