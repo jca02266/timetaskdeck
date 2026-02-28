@@ -415,7 +415,7 @@ export const BacklogPanel = ({ category, defaultPosition }: BacklogPanelProps) =
                                     window.addEventListener('pointerup', onPointerUp);
                                 }}
                             >
-                                {/* Color Dot Tag */}
+                                {/* 1. Tag (Color Pulse) */}
                                 <div className="relative shrink-0">
                                     <select
                                         value={task.colorId || ''}
@@ -432,10 +432,25 @@ export const BacklogPanel = ({ category, defaultPosition }: BacklogPanelProps) =
                                     <div className={`w-3 h-3 rounded-full border border-white/10 ${activeColorDef?.colorCode || 'bg-slate-700'}`} />
                                 </div>
 
+                                {/* 2. Drag Handle */}
                                 <div className="cursor-grab text-slate-600 hover:text-slate-400 shrink-0">
                                     <GripVertical size={14} />
                                 </div>
 
+                                {/* 3. Start Task */}
+                                <button
+                                    onClick={(e) => {
+                                        e.stopPropagation();
+                                        pickFromBacklog(task.id);
+                                    }}
+                                    onPointerDown={(e) => e.stopPropagation()}
+                                    className="text-blue-500 hover:text-blue-400 p-1.5 rounded-full bg-blue-500/10 hover:bg-blue-500/20 transition-all"
+                                    title="Start Task"
+                                >
+                                    <Play size={14} className="fill-current" />
+                                </button>
+
+                                {/* 4. Subject */}
                                 <Tooltip text={task.name}>
                                     <input
                                         type="text"
@@ -447,6 +462,7 @@ export const BacklogPanel = ({ category, defaultPosition }: BacklogPanelProps) =
                                     />
                                 </Tooltip>
 
+                                {/* 5. Schedule */}
                                 <TaskScheduleInput
                                     date={task.scheduledDate}
                                     time={task.scheduledTime}
@@ -456,6 +472,7 @@ export const BacklogPanel = ({ category, defaultPosition }: BacklogPanelProps) =
                                 />
 
                                 <div className="flex items-center gap-1 shrink-0">
+                                    {/* 7. Open Memo - (rename button not explicitly requested but kept consistent if needed) */}
                                     <button
                                         onClick={(e) => {
                                             e.stopPropagation();
@@ -467,18 +484,8 @@ export const BacklogPanel = ({ category, defaultPosition }: BacklogPanelProps) =
                                     >
                                         <FileText size={14} />
                                     </button>
-                                    <button
-                                        onClick={(e) => {
-                                            e.stopPropagation();
-                                            pickFromBacklog(task.id);
-                                        }}
-                                        onPointerDown={(e) => e.stopPropagation()}
-                                        className="text-blue-500 hover:text-blue-400 p-1.5 rounded-full bg-blue-500/10 hover:bg-blue-500/20 transition-all"
-                                        title="Start Task"
-                                    >
-                                        <Play size={14} className="fill-current" />
-                                    </button>
 
+                                    {/* 8. Delete Task */}
                                     <button
                                         onClick={(e) => {
                                             e.stopPropagation();

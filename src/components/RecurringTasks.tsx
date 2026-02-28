@@ -1,23 +1,19 @@
 import { useTaskStore } from '@/store/useTaskStore';
 import { useMemoStore } from '@/store/useMemoStore';
-import { Repeat, Play, Plus, Pencil, Check, X, Trash2, GripVertical, CheckCircle2, Circle, Minimize2, FileText, CheckSquare } from 'lucide-react';
-import { useState, useEffect } from 'react';
-import { Tooltip } from './Tooltip';
-import { DatePicker } from './DatePicker';
-import { DraggablePanel } from './DraggablePanel';
+import { Repeat, Play, Plus, Pencil, Check, X, Trash2, GripVertical, CheckCircle2, Circle, Minimize2, FileText, RotateCcw } from 'lucide-react';
+import { useState } from 'react';
 import { TaskScheduleInput } from './TaskScheduleInput';
-import { useNotification } from '@/hooks/useNotification';
+import { Tooltip } from './Tooltip';
+import { DraggablePanel } from './DraggablePanel';
 
 export function RecurringTasks() {
     const {
         recurringTasks,
         addRecurringTask,
-        updateRecurringTask,
         deleteRecurringTask,
-        reorderRecurringTasks,
         toggleRecurringTaskCheck,
-        clearAllRecurringTasksChecks,
         startRecurringTask,
+        updateTaskName,
         updateTaskSchedule,
         toggleRecurringMinimized,
         draggedTaskId,
@@ -26,61 +22,16 @@ export function RecurringTasks() {
         setDropTarget,
         commitMove,
         getTaskById,
-        backlogTasks: allBacklogTasks
+        backlogTasks: allBacklogTasks,
+        colors,
+        updateTaskColorId,
+        clearAllRecurringTasksChecks
     } = useTaskStore();
     const memos = useMemoStore((state) => state.memos);
 
     const [newItem, setNewItem] = useState('');
     const [editingId, setEditingId] = useState<string | null>(null);
     const [editValue, setEditValue] = useState('');
-    const [currentTime, setCurrentTime] = useState('');
-    const [currentDate, setCurrentDate] = useState('');
-    const [currentDay, setCurrentDay] = useState<number>(new Date().getDay());
-    const { sendNotification } = useNotification();
-
-    useEffect(() => {
-        const updateTime = () => {
-            const now = new Date();
-            const timeString = `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}`;
-            const dateString = `${now.getFullYear()}-${(now.getMonth() + 1).toString().padStart(2, '0')}-${now.getDate().toString().padStart(2, '0')}`;
-            const dayOfWeek = now.getDay();
-            setCurrentTime(timeString);
-            setCurrentDate(dateString);
-            setCurrentDay(dayOfWeek);
-        };
-        updateTime();
-        const interval = setInterval(updateTime, 10000); // Check every 10s
-        return () => clearInterval(interval);
-    }, []);
-
-    const isTaskScheduledNow = (task: any) => {
-        if (task.status === 'completed') return { isDue: false, shouldNotify: false };
-
-        const isMatchingMinute = task.scheduledTime === currentTime;
-        const isMatchingDate = !task.scheduledDate || task.scheduledDate === currentDate;
-        const isMatchingDay = !task.scheduledDaysOfWeek || task.scheduledDaysOfWeek.includes(currentDay);
-
-        let isDue = false;
-        const isDaily = task.scheduledDaysOfWeek && task.scheduledDaysOfWeek.length === 7;
-
-        if (task.scheduledDate && task.scheduledTime) {
-            isDue = `${currentDate}T${currentTime}` >= `${task.scheduledDate}T${task.scheduledTime}`;
-        } else if (task.scheduledTime) {
-            const timeMatch = isDaily || isMatchingDate || (task.scheduledDaysOfWeek ? isMatchingDay : isMatchingDate);
-            isDue = timeMatch && currentTime >= task.scheduledTime;
-        }
-
-        const shouldNotify = isMatchingMinute && (isMatchingDate && (task.scheduledDaysOfWeek ? isMatchingDay : true));
-
-        return { isDue, shouldNotify };
-    };
-
-    const handleAdd = (e: React.FormEvent) => {
-        e.preventDefault();
-        if (!newItem.trim()) return;
-        addRecurringTask(newItem);
-        setNewItem('');
-    };
 
     const startEditing = (task: { id: string, name: string }) => {
         setEditingId(task.id);
@@ -89,7 +40,7 @@ export function RecurringTasks() {
 
     const saveEdit = () => {
         if (editingId && editValue.trim()) {
-            updateRecurringTask(editingId, editValue.trim());
+            updateTaskName(editingId, editValue.trim());
         }
         setEditingId(null);
         setEditValue('');
@@ -100,83 +51,105 @@ export function RecurringTasks() {
         setEditValue('');
     };
 
-    const hasCompletedTasks = recurringTasks.some(t => t.status === 'completed');
+    const handleAdd = () => {
+        if (newItem.trim()) {
+            addRecurringTask(newItem.trim());
+            setNewItem('');
+        }
+    };
 
-    let displayTasks = recurringTasks;
-    if (draggedTaskId && dropTarget) {
-        const isTargetingThisPanel = dropTarget.panelId === 'recurring' && dropTarget.type === 'recurring';
-        const containsDraggedTask = recurringTasks.some(t => t.id === draggedTaskId);
+    const isTaskScheduledNow = (task: any) => {
+        if (task.status === 'completed') return { isDue: false, shouldNotify: false };
+        const now = new Date();
+        const currentDay = now.getDay();
+        const currentTime = formatTime(now);
 
-        if (containsDraggedTask || isTargetingThisPanel) {
-            const draggedTask = getTaskById(draggedTaskId);
-            if (draggedTask) {
-                let temp = recurringTasks.filter(t => t.id !== draggedTaskId);
-                if (isTargetingThisPanel) {
-                    const safeIndex = Math.max(0, Math.min(dropTarget.index, temp.length));
-                    temp.splice(safeIndex, 0, draggedTask);
-                }
-                displayTasks = temp;
+        const isDayMatch = !task.scheduledDaysOfWeek ||
+            task.scheduledDaysOfWeek.length === 0 ||
+            task.scheduledDaysOfWeek.includes(currentDay);
+
+        const isTimeMatch = task.scheduledTime === currentTime;
+
+        return {
+            isDue: isDayMatch && isTimeMatch,
+            shouldNotify: isDayMatch && isTimeMatch && !notifiedTasks.has(task.id)
+        };
+    };
+
+    const formatTime = (date: Date) => {
+        return `${date.getHours().toString().padStart(2, '0')}:${date.getMinutes().toString().padStart(2, '0')}`;
+    };
+
+    const [notifiedTasks] = useState(new Set());
+    const sendNotification = (id: string, title: string, body: string) => {
+        if (!notifiedTasks.has(id)) {
+            if (Notification.permission === "granted") {
+                new Notification(title, { body });
+                notifiedTasks.add(id);
             }
         }
-    }
+    };
 
+    const displayTasks = recurringTasks;
 
     return (
         <DraggablePanel
             id="recurring-panel"
-            defaultPosition={{ top: 32, right: 32 }}
+            defaultPosition={{ bottom: 32, right: 32 }}
             defaultSize={{ width: 320, height: 400 }}
             minSize={{ width: 320, height: 250 }}
             title={
                 <div className="flex items-center gap-2 uppercase tracking-wider">
                     <Repeat size={16} />
-                    <span>定期タスクデッキ ({recurringTasks.length})</span>
+                    <span>定期タスクデッキ ({displayTasks.length})</span>
                 </div>
             }
             headerControls={
                 <div className="flex items-center gap-1">
-                    {hasCompletedTasks && (
-                        <button
-                            onClick={() => {
-                                if (window.confirm('すべての完了済みチェックを未完了に戻しますか？')) {
-                                    clearAllRecurringTasksChecks();
-                                }
-                            }}
-                            className="p-1.5 text-green-400 hover:text-green-300 rounded hover:bg-slate-700/50 transition-colors"
-                            title="すべてのチェックを解除してリセット"
-                            onPointerDown={(e) => e.stopPropagation()}
-                        >
-                            <CheckSquare size={14} />
-                        </button>
-                    )}
+                    <button
+                        onClick={() => {
+                            if (window.confirm('全ての定期タスクを未完了に戻しますか？')) {
+                                clearAllRecurringTasksChecks();
+                            }
+                        }}
+                        className="p-1.5 text-slate-400 hover:text-blue-400 rounded hover:bg-slate-700/50 transition-colors"
+                        title="全てのチェックを外す"
+                    >
+                        <RotateCcw size={14} />
+                    </button>
                     <button
                         onClick={() => toggleRecurringMinimized()}
                         className="p-1.5 text-slate-400 hover:text-white rounded hover:bg-slate-700/50 transition-colors"
-                        title="Minimize"
-                        onPointerDown={(e) => e.stopPropagation()}
                     >
                         <Minimize2 size={14} />
                     </button>
                 </div>
             }
         >
-            <form onSubmit={handleAdd} className="flex gap-2 shrink-0 mb-3 px-4 pt-2">
-                <input
-                    type="text"
-                    value={newItem}
-                    onChange={(e) => setNewItem(e.target.value)}
-                    placeholder="Add recurring task..."
-                    className="flex-1 bg-slate-900/50 border border-slate-700 rounded px-3 py-2 text-sm text-white focus:outline-none focus:border-blue-500"
-                />
-                <button
-                    type="submit"
-                    className="p-2 bg-slate-700 hover:bg-slate-600 text-white rounded transition-colors"
-                >
-                    <Plus size={16} />
-                </button>
-            </form>
+            <div className="p-4 pt-2 border-b border-slate-700/50 bg-slate-800/20">
+                <div className="flex gap-1">
+                    <input
+                        type="text"
+                        value={newItem}
+                        onChange={(e) => setNewItem(e.target.value)}
+                        onPointerDown={(e) => e.stopPropagation()}
+                        placeholder="Add recurring task..."
+                        className="flex-1 bg-slate-900/50 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-blue-500 transition-all"
+                        onKeyDown={(e) => {
+                            if (e.nativeEvent.isComposing || e.keyCode === 229) return;
+                            if (e.key === 'Enter') handleAdd();
+                        }}
+                    />
+                    <button
+                        onClick={handleAdd}
+                        className="bg-blue-600 hover:bg-blue-500 text-white p-2 rounded-lg transition-colors"
+                    >
+                        <Plus size={18} />
+                    </button>
+                </div>
+            </div>
 
-            <div className="overflow-y-auto flex-1 min-h-0 space-y-2 mb-1 scrollbar-thin scrollbar-thumb-slate-700 scrollbar-track-transparent px-4 pb-2" data-panel-type="recurring">
+            <div className="overflow-y-auto flex-1 p-4 space-y-2 scrollbar-thin scrollbar-thumb-slate-700 scrollbar-track-transparent">
                 {displayTasks.length === 0 && (
                     <div className="text-slate-600 text-center py-4 text-sm italic">
                         No recurring tasks
@@ -184,6 +157,7 @@ export function RecurringTasks() {
                 )}
                 {displayTasks.map((task, index) => {
                     const { isDue, shouldNotify } = isTaskScheduledNow(task);
+                    const activeColorDef = colors.find(c => c.id === task.colorId);
 
                     if (shouldNotify) {
                         sendNotification(`recurring-${task.id}`, '定期タスクの時間です', task.name);
@@ -288,6 +262,7 @@ export function RecurringTasks() {
                                 </div>
                             ) : (
                                 <>
+                                    {/* 1. Checkmark */}
                                     <button
                                         onClick={(e) => {
                                             e.stopPropagation();
@@ -299,51 +274,85 @@ export function RecurringTasks() {
                                         {task.status === 'completed' ? <CheckCircle2 size={18} /> : <Circle size={18} />}
                                     </button>
 
-                                    <div className="flex-1 flex items-center gap-3 min-w-0">
-                                        <div className="cursor-grab text-slate-600 hover:text-slate-400 shrink-0">
-                                            <GripVertical size={14} />
-                                        </div>
-
-                                        <div className="flex-1 min-w-0">
-                                            <Tooltip text={task.name}>
-                                                <span className={`truncate block text-sm text-slate-300 ${task.status === 'completed' ? 'line-through text-slate-500' : ''}`}>
-                                                    {task.name}
-                                                </span>
-                                            </Tooltip>
-                                        </div>
-
-                                        <TaskScheduleInput
-                                            date={task.scheduledDate}
-                                            time={task.scheduledTime}
-                                            daysOfWeek={task.scheduledDaysOfWeek}
-                                            onUpdate={(date, time, days) => updateTaskSchedule(task.id, date, time, days)}
-                                            className="ml-auto"
-                                        />
+                                    {/* 2. Tag (Color Pulse) */}
+                                    <div className="relative shrink-0 ml-1">
+                                        <select
+                                            value={task.colorId || ''}
+                                            onChange={(e) => updateTaskColorId(task.id, e.target.value === '' ? undefined : e.target.value)}
+                                            onPointerDown={(e) => e.stopPropagation()}
+                                            className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
+                                            title="タグを設定"
+                                        >
+                                            <option value="">NONE</option>
+                                            {colors.map(c => (
+                                                <option key={c.id} value={c.id}>{c.name.toUpperCase()}</option>
+                                            ))}
+                                        </select>
+                                        <div className={`w-3 h-3 rounded-full border border-white/10 ${activeColorDef?.colorCode || 'bg-slate-700'}`} />
                                     </div>
 
-                                    <div className={`flex items-center transition-opacity gap-1 shrink-0 ${!!memos[task.id] ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'}`}>
+                                    {/* 3. Drag Handle */}
+                                    <div className="cursor-grab text-slate-600 hover:text-slate-400 shrink-0 ml-1">
+                                        <GripVertical size={14} />
+                                    </div>
+
+                                    {/* 4. Start Task */}
+                                    <button
+                                        onClick={(e) => {
+                                            e.stopPropagation();
+                                            startRecurringTask(task.id);
+                                        }}
+                                        onPointerDown={(e) => e.stopPropagation()}
+                                        className="text-blue-400 hover:text-blue-300 p-1 rounded shrink-0 transition-opacity"
+                                        title="Start Task"
+                                    >
+                                        <Play size={14} fill="currentColor" />
+                                    </button>
+
+                                    {/* 5. Subject */}
+                                    <div className="flex-1 min-w-0">
+                                        <Tooltip text={task.name}>
+                                            <span className={`truncate block text-sm text-slate-300 ${task.status === 'completed' ? 'line-through text-slate-500' : ''}`}>
+                                                {task.name}
+                                            </span>
+                                        </Tooltip>
+                                    </div>
+
+                                    {/* 6. Schedule */}
+                                    <TaskScheduleInput
+                                        date={task.scheduledDate}
+                                        time={task.scheduledTime}
+                                        daysOfWeek={task.scheduledDaysOfWeek}
+                                        onUpdate={(date, time, days) => updateTaskSchedule(task.id, date, time, days)}
+                                        className="ml-auto"
+                                    />
+
+                                    <div className="flex items-center gap-1 shrink-0">
+                                        {/* 7. Rename */}
                                         <button
                                             onClick={(e) => {
                                                 e.stopPropagation();
                                                 startEditing(task);
                                             }}
                                             onPointerDown={(e) => e.stopPropagation()}
-                                            className="text-slate-400 hover:text-slate-200 p-1 rounded"
+                                            className="text-slate-400 hover:text-slate-200 p-1 rounded opacity-0 group-hover:opacity-100 transition-opacity"
                                             title="Rename"
                                         >
                                             <Pencil size={14} />
                                         </button>
+                                        {/* 8. Open Memo */}
                                         <button
                                             onClick={(e) => {
                                                 e.stopPropagation();
                                                 useTaskStore.getState().openMemo(task.id);
                                             }}
                                             onPointerDown={(e) => e.stopPropagation()}
-                                            className="p-1.5 text-slate-400 hover:text-blue-400 rounded hover:bg-slate-700/50 transition-colors"
+                                            className={`p-1.5 text-slate-400 hover:text-blue-400 rounded hover:bg-slate-700/50 transition-all ${!!memos[task.id] ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'}`}
                                             title="Open Memo"
                                         >
                                             <FileText size={14} />
                                         </button>
+                                        {/* 9. Delete Task */}
                                         <button
                                             onClick={(e) => {
                                                 e.stopPropagation();
@@ -352,21 +361,10 @@ export function RecurringTasks() {
                                                 }
                                             }}
                                             onPointerDown={(e) => e.stopPropagation()}
-                                            className="text-red-400 hover:text-red-300 p-1 rounded"
+                                            className="text-red-400 hover:text-red-300 p-1 rounded opacity-0 group-hover:opacity-100 transition-opacity"
                                             title="Delete Task"
                                         >
                                             <Trash2 size={14} />
-                                        </button>
-                                        <button
-                                            onClick={(e) => {
-                                                e.stopPropagation();
-                                                startRecurringTask(task.id);
-                                            }}
-                                            onPointerDown={(e) => e.stopPropagation()}
-                                            className="text-blue-400 hover:text-blue-300 p-1 rounded"
-                                            title="Start Task"
-                                        >
-                                            <Play size={14} fill="currentColor" />
                                         </button>
                                     </div>
                                 </>

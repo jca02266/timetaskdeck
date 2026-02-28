@@ -172,40 +172,32 @@ export function HistoryView() {
                                     <Tooltip text={task.name}>
                                         <div className="text-sm text-slate-300 font-medium truncate flex-1">{task.name}</div>
                                     </Tooltip>
-                                    <div className={`flex items-center transition-opacity gap-1 shrink-0 ${!!memos[task.id] ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'}`}>
+                                    <div className="flex items-center gap-1 shrink-0">
+                                        {/* 2. Rename */}
                                         <button
                                             onClick={(e) => {
                                                 e.stopPropagation();
                                                 startEditing(task);
                                             }}
                                             onPointerDown={(e) => e.stopPropagation()}
-                                            className="text-slate-400 hover:text-slate-200 p-1 rounded"
+                                            className="text-slate-400 hover:text-slate-200 p-1 rounded opacity-0 group-hover:opacity-100 transition-opacity"
                                             title="Rename"
                                         >
                                             <Pencil size={14} />
                                         </button>
-                                        <button
-                                            onClick={(e) => {
-                                                e.stopPropagation();
-                                                copyToRecurring(task.id);
-                                            }}
-                                            onPointerDown={(e) => e.stopPropagation()}
-                                            className="p-1 text-slate-400 hover:text-blue-400 transition-colors"
-                                            title="定期タスクにコピー"
-                                        >
-                                            <Copy size={14} />
-                                        </button>
+                                        {/* 3. Open Memo */}
                                         <button
                                             onClick={(e) => {
                                                 e.stopPropagation();
                                                 useTaskStore.getState().openMemo(task.id);
                                             }}
                                             onPointerDown={(e) => e.stopPropagation()}
-                                            className="p-1 text-slate-400 hover:text-blue-400 transition-colors"
+                                            className={`p-1 text-slate-400 hover:text-blue-400 rounded hover:bg-slate-700/50 transition-all ${!!memos[task.id] ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'}`}
                                             title="Open Memo"
                                         >
                                             <FileText size={14} />
                                         </button>
+                                        {/* 4. Delete Task */}
                                         <button
                                             onClick={(e) => {
                                                 e.stopPropagation();
@@ -214,18 +206,31 @@ export function HistoryView() {
                                                 }
                                             }}
                                             onPointerDown={(e) => e.stopPropagation()}
-                                            className="text-red-400 hover:text-red-300 p-1 rounded"
+                                            className="text-red-400 hover:text-red-300 p-1 rounded opacity-0 group-hover:opacity-100 transition-opacity"
                                             title="Delete Task"
                                         >
                                             <Trash2 size={14} />
                                         </button>
+                                        {/* 5. Copy to Recurring */}
+                                        <button
+                                            onClick={(e) => {
+                                                e.stopPropagation();
+                                                copyToRecurring(task.id);
+                                            }}
+                                            onPointerDown={(e) => e.stopPropagation()}
+                                            className="p-1 text-slate-400 hover:text-blue-400 transition-colors opacity-0 group-hover:opacity-100 transition-opacity"
+                                            title="定期タスクにコピー"
+                                        >
+                                            <Copy size={14} />
+                                        </button>
+                                        {/* 6. Reopen Task */}
                                         <button
                                             onClick={(e) => {
                                                 e.stopPropagation();
                                                 reopenTask(task.id);
                                             }}
                                             onPointerDown={(e) => e.stopPropagation()}
-                                            className="text-blue-400 hover:text-blue-300 p-1 rounded"
+                                            className="text-blue-400 hover:text-blue-300 p-1 rounded opacity-0 group-hover:opacity-100 transition-opacity"
                                             title="Reopen Task"
                                         >
                                             <RotateCcw size={14} />
