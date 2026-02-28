@@ -3,6 +3,13 @@ import { persist, createJSONStorage } from 'zustand/middleware';
 import { useMemoStore } from './useMemoStore';
 
 export type TaskStatus = 'pending' | 'completed' | 'paused' | 'interrupted';
+export type PanelType = 'backlog' | 'recurring';
+
+export interface DropTarget {
+    panelId: string;
+    index: number;
+    type: PanelType;
+}
 
 export interface BacklogCategory {
     id: string;
@@ -139,6 +146,11 @@ interface TaskState {
 
     addManualTaskLogEntry: (taskId: string, name: string, startTime: number, endTime: number, duration: number, status: TaskStatus) => void;
     updateTaskLogs: (logs: TaskLogEntry[]) => void;
+
+    // Drag & Drop
+    dropTarget: DropTarget | null;
+    setDropTarget: (target: DropTarget | null) => void;
+    commitMove: () => void;
 }
 
 export const useTaskStore = create<TaskState>()(
@@ -169,6 +181,79 @@ export const useTaskStore = create<TaskState>()(
             setIsTaskTableOpen: (open) => set({ isTaskTableOpen: open }),
             setIsLogOpen: (open) => set({ isLogOpen: open }),
             setIsColorSettingsOpen: (open) => set({ isColorSettingsOpen: open }),
+            dropTarget: null,
+
+            setDropTarget: (target) => set({ dropTarget: target }),
+
+            commitMove: () => {
+                const { draggedTaskId, dropTarget } = get();
+                if (!draggedTaskId || !dropTarget) {
+                    set({ draggedTaskId: null, dropTarget: null });
+                    return;
+                }
+
+                set((state) => {
+                    let taskToMove: Task | undefined;
+                    let newBacklogTasks = [...state.backlogTasks];
+                    let newRecurringTasks = [...state.recurringTasks];
+
+                    const backlogIdx = newBacklogTasks.findIndex(t => t.id === draggedTaskId);
+                    if (backlogIdx !== -1) {
+                        [taskToMove] = newBacklogTasks.splice(backlogIdx, 1);
+                    } else {
+                        const recurringIdx = newRecurringTasks.findIndex(t => t.id === draggedTaskId);
+                        if (recurringIdx !== -1) {
+                            [taskToMove] = newRecurringTasks.splice(recurringIdx, 1);
+                        }
+                    }
+
+                    if (!taskToMove) return { draggedTaskId: null, dropTarget: null };
+
+                    const { panelId, index, type } = dropTarget;
+
+                    if (type === 'backlog') {
+                        taskToMove.backlogId = panelId;
+                        const categoryItems = newBacklogTasks.filter(t => t.backlogId === panelId);
+                        let finalInsertPos = newBacklogTasks.length;
+
+                        if (categoryItems.length === 0) {
+                            finalInsertPos = 0;
+                        } else {
+                            let currentCategoryIndex = 0;
+                            let placed = false;
+                            for (let i = 0; i < newBacklogTasks.length; i++) {
+                                if (newBacklogTasks[i].backlogId === panelId) {
+                                    if (currentCategoryIndex === index) {
+                                        finalInsertPos = i;
+                                        placed = true;
+                                        break;
+                                    }
+                                    currentCategoryIndex++;
+                                }
+                            }
+                            if (!placed) {
+                                for (let i = newBacklogTasks.length - 1; i >= 0; i--) {
+                                    if (newBacklogTasks[i].backlogId === panelId) {
+                                        finalInsertPos = i + 1;
+                                        break;
+                                    }
+                                }
+                            }
+                        }
+                        newBacklogTasks.splice(finalInsertPos, 0, taskToMove);
+                    } else if (type === 'recurring') {
+                        const safeIndex = Math.max(0, Math.min(index, newRecurringTasks.length));
+                        newRecurringTasks.splice(safeIndex, 0, taskToMove);
+                    }
+
+                    return {
+                        backlogTasks: newBacklogTasks,
+                        recurringTasks: newRecurringTasks,
+                        draggedTaskId: null,
+                        dropTarget: null
+                    };
+                });
+            },
 
             openMemo: (taskId: string) => {
                 set({ activeMemoTaskId: taskId, isMemoMinimized: false });

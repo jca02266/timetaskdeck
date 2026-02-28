@@ -42,7 +42,14 @@ export const BacklogPanel = ({ category, defaultPosition }: BacklogPanelProps) =
     const deleteBacklogCategory = useTaskStore((state) => state.deleteBacklogCategory);
     const toggleBacklogMinimized = useTaskStore((state) => state.toggleBacklogMinimized);
     const updateTaskColorId = useTaskStore((state) => state.updateTaskColorId);
+
     const memos = useMemoStore((state) => state.memos);
+    const draggedTaskId = useTaskStore((state) => state.draggedTaskId);
+    const setDraggedTaskId = useTaskStore((state) => state.setDraggedTaskId);
+    const dropTarget = useTaskStore((state) => state.dropTarget);
+    const setDropTarget = useTaskStore((state) => state.setDropTarget);
+    const commitMove = useTaskStore((state) => state.commitMove);
+    const getTaskById = useTaskStore((state) => state.getTaskById);
 
     // For calculating total time
     const taskLog = useTaskStore((state) => state.taskLog);
@@ -51,8 +58,7 @@ export const BacklogPanel = ({ category, defaultPosition }: BacklogPanelProps) =
     const [isEditingTitle, setIsEditingTitle] = useState(false);
     const [titleValue, setTitleValue] = useState(category.name);
 
-    // Drag and drop state
-    const [draggedTaskId, setDraggedTaskId] = useState<string | null>(null);
+    // Drag and drop state removed (moved to store)
 
     const [currentTime, setCurrentTime] = useState('');
     const [currentDate, setCurrentDate] = useState('');
@@ -131,6 +137,24 @@ export const BacklogPanel = ({ category, defaultPosition }: BacklogPanelProps) =
         const minutes = totalMin % 60;
         return hours > 0 ? `${hours}h ${minutes}m` : `${minutes}m`;
     };
+
+    const tasksInCategory = allBacklogTasks.filter(t => t.backlogId === category.id);
+    let displayTasks = tasksInCategory;
+
+    if (draggedTaskId && dropTarget) {
+        const isTargetingThisPanel = dropTarget.panelId === category.id && dropTarget.type === 'backlog';
+        if (tasksInCategory.some(t => t.id === draggedTaskId) || isTargetingThisPanel) {
+            const draggedTask = getTaskById(draggedTaskId);
+            if (draggedTask) {
+                let temp = tasksInCategory.filter(t => t.id !== draggedTaskId);
+                if (isTargetingThisPanel) {
+                    const safeIndex = Math.max(0, Math.min(dropTarget.index, temp.length));
+                    temp.splice(safeIndex, 0, draggedTask);
+                }
+                displayTasks = temp;
+            }
+        }
+    }
 
     const handleAdd = (e: React.FormEvent) => {
         e.preventDefault();
@@ -303,176 +327,176 @@ export const BacklogPanel = ({ category, defaultPosition }: BacklogPanelProps) =
                 className="overflow-y-auto flex-1 h-full min-h-0 space-y-2 mb-4 scrollbar-thin scrollbar-thumb-slate-700 scrollbar-track-transparent px-4 pb-2"
                 data-panel-category-id={category.id}
             >
-                {backlogTasks.length === 0 && (
+                {displayTasks.length === 0 ? (
                     <div className="text-slate-600 text-center py-4 text-sm italic pointer-events-none">
                         No tasks in backlog
                     </div>
-                )}
-                {backlogTasks.map((task, index) => {
-                    const { isDue, shouldNotify } = isTaskScheduledNow(task);
+                ) : (
+                    displayTasks.map((task, index) => {
+                        const { isDue, shouldNotify } = isTaskScheduledNow(task);
+                        const activeColorDef = colors.find(c => c.id === task.colorId);
 
-                    const activeColorDef = colors.find(c => c.id === task.colorId);
+                        if (shouldNotify) {
+                            sendNotification(`backlog-${task.id}`, 'バックログタスクの時間です', task.name);
+                        }
 
-                    if (shouldNotify) {
-                        sendNotification(`backlog-${task.id}`, 'バックログタスクの時間です', task.name);
-                    }
-
-                    return (
-                        <div
-                            key={task.id}
-                            data-task-id={task.id}
-                            data-panel-id={category.id}
-                            data-index={index}
-                            className={`group bg-slate-900/50 hover:bg-slate-800/80 px-3 py-2 rounded-lg transition-all flex items-center gap-3 select-none
+                        return (
+                            <div
+                                key={task.id}
+                                data-task-id={task.id}
+                                data-panel-id={category.id}
+                                data-panel-type="backlog"
+                                data-index={index}
+                                className={`group bg-slate-900/50 hover:bg-slate-800/80 px-3 py-2 rounded-lg transition-all flex items-center gap-3 select-none
                                 ${draggedTaskId === task.id ? 'opacity-20 scale-95 shadow-none' : 'shadow-sm'}
                                 ${isDue ? 'animate-blink border-yellow-500/50 shadow-[0_0_10px_rgba(234,179,8,0.3)]' : ''}`}
-                            style={{ touchAction: 'none' }}
-                            onPointerDown={(e) => {
-                                if (e.button !== 0) return;
-                                const startTime = Date.now();
-                                const startPos = { x: e.clientX, y: e.clientY };
-                                let hasMoved = false;
+                                style={{ touchAction: 'none' }}
+                                onPointerDown={(e) => {
+                                    if (e.button !== 0) return;
+                                    const startTime = Date.now();
+                                    const startPos = { x: e.clientX, y: e.clientY };
+                                    let hasMoved = false;
 
-                                const target = e.currentTarget as HTMLElement;
-                                target.setPointerCapture(e.pointerId);
+                                    const target = e.currentTarget as HTMLElement;
+                                    target.setPointerCapture(e.pointerId);
 
-                                const onPointerMove = (moveEvent: PointerEvent) => {
-                                    const dist = Math.sqrt(
-                                        Math.pow(moveEvent.clientX - startPos.x, 2) +
-                                        Math.pow(moveEvent.clientY - startPos.y, 2)
-                                    );
+                                    const onPointerMove = (moveEvent: PointerEvent) => {
+                                        const dist = Math.sqrt(
+                                            Math.pow(moveEvent.clientX - startPos.x, 2) +
+                                            Math.pow(moveEvent.clientY - startPos.y, 2)
+                                        );
 
-                                    if (dist > 8 && !hasMoved) {
-                                        hasMoved = true;
-                                        setDraggedTaskId(task.id);
-                                    }
+                                        if (dist > 8 && !hasMoved) {
+                                            hasMoved = true;
+                                            setDraggedTaskId(task.id);
+                                        }
 
-                                    if (hasMoved) {
-                                        const overElement = document.elementFromPoint(moveEvent.clientX, moveEvent.clientY);
-                                        const overTaskRow = overElement?.closest('div[data-task-id]');
-                                        if (overTaskRow) {
-                                            const overPanelId = overTaskRow.getAttribute('data-panel-id');
-                                            const overIndex = parseInt(overTaskRow.getAttribute('data-index') || '0');
-                                            if (overPanelId) {
-                                                // If we are over a task in some panel
-                                                if (overPanelId === category.id) {
-                                                    // Same panel reorder
-                                                    if (overIndex !== index) {
-                                                        moveBacklogTask(task.id, category.id, overIndex);
+                                        if (hasMoved) {
+                                            const overElement = document.elementFromPoint(moveEvent.clientX, moveEvent.clientY);
+                                            const overTaskRow = overElement?.closest('div[data-task-id]');
+                                            if (overTaskRow) {
+                                                const overPanelId = overTaskRow.getAttribute('data-panel-id');
+                                                const overPanelType = overTaskRow.getAttribute('data-panel-type') as any || 'backlog';
+                                                const overIndex = parseInt(overTaskRow.getAttribute('data-index') || '0');
+                                                if (overPanelId) {
+                                                    setDropTarget({ panelId: overPanelId, index: overIndex, type: overPanelType });
+                                                }
+                                            } else {
+                                                const overPanel = overElement?.closest('div[data-panel-category-id]');
+                                                if (overPanel) {
+                                                    const overPanelId = overPanel.getAttribute('data-panel-category-id');
+                                                    if (overPanelId) {
+                                                        setDropTarget({ panelId: overPanelId, index: 0, type: 'backlog' });
                                                     }
                                                 } else {
-                                                    // Cross panel move
-                                                    moveBacklogTask(task.id, overPanelId, overIndex);
+                                                    const overRecurring = overElement?.closest('div[data-panel-type="recurring"]');
+                                                    if (overRecurring) {
+                                                        setDropTarget({ panelId: 'recurring', index: 0, type: 'recurring' });
+                                                    }
                                                 }
                                             }
+                                        }
+                                    };
+
+                                    const onPointerUp = (upEvent: PointerEvent) => {
+                                        target.releasePointerCapture(upEvent.pointerId);
+                                        window.removeEventListener('pointermove', onPointerMove);
+                                        window.removeEventListener('pointerup', onPointerUp);
+
+                                        if (hasMoved) {
+                                            commitMove();
                                         } else {
-                                            // Maybe over an empty area of a panel
-                                            const overPanel = overElement?.closest('div[data-panel-category-id]');
-                                            if (overPanel) {
-                                                const overPanelId = overPanel.getAttribute('data-panel-category-id');
-                                                if (overPanelId && overPanelId !== category.id) {
-                                                    moveBacklogTask(task.id, overPanelId, 0);
-                                                }
-                                            }
+                                            setDraggedTaskId(null);
+                                            setDropTarget(null);
                                         }
-                                    }
-                                };
+                                    };
 
-                                const onPointerUp = (upEvent: PointerEvent) => {
-                                    target.releasePointerCapture(upEvent.pointerId);
-                                    window.removeEventListener('pointermove', onPointerMove);
-                                    window.removeEventListener('pointerup', onPointerUp);
-                                    setDraggedTaskId(null);
+                                    window.addEventListener('pointermove', onPointerMove);
+                                    window.addEventListener('pointerup', onPointerUp);
+                                }}
+                            >
+                                {/* Color Dot Tag */}
+                                <div className="relative shrink-0">
+                                    <select
+                                        value={task.colorId || ''}
+                                        onChange={(e) => updateTaskColorId(task.id, e.target.value === '' ? undefined : e.target.value)}
+                                        onPointerDown={(e) => e.stopPropagation()}
+                                        className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
+                                        title="タグを設定"
+                                    >
+                                        <option value="">NONE</option>
+                                        {colors.map(c => (
+                                            <option key={c.id} value={c.id}>{c.name.toUpperCase()}</option>
+                                        ))}
+                                    </select>
+                                    <div className={`w-3 h-3 rounded-full border border-white/10 ${activeColorDef?.colorCode || 'bg-slate-700'}`} />
+                                </div>
 
-                                    // No tap action defined for the whole row currently, 
-                                    // specific fields handle their own clicks
-                                };
+                                <div className="cursor-grab text-slate-600 hover:text-slate-400 shrink-0">
+                                    <GripVertical size={14} />
+                                </div>
 
-                                window.addEventListener('pointermove', onPointerMove);
-                                window.addEventListener('pointerup', onPointerUp);
-                            }}
-                        >
-                            {/* Color Dot Tag */}
-                            <div className="relative shrink-0">
-                                <select
-                                    value={task.colorId || ''}
-                                    onChange={(e) => updateTaskColorId(task.id, e.target.value === '' ? undefined : e.target.value)}
-                                    onPointerDown={(e) => e.stopPropagation()}
-                                    className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
-                                    title="タグを設定"
-                                >
-                                    <option value="">NONE</option>
-                                    {colors.map(c => (
-                                        <option key={c.id} value={c.id}>{c.name.toUpperCase()}</option>
-                                    ))}
-                                </select>
-                                <div className={`w-3 h-3 rounded-full border border-white/10 ${activeColorDef?.colorCode || 'bg-slate-700'}`} />
-                            </div>
+                                <Tooltip text={task.name}>
+                                    <input
+                                        type="text"
+                                        value={task.name}
+                                        onChange={(e) => updateTaskName(task.id, e.target.value)}
+                                        onPointerDown={(e) => e.stopPropagation()}
+                                        className="flex-1 bg-transparent border-b border-transparent hover:border-slate-700 focus:border-blue-500 focus:outline-none text-sm text-slate-200 transition-colors truncate min-w-0"
+                                        placeholder="Task Name"
+                                    />
+                                </Tooltip>
 
-                            <div className="cursor-grab text-slate-600 hover:text-slate-400 shrink-0">
-                                <GripVertical size={14} />
-                            </div>
-
-                            <Tooltip text={task.name}>
-                                <input
-                                    type="text"
-                                    value={task.name}
-                                    onChange={(e) => updateTaskName(task.id, e.target.value)}
-                                    onPointerDown={(e) => e.stopPropagation()}
-                                    className="flex-1 bg-transparent border-b border-transparent hover:border-slate-700 focus:border-blue-500 focus:outline-none text-sm text-slate-200 transition-colors truncate min-w-0"
-                                    placeholder="Task Name"
+                                <TaskScheduleInput
+                                    date={task.scheduledDate}
+                                    time={task.scheduledTime}
+                                    daysOfWeek={task.scheduledDaysOfWeek}
+                                    onUpdate={(date, time, days) => updateTaskSchedule(task.id, date, time, days)}
+                                    className="ml-auto"
                                 />
-                            </Tooltip>
 
-                            <TaskScheduleInput
-                                date={task.scheduledDate}
-                                time={task.scheduledTime}
-                                daysOfWeek={task.scheduledDaysOfWeek}
-                                onUpdate={(date, time, days) => updateTaskSchedule(task.id, date, time, days)}
-                                className="ml-auto"
-                            />
+                                <div className="flex items-center gap-1 shrink-0">
+                                    <button
+                                        onClick={(e) => {
+                                            e.stopPropagation();
+                                            useTaskStore.getState().openMemo(task.id);
+                                        }}
+                                        onPointerDown={(e) => e.stopPropagation()}
+                                        className={`p-1.5 text-slate-400 hover:text-blue-400 rounded hover:bg-slate-700/50 transition-colors ${!!memos[task.id] ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'}`}
+                                        title="Open Memo"
+                                    >
+                                        <FileText size={14} />
+                                    </button>
+                                    <button
+                                        onClick={(e) => {
+                                            e.stopPropagation();
+                                            pickFromBacklog(task.id);
+                                        }}
+                                        onPointerDown={(e) => e.stopPropagation()}
+                                        className="text-blue-500 hover:text-blue-400 p-1.5 rounded-full bg-blue-500/10 hover:bg-blue-500/20 transition-all"
+                                        title="Start Task"
+                                    >
+                                        <Play size={14} className="fill-current" />
+                                    </button>
 
-                            <div className="flex items-center gap-1 shrink-0">
-                                <button
-                                    onClick={(e) => {
-                                        e.stopPropagation();
-                                        useTaskStore.getState().openMemo(task.id);
-                                    }}
-                                    onPointerDown={(e) => e.stopPropagation()}
-                                    className={`p-1.5 text-slate-400 hover:text-blue-400 rounded hover:bg-slate-700/50 transition-colors ${!!memos[task.id] ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'}`}
-                                    title="Open Memo"
-                                >
-                                    <FileText size={14} />
-                                </button>
-                                <button
-                                    onClick={(e) => {
-                                        e.stopPropagation();
-                                        pickFromBacklog(task.id);
-                                    }}
-                                    onPointerDown={(e) => e.stopPropagation()}
-                                    className="text-blue-500 hover:text-blue-400 p-1.5 rounded-full bg-blue-500/10 hover:bg-blue-500/20 transition-all"
-                                    title="Start Task"
-                                >
-                                    <Play size={14} className="fill-current" />
-                                </button>
-
-                                <button
-                                    onClick={(e) => {
-                                        e.stopPropagation();
-                                        if (window.confirm('Delete this task?')) {
-                                            deleteTask(task.id);
-                                        }
-                                    }}
-                                    onPointerDown={(e) => e.stopPropagation()}
-                                    className="p-1.5 text-slate-600 hover:text-red-400 transition-all opacity-0 group-hover:opacity-100"
-                                    title="Delete Task"
-                                >
-                                    <Trash2 size={14} />
-                                </button>
+                                    <button
+                                        onClick={(e) => {
+                                            e.stopPropagation();
+                                            if (window.confirm('Delete this task?')) {
+                                                deleteTask(task.id);
+                                            }
+                                        }}
+                                        onPointerDown={(e) => e.stopPropagation()}
+                                        className="p-1.5 text-slate-600 hover:text-red-400 transition-all opacity-0 group-hover:opacity-100"
+                                        title="Delete Task"
+                                    >
+                                        <Trash2 size={14} />
+                                    </button>
+                                </div>
                             </div>
-                        </div>
-                    );
-                })}
+                        );
+                    })
+                )}
             </div>
         </DraggablePanel >
     );

@@ -19,14 +19,20 @@ export function RecurringTasks() {
         clearAllRecurringTasksChecks,
         startRecurringTask,
         updateTaskSchedule,
-        toggleRecurringMinimized
+        toggleRecurringMinimized,
+        draggedTaskId,
+        setDraggedTaskId,
+        dropTarget,
+        setDropTarget,
+        commitMove,
+        getTaskById,
+        backlogTasks: allBacklogTasks
     } = useTaskStore();
     const memos = useMemoStore((state) => state.memos);
 
     const [newItem, setNewItem] = useState('');
     const [editingId, setEditingId] = useState<string | null>(null);
     const [editValue, setEditValue] = useState('');
-    const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
     const [currentTime, setCurrentTime] = useState('');
     const [currentDate, setCurrentDate] = useState('');
     const [currentDay, setCurrentDay] = useState<number>(new Date().getDay());
@@ -76,8 +82,6 @@ export function RecurringTasks() {
         setNewItem('');
     };
 
-    // ... existing helpers ...
-
     const startEditing = (task: { id: string, name: string }) => {
         setEditingId(task.id);
         setEditValue(task.name);
@@ -97,6 +101,24 @@ export function RecurringTasks() {
     };
 
     const hasCompletedTasks = recurringTasks.some(t => t.status === 'completed');
+
+    let displayTasks = recurringTasks;
+    if (draggedTaskId && dropTarget) {
+        const isTargetingThisPanel = dropTarget.panelId === 'recurring' && dropTarget.type === 'recurring';
+        const containsDraggedTask = recurringTasks.some(t => t.id === draggedTaskId);
+
+        if (containsDraggedTask || isTargetingThisPanel) {
+            const draggedTask = getTaskById(draggedTaskId);
+            if (draggedTask) {
+                let temp = recurringTasks.filter(t => t.id !== draggedTaskId);
+                if (isTargetingThisPanel) {
+                    const safeIndex = Math.max(0, Math.min(dropTarget.index, temp.length));
+                    temp.splice(safeIndex, 0, draggedTask);
+                }
+                displayTasks = temp;
+            }
+        }
+    }
 
 
     return (
@@ -154,13 +176,13 @@ export function RecurringTasks() {
                 </button>
             </form>
 
-            <div className="overflow-y-auto flex-1 min-h-0 space-y-2 mb-1 scrollbar-thin scrollbar-thumb-slate-700 scrollbar-track-transparent px-4 pb-2">
-                {recurringTasks.length === 0 && (
+            <div className="overflow-y-auto flex-1 min-h-0 space-y-2 mb-1 scrollbar-thin scrollbar-thumb-slate-700 scrollbar-track-transparent px-4 pb-2" data-panel-type="recurring">
+                {displayTasks.length === 0 && (
                     <div className="text-slate-600 text-center py-4 text-sm italic">
                         No recurring tasks
                     </div>
                 )}
-                {recurringTasks.map((task, index) => {
+                {displayTasks.map((task, index) => {
                     const { isDue, shouldNotify } = isTaskScheduledNow(task);
 
                     if (shouldNotify) {
@@ -170,13 +192,19 @@ export function RecurringTasks() {
                     return (
                         <div
                             key={task.id}
+                            data-task-id={task.id}
+                            data-panel-id="recurring"
+                            data-panel-type="recurring"
                             data-index={index}
+                            className={`group bg-slate-800/30 hover:bg-slate-800/80 p-3 rounded-lg border border-transparent hover:border-slate-600 transition-all flex items-center justify-between gap-2 select-none
+                                ${draggedTaskId === task.id ? 'opacity-20 scale-95 shadow-none' : 'shadow-sm'} 
+                                ${isDue ? 'animate-blink border-yellow-500/50 shadow-[0_0_10px_rgba(234,179,8,0.3)]' : ''}`}
+                            style={{ touchAction: 'none' }}
                             onPointerDown={(e) => {
                                 if (e.button !== 0 || editingId !== null) return;
                                 const startTime = Date.now();
                                 const startPos = { x: e.clientX, y: e.clientY };
                                 let hasMoved = false;
-                                let currentIndex = index;
 
                                 const target = e.currentTarget as HTMLElement;
                                 target.setPointerCapture(e.pointerId);
@@ -189,20 +217,30 @@ export function RecurringTasks() {
 
                                     if (dist > 8 && !hasMoved) {
                                         hasMoved = true;
-                                        setDraggedIndex(currentIndex);
+                                        setDraggedTaskId(task.id);
                                     }
 
                                     if (hasMoved) {
                                         const overElement = document.elementFromPoint(moveEvent.clientX, moveEvent.clientY);
-                                        const overRow = overElement?.closest('div[data-index]');
+                                        const overRow = overElement?.closest('div[data-task-id]');
                                         if (overRow) {
-                                            const overIndexAttr = overRow.getAttribute('data-index');
-                                            if (overIndexAttr !== null) {
-                                                const overIndex = parseInt(overIndexAttr);
-                                                if (overIndex !== currentIndex) {
-                                                    reorderRecurringTasks(currentIndex, overIndex);
-                                                    setDraggedIndex(overIndex);
-                                                    currentIndex = overIndex;
+                                            const overPanelId = overRow.getAttribute('data-panel-id');
+                                            const overPanelType = overRow.getAttribute('data-panel-type') as any || 'backlog';
+                                            const overIndex = parseInt(overRow.getAttribute('data-index') || '0');
+                                            if (overPanelId) {
+                                                setDropTarget({ panelId: overPanelId, index: overIndex, type: overPanelType });
+                                            }
+                                        } else {
+                                            const overBacklog = overElement?.closest('div[data-panel-category-id]');
+                                            if (overBacklog) {
+                                                const overPanelId = overBacklog.getAttribute('data-panel-category-id');
+                                                if (overPanelId) {
+                                                    setDropTarget({ panelId: overPanelId, index: 0, type: 'backlog' });
+                                                }
+                                            } else {
+                                                const overRecurring = overElement?.closest('div[data-panel-type="recurring"]');
+                                                if (overRecurring) {
+                                                    setDropTarget({ panelId: 'recurring', index: 0, type: 'recurring' });
                                                 }
                                             }
                                         }
@@ -213,16 +251,18 @@ export function RecurringTasks() {
                                     target.releasePointerCapture(upEvent.pointerId);
                                     window.removeEventListener('pointermove', onPointerMove);
                                     window.removeEventListener('pointerup', onPointerUp);
-                                    setDraggedIndex(null);
+
+                                    if (hasMoved) {
+                                        commitMove();
+                                    } else {
+                                        setDraggedTaskId(null);
+                                        setDropTarget(null);
+                                    }
                                 };
 
                                 window.addEventListener('pointermove', onPointerMove);
                                 window.addEventListener('pointerup', onPointerUp);
                             }}
-                            className={`group bg-slate-800/30 hover:bg-slate-800/80 p-3 rounded-lg border border-transparent hover:border-slate-600 transition-all flex items-center justify-between gap-2 select-none
-                                ${draggedIndex === index ? 'opacity-50' : ''} 
-                                ${isDue ? 'animate-blink border-yellow-500/50 shadow-[0_0_10px_rgba(234,179,8,0.3)]' : ''}`}
-                            style={{ touchAction: 'none' }}
                         >
                             {editingId === task.id ? (
                                 <div className="flex items-center gap-1 w-full">
