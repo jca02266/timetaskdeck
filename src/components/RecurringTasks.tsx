@@ -1,4 +1,5 @@
 import { useTaskStore } from '@/store/useTaskStore';
+import { useMemoStore } from '@/store/useMemoStore';
 import { Repeat, Play, Plus, Pencil, Check, X, Trash2, GripVertical, CheckCircle2, Circle, Minimize2, FileText, CheckSquare } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { Tooltip } from './Tooltip';
@@ -20,6 +21,7 @@ export function RecurringTasks() {
         updateTaskSchedule,
         toggleRecurringMinimized
     } = useTaskStore();
+    const memos = useMemoStore((state) => state.memos);
 
     const [newItem, setNewItem] = useState('');
     const [editingId, setEditingId] = useState<string | null>(null);
@@ -279,7 +281,7 @@ export function RecurringTasks() {
                                         />
                                     </div>
 
-                                    <div className="flex items-center opacity-0 group-hover:opacity-100 transition-opacity gap-1 shrink-0">
+                                    <div className={`flex items-center transition-opacity gap-1 shrink-0 ${!!memos[task.id] ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'}`}>
                                         <button
                                             onClick={(e) => {
                                                 e.stopPropagation();

@@ -1,4 +1,5 @@
 import { useTaskStore, BacklogCategory, Task } from '@/store/useTaskStore';
+import { useMemoStore } from '@/store/useMemoStore';
 import { Tooltip } from './Tooltip';
 import { DatePicker } from './DatePicker';
 import { DraggablePanel } from './DraggablePanel';
@@ -41,6 +42,7 @@ export const BacklogPanel = ({ category, defaultPosition }: BacklogPanelProps) =
     const deleteBacklogCategory = useTaskStore((state) => state.deleteBacklogCategory);
     const toggleBacklogMinimized = useTaskStore((state) => state.toggleBacklogMinimized);
     const updateTaskColorId = useTaskStore((state) => state.updateTaskColorId);
+    const memos = useMemoStore((state) => state.memos);
 
     // For calculating total time
     const taskLog = useTaskStore((state) => state.taskLog);
@@ -437,7 +439,7 @@ export const BacklogPanel = ({ category, defaultPosition }: BacklogPanelProps) =
                                         useTaskStore.getState().openMemo(task.id);
                                     }}
                                     onPointerDown={(e) => e.stopPropagation()}
-                                    className="p-1.5 text-slate-400 hover:text-blue-400 rounded hover:bg-slate-700/50 transition-colors"
+                                    className={`p-1.5 text-slate-400 hover:text-blue-400 rounded hover:bg-slate-700/50 transition-colors ${!!memos[task.id] ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'}`}
                                     title="Open Memo"
                                 >
                                     <FileText size={14} />

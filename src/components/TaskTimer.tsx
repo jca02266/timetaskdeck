@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { useTaskStore } from '@/store/useTaskStore';
+import { useMemoStore } from '@/store/useMemoStore';
 import { Play, Square, Pause, ArrowDown, Pencil, Check, X, FileText, ListTodo } from 'lucide-react';
 import { format } from 'date-fns';
 import { Tooltip } from './Tooltip';
@@ -20,6 +21,8 @@ export function TaskTimer() {
     const [elapsed, setElapsed] = useState(0);
     const [isEditing, setIsEditing] = useState(false);
     const [editName, setEditName] = useState('');
+
+    const hasMemo = useMemoStore((state) => !!state.memos[currentTask?.id || '']);
 
     useEffect(() => {
         if (!currentTask && taskStack.length > 0) {
@@ -128,10 +131,10 @@ export function TaskTimer() {
                     </Tooltip>
 
                     {/* Floating tools overlay, positioned above the text on the right */}
-                    <div className="opacity-0 group-hover:opacity-100 transition-opacity absolute -top-8 right-0 flex items-center gap-2 bg-slate-800/90 border border-slate-700 backdrop-blur-sm px-2 py-1 rounded-lg shadow-lg">
+                    <div className={`${hasMemo ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'} transition-opacity absolute -top-8 right-0 flex items-center gap-2 bg-slate-800/90 border border-slate-700 backdrop-blur-sm px-2 py-1 rounded-lg shadow-lg`}>
                         <button
                             onClick={startEditing}
-                            className="text-slate-400 hover:text-slate-200 transition-colors p-1"
+                            className={`${hasMemo ? 'opacity-0 group-hover:opacity-100' : ''} text-slate-400 hover:text-slate-200 transition-colors p-1`}
                             title="Edit Name"
                         >
                             <Pencil size={18} />

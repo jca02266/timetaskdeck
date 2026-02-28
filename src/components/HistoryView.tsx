@@ -1,6 +1,7 @@
 "use client";
 
 import { useTaskStore } from '@/store/useTaskStore';
+import { useMemoStore } from '@/store/useMemoStore';
 import { Download, RotateCcw, Clock, Pencil, Check, X, Trash2, Copy, Minimize2, FileText, ChevronLeft, ChevronRight } from 'lucide-react';
 import { format, startOfDay, addDays, subDays, isSameDay, parseISO } from 'date-fns';
 import { useState } from 'react';
@@ -15,6 +16,7 @@ export function HistoryView() {
     const deleteTask = useTaskStore((state) => state.deleteTask);
     const copyToRecurring = useTaskStore((state) => state.copyToRecurring);
     const toggleHistoryMinimized = useTaskStore((state) => state.toggleHistoryMinimized);
+    const memos = useMemoStore((state) => state.memos);
     const [editingId, setEditingId] = useState<string | null>(null);
     const [editValue, setEditValue] = useState('');
     const [selectedDate, setSelectedDate] = useState<Date>(startOfDay(new Date()));
@@ -170,7 +172,7 @@ export function HistoryView() {
                                     <Tooltip text={task.name}>
                                         <div className="text-sm text-slate-300 font-medium truncate flex-1">{task.name}</div>
                                     </Tooltip>
-                                    <div className="flex items-center opacity-0 group-hover:opacity-100 transition-opacity gap-1 shrink-0">
+                                    <div className={`flex items-center transition-opacity gap-1 shrink-0 ${!!memos[task.id] ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'}`}>
                                         <button
                                             onClick={(e) => {
                                                 e.stopPropagation();
