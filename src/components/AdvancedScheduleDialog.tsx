@@ -119,9 +119,6 @@ export function AdvancedScheduleDialog({
                 {/* Header */}
                 <div className="px-4 py-3 border-b border-slate-800 flex items-center justify-between">
                     <h3 className="text-sm font-bold tracking-wider text-slate-100 uppercase">Task Schedule</h3>
-                    <button onClick={onClose} className="p-1 hover:bg-slate-800 rounded transition-colors">
-                        <X size={16} />
-                    </button>
                 </div>
 
                 {/* Tabs */}
@@ -188,7 +185,13 @@ export function AdvancedScheduleDialog({
                                 type="time"
                                 value={time}
                                 onChange={(e) => setTime(e.target.value)}
-                                onKeyDown={handleKeyDown}
+                                onKeyDown={(e) => {
+                                    if (e.nativeEvent.isComposing || e.keyCode === 229) return;
+                                    if (e.key === 'Enter') {
+                                        handleSave();
+                                    }
+                                    // Let Tab and Arrow keys work normally for type="time"
+                                }}
                                 className="w-full bg-slate-950/30 border border-slate-800 focus:border-blue-500/50 focus:outline-none rounded-lg py-3 pl-10 pr-4 text-center text-2xl font-mono tracking-widest text-white shadow-inner transition-all [color-scheme:dark] appearance-none"
                             />
                         </div>
@@ -196,28 +199,28 @@ export function AdvancedScheduleDialog({
                 </div>
 
                 {/* Actions */}
-                <div className="p-3 bg-slate-950/50 border-t border-slate-800 flex items-center gap-2">
+                <div className="p-3 bg-slate-950/50 border-t border-slate-800 flex items-center gap-1 justify-between">
                     <button
                         onClick={handleClear}
-                        className="p-2 text-slate-500 hover:text-red-400 hover:bg-red-500/10 rounded transition-all"
-                        title="Clear Schedule"
+                        className="px-3 py-2 text-[10px] font-bold text-slate-500 hover:text-red-400 hover:bg-red-500/10 rounded-lg transition-all uppercase tracking-tight"
                     >
-                        <X size={18} />
+                        Clear Schedule
                     </button>
-                    <div className="flex-1" />
-                    <button
-                        onClick={onClose}
-                        className="px-4 py-2 text-xs font-medium text-slate-400 hover:text-white transition-colors"
-                    >
-                        Cancel
-                    </button>
-                    <button
-                        onClick={handleSave}
-                        className="px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold rounded-lg shadow-lg shadow-blue-900/20 flex items-center gap-2 transition-all active:scale-95"
-                    >
-                        <Check size={14} />
-                        Apply
-                    </button>
+                    <div className="flex items-center gap-1">
+                        <button
+                            onClick={onClose}
+                            className="px-4 py-2 text-xs font-medium text-slate-400 hover:text-white transition-colors"
+                        >
+                            Cancel
+                        </button>
+                        <button
+                            onClick={handleSave}
+                            className="px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold rounded-lg shadow-lg shadow-blue-900/20 flex items-center gap-2 transition-all active:scale-95"
+                        >
+                            <Check size={14} />
+                            Apply
+                        </button>
+                    </div>
                 </div>
             </div>
         </div>,

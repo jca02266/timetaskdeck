@@ -36,6 +36,7 @@ export function RecurringTasks() {
 
     const [activeColorPickerTaskId, setActiveColorPickerTaskId] = useState<string | null>(null);
     const [colorPickerRect, setColorPickerRect] = useState<DOMRect | undefined>(undefined);
+    const [hideChecked, setHideChecked] = useState(true);
 
     const startEditing = (task: { id: string, name: string }) => {
         setEditingId(task.id);
@@ -93,7 +94,9 @@ export function RecurringTasks() {
         return `${date.getHours().toString().padStart(2, '0')}:${date.getMinutes().toString().padStart(2, '0')}`;
     };
 
-    const displayTasks = recurringTasks;
+    const displayTasks = hideChecked
+        ? recurringTasks.filter(t => t.status !== 'completed')
+        : recurringTasks;
 
     return (
         <DraggablePanel
@@ -109,6 +112,13 @@ export function RecurringTasks() {
             }
             headerControls={
                 <div className="flex items-center gap-1">
+                    <button
+                        onClick={() => setHideChecked(!hideChecked)}
+                        className={`p-1.5 rounded hover:bg-slate-700/50 transition-colors ${hideChecked ? 'text-blue-400' : 'text-slate-400 hover:text-white'}`}
+                        title={hideChecked ? "チェック済みを表示" : "チェック済みを隠す"}
+                    >
+                        {hideChecked ? <Circle size={14} className="opacity-50" /> : <CheckCircle2 size={14} />}
+                    </button>
                     <button
                         onClick={() => {
                             if (window.confirm('全ての定期タスクを未完了に戻しますか？')) {
