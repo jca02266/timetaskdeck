@@ -21,6 +21,7 @@ export function TaskLogModal() {
     const [orderMap, setOrderMap] = useState<Record<string, number>>({});
     const [isSortDescending, setIsSortDescending] = useState(true);
     const [activeSelectionLogId, setActiveSelectionLogId] = useState<string | null>(null);
+    const [editingValue, setEditingValue] = useState<{ id: string, type: 'start' | 'end', value: string } | null>(null);
 
     useEffect(() => {
         if (!isLogOpen) return;
@@ -59,14 +60,18 @@ export function TaskLogModal() {
         ...localLogs
     ] : localLogs;
 
-    // Sort using the initial orderMap to ensure tasks don't jump around while editing
     const sortedLogs = [...allLogs.filter(log =>
         isSameDay(getLogicalDate(log.startTime, dayStartHour), selectedDate) &&
         (log.id === 'current-active-task' || Math.abs(log.duration) > 5000)
     )].sort((a, b) => {
-        const orderA = a.id === 'current-active-task' ? Infinity : (orderMap[a.id] ?? a.startTime);
-        const orderB = b.id === 'current-active-task' ? Infinity : (orderMap[b.id] ?? b.startTime);
-        return orderA - orderB;
+        const orderA = orderMap[a.id];
+        const orderB = orderMap[b.id];
+
+        // If both have explicit order, use it
+        if (orderA !== undefined && orderB !== undefined) return orderA - orderB;
+
+        // Fallback to start time
+        return a.startTime - b.startTime;
     });
 
     // Calculate gaps and insert artificial "Break" tasks
@@ -166,26 +171,29 @@ export function TaskLogModal() {
     };
 
     const handleTimeChange = (logId: string, type: 'start' | 'end', timeStr: string) => {
+        setEditingValue({ id: logId, type, value: timeStr });
+    };
+
+    const applyTimeUpdate = (logId: string, type: 'start' | 'end', timeStr: string) => {
         if (!timeStr) return;
         const [hours, minutes] = timeStr.split(':').map(Number);
         if (isNaN(hours) || isNaN(minutes)) return;
 
         setLocalLogs(prev => {
             const newLogs = [...prev];
-            // DO NOT sort by start time here to prevent records from swapping order while editing.
-            // The list will be sorted when saved to the store.
-
             const index = newLogs.findIndex(l => l.id === logId);
             if (index === -1) return prev;
 
             const log = { ...newLogs[index] };
-            const baseDate = new Date(type === 'start' ? log.startTime : log.endTime);
+            const baseDate = new Date(type === 'start' ? log.startTime : (log.endTime || log.startTime));
             const newTimestamp = new Date(baseDate.getFullYear(), baseDate.getMonth(), baseDate.getDate(), hours, minutes).getTime();
 
             if (type === 'start') {
                 if (log.startTime === newTimestamp) return prev;
                 log.startTime = newTimestamp;
-                log.duration = log.endTime - log.startTime;
+                if (log.endTime !== null) {
+                    log.duration = log.endTime - log.startTime;
+                }
                 newLogs[index] = log;
             } else {
                 if (log.endTime === newTimestamp) return prev;
@@ -200,55 +208,10 @@ export function TaskLogModal() {
     };
 
     const handleTimeBlur = (logId: string, type: 'start' | 'end') => {
-        setLocalLogs(prev => {
-            const newLogs = [...prev];
-
-            // Reconstruct the exact visual order sequence for the current day to cascade correctly
-            const dayLogsIndexes = newLogs
-                .map((log, i) => ({ log, i }))
-                .filter(x => isSameDay(new Date(x.log.startTime), selectedDate))
-                .sort((a, b) => {
-                    const orderA = a.log.id === 'current-active-task' ? Infinity : (orderMap[a.log.id] ?? a.log.startTime);
-                    const orderB = b.log.id === 'current-active-task' ? Infinity : (orderMap[b.log.id] ?? b.log.startTime);
-                    return orderA - orderB;
-                });
-
-            const visualIndex = dayLogsIndexes.findIndex(x => x.log.id === logId);
-            if (visualIndex === -1) return prev;
-
-            const logInfo = dayLogsIndexes[visualIndex];
-            let changed = false;
-
-            if (type === 'start') {
-                // Cascade backward
-                if (visualIndex > 0) {
-                    const prevLogInfo = dayLogsIndexes[visualIndex - 1];
-                    if (prevLogInfo.log.endTime !== null && prevLogInfo.log.endTime > logInfo.log.startTime) {
-                        prevLogInfo.log.endTime = logInfo.log.startTime;
-                        prevLogInfo.log.duration = prevLogInfo.log.endTime - prevLogInfo.log.startTime;
-                        newLogs[prevLogInfo.i] = prevLogInfo.log;
-                        changed = true;
-                    }
-                }
-            } else {
-                // Cascade forward
-                if (visualIndex < dayLogsIndexes.length - 1) {
-                    const nextLogInfo = dayLogsIndexes[visualIndex + 1];
-                    if (nextLogInfo.log.startTime < logInfo.log.endTime!) {
-                        nextLogInfo.log.startTime = logInfo.log.endTime!;
-                        nextLogInfo.log.duration = (nextLogInfo.log.endTime || nextLogInfo.log.startTime) - nextLogInfo.log.startTime;
-                        newLogs[nextLogInfo.i] = nextLogInfo.log;
-                        changed = true;
-                    }
-                }
-            }
-
-            if (changed) {
-                setHasChanges(true);
-                return newLogs;
-            }
-            return prev;
-        });
+        if (editingValue && editingValue.id === logId && editingValue.type === type) {
+            applyTimeUpdate(logId, type, editingValue.value);
+            setEditingValue(null);
+        }
     };
 
     const handleDeleteLog = (logId: string) => {
@@ -274,19 +237,30 @@ export function TaskLogModal() {
         });
     };
 
+    const handleSort = () => {
+        const currentLogs = localLogs.filter(l => isSameDay(getLogicalDate(l.startTime, dayStartHour), selectedDate));
+        const sorted = [...currentLogs].sort((a, b) => a.startTime - b.startTime);
+
+        const newMap: Record<string, number> = {};
+        sorted.forEach((l, i) => {
+            newMap[l.id] = i * 10;
+        });
+        setOrderMap(newMap);
+        setHasChanges(true);
+    };
+
     const handleAddLog = (beforeLogId?: string) => {
-        // Find typical start/end based on current day logs to place the new one sensibly
         const currentDayLogs = [...localLogs]
             .filter(l => isSameDay(new Date(l.startTime), selectedDate))
             .sort((a, b) => {
-                const orderA = orderMap[a.id] ?? a.startTime;
-                const orderB = orderMap[b.id] ?? b.startTime;
+                const orderA = orderMap[a.id] ?? Infinity;
+                const orderB = orderMap[b.id] ?? Infinity;
                 return orderA - orderB;
             });
 
         let newStart = startOfDay(selectedDate).getTime() + 9 * 60 * 60 * 1000;
         let newEnd = newStart + 30 * 60 * 1000;
-        let newOrderValue = Object.keys(orderMap).length + 2000;
+        let newOrderValue = 0;
 
         if (beforeLogId) {
             const targetIndex = currentDayLogs.findIndex(l => l.id === beforeLogId);
@@ -295,20 +269,22 @@ export function TaskLogModal() {
                 newStart = targetLog.startTime;
                 newEnd = targetLog.endTime || targetLog.startTime;
 
-                const targetOrder = orderMap[targetLog.id] ?? targetLog.startTime;
+                const targetOrder = orderMap[targetLog.id] ?? 1000;
                 if (targetIndex > 0) {
                     const prevLog = currentDayLogs[targetIndex - 1];
-                    const prevOrder = orderMap[prevLog.id] ?? prevLog.startTime;
+                    const prevOrder = orderMap[prevLog.id] ?? (targetOrder - 10);
                     newOrderValue = (prevOrder + targetOrder) / 2;
                 } else {
-                    newOrderValue = targetOrder - 1000;
+                    newOrderValue = targetOrder - 5;
                 }
             }
         } else if (currentDayLogs.length > 0) {
             const lastLog = currentDayLogs[currentDayLogs.length - 1];
             newStart = lastLog.endTime || (lastLog.startTime + 30 * 60 * 1000);
             newEnd = newStart + 30 * 60 * 1000;
-            newOrderValue = (orderMap[lastLog.id] ?? lastLog.startTime) + 1000;
+            newOrderValue = (orderMap[lastLog.id] ?? (currentDayLogs.length * 10)) + 10;
+        } else {
+            newOrderValue = 1000;
         }
 
         const newId = `manual-log-${Date.now()}`;
@@ -402,6 +378,18 @@ export function TaskLogModal() {
                                 <Layers size={14} /> Aggregated
                             </button>
                         </div>
+
+                        {/* Sort Button */}
+                        {viewMode === 'timeline' && (
+                            <button
+                                onClick={handleSort}
+                                className="px-3 py-1 bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white rounded-lg text-xs font-medium border border-slate-700 transition-all flex items-center gap-1.5"
+                                title="時刻順に並べ替え"
+                            >
+                                <List size={14} className="opacity-50" />
+                                <span>Sort by Time</span>
+                            </button>
+                        )}
                         {/* Sort Toggle (Timeline Only) */}
                         {viewMode === 'timeline' && (
                             <div className="flex items-center gap-1 bg-slate-900/50 rounded-lg p-1 border border-slate-700 ml-4">
@@ -461,7 +449,16 @@ export function TaskLogModal() {
                                 </tr>
                             ) : (
                                 dataToDisplay.map((log, i) => {
-                                    const isInvalid = log.endTime !== null && log.startTime > log.endTime;
+                                    // Identify this log's position in the baseline time-sorted sequence
+                                    const timeIndex = sortedLogs.findIndex(l => l.id === log.id);
+                                    const prevInTime = timeIndex > 0 ? sortedLogs[timeIndex - 1] : null;
+                                    const nextInTime = timeIndex < sortedLogs.length - 1 ? sortedLogs[timeIndex + 1] : null;
+
+                                    const isSelfInvalid = log.endTime !== null && log.startTime > log.endTime;
+                                    const overlapsPrev = viewMode === 'timeline' && prevInTime && prevInTime.endTime !== null && log.startTime < prevInTime.endTime;
+                                    const overlapsNext = viewMode === 'timeline' && nextInTime && log.endTime !== null && log.endTime > nextInTime.startTime;
+
+                                    const isInvalid = isSelfInvalid || overlapsPrev || overlapsNext;
                                     const invalidTextClass = isInvalid ? "text-red-500 font-bold" : "";
 
                                     return (
@@ -499,9 +496,10 @@ export function TaskLogModal() {
                                                     ) : (
                                                         <input
                                                             type="time"
-                                                            value={format(log.startTime, 'HH:mm')}
+                                                            value={editingValue?.id === log.id && editingValue?.type === 'start' ? editingValue.value : format(log.startTime, 'HH:mm')}
                                                             onChange={(e) => handleTimeChange(log.id, 'start', e.target.value)}
                                                             onBlur={() => handleTimeBlur(log.id, 'start')}
+                                                            onKeyDown={(e) => e.key === 'Enter' && handleTimeBlur(log.id, 'start')}
                                                             className={`bg-transparent border-b border-transparent focus:outline-none w-24 ${isInvalid ? 'border-red-500/50 focus:border-red-500' : 'hover:border-slate-700 focus:border-blue-500'}`}
                                                         />
                                                     )}
@@ -516,9 +514,10 @@ export function TaskLogModal() {
                                                     ) : (
                                                         <input
                                                             type="time"
-                                                            value={log.endTime ? format(log.endTime, 'HH:mm') : ''}
+                                                            value={editingValue?.id === log.id && editingValue?.type === 'end' ? editingValue.value : (log.endTime ? format(log.endTime, 'HH:mm') : '')}
                                                             onChange={(e) => handleTimeChange(log.id, 'end', e.target.value)}
                                                             onBlur={() => handleTimeBlur(log.id, 'end')}
+                                                            onKeyDown={(e) => e.key === 'Enter' && handleTimeBlur(log.id, 'end')}
                                                             className={`bg-transparent border-b border-transparent focus:outline-none w-24 ${isInvalid ? 'border-red-500/50 focus:border-red-500' : 'hover:border-slate-700 focus:border-blue-500'}`}
                                                         />
                                                     )}

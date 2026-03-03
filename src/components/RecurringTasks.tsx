@@ -94,9 +94,24 @@ export function RecurringTasks() {
         return `${date.getHours().toString().padStart(2, '0')}:${date.getMinutes().toString().padStart(2, '0')}`;
     };
 
-    const displayTasks = hideChecked
+    let displayTasks = hideChecked
         ? recurringTasks.filter(t => t.status !== 'completed')
         : recurringTasks;
+
+    if (draggedTaskId && dropTarget) {
+        const isTargetingThisPanel = dropTarget.panelId === 'recurring' && dropTarget.type === 'recurring';
+        if (recurringTasks.some(t => t.id === draggedTaskId) || isTargetingThisPanel) {
+            const draggedTask = getTaskById(draggedTaskId);
+            if (draggedTask) {
+                let temp = displayTasks.filter(t => t.id !== draggedTaskId);
+                if (isTargetingThisPanel) {
+                    const safeIndex = Math.max(0, Math.min(dropTarget.index, temp.length));
+                    temp.splice(safeIndex, 0, draggedTask);
+                }
+                displayTasks = temp;
+            }
+        }
+    }
 
     return (
         <DraggablePanel
