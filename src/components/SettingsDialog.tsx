@@ -4,6 +4,8 @@ import { useTaskStore } from '@/store/useTaskStore';
 import { useMemoStore } from '@/store/useMemoStore';
 import { X, Check, Save, Upload, Download, Settings, Palette, Clock } from 'lucide-react';
 import { useState, useRef } from 'react';
+import { useNotification } from '@/hooks/useNotification';
+import { Bell, BellOff, Info } from 'lucide-react';
 
 export function SettingsDialog() {
     const {
@@ -21,6 +23,16 @@ export function SettingsDialog() {
 
     const [editingColorId, setEditingColorId] = useState<string | null>(null);
     const [editColorValue, setEditColorValue] = useState('');
+    const { permission, requestPermission, sendNotification } = useNotification();
+
+    const handleRequestPermission = async () => {
+        const result = await requestPermission();
+        if (result === 'granted') {
+            sendNotification('test-perm', 'Notification Enabled', 'Testing notifications from TimeTaskDeck!');
+        } else {
+            alert(`Notification permission: ${result}`);
+        }
+    };
 
     if (!isSettingsOpen) return null;
 
@@ -146,6 +158,47 @@ export function SettingsDialog() {
                                 />
                                 <span className="text-[10px] font-bold text-slate-500">:00</span>
                             </div>
+                        </div>
+                    </section>
+
+                    {/* Notification Settings */}
+                    <section className="space-y-4">
+                        <div className="flex items-center gap-2 text-slate-500">
+                            <Bell size={14} />
+                            <h3 className="text-[10px] font-black uppercase tracking-[0.2em]">Notifications</h3>
+                        </div>
+                        <div className="bg-slate-800/40 border border-slate-700/50 rounded-xl p-4 space-y-4 hover:border-slate-600 transition-colors">
+                            <div className="flex items-center justify-between">
+                                <div>
+                                    <p className="text-sm font-semibold text-slate-200 flex items-center gap-2">
+                                        System Notifications
+                                        {permission === 'granted' ? (
+                                            <span className="text-[9px] bg-green-500/20 text-green-400 px-1.5 py-0.5 rounded-full border border-green-500/30">Active</span>
+                                        ) : (
+                                            <span className="text-[9px] bg-red-500/20 text-red-100 px-1.5 py-0.5 rounded-full border border-red-500/30">Inactive</span>
+                                        )}
+                                    </p>
+                                    <p className="text-[10px] text-slate-500 mt-0.5">Permission is required for task alerts</p>
+                                </div>
+                                <button
+                                    onClick={handleRequestPermission}
+                                    className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-bold transition-all border ${permission === 'granted'
+                                        ? 'bg-slate-900 text-slate-400 border-slate-800 hover:text-white hover:border-slate-700'
+                                        : 'bg-blue-600 text-white border-blue-500 hover:bg-blue-500 shadow-[0_0_15px_rgba(37,99,235,0.4)]'
+                                        }`}
+                                >
+                                    {permission === 'granted' ? <Bell size={12} /> : <BellOff size={12} />}
+                                    <span>{permission === 'granted' ? 'Test Alert' : 'Enable'}</span>
+                                </button>
+                            </div>
+                            {permission !== 'granted' && (
+                                <div className="flex items-start gap-2 p-2 bg-blue-500/5 rounded-lg border border-blue-500/10">
+                                    <Info size={12} className="text-blue-400 mt-0.5 shrink-0" />
+                                    <p className="text-[10px] text-slate-400 leading-normal italic">
+                                        If not working, please check your browser/system notification settings for this site.
+                                    </p>
+                                </div>
+                            )}
                         </div>
                     </section>
 

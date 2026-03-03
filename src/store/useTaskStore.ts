@@ -157,6 +157,10 @@ interface TaskState {
     setIsLogOpen: (open: boolean) => void;
     setIsSettingsOpen: (open: boolean) => void;
     setDayStartHour: (hour: number) => void;
+    currentTime: string; // HH:mm
+    currentDate: string; // YYYY-MM-DD
+    currentDay: number; // 0-6
+    updateCurrentTime: (time: string, date: string, day: number) => void;
 
     addManualTaskLogEntry: (taskId: string, name: string, startTime: number, endTime: number, duration: number, status: TaskStatus) => void;
     updateTaskLogs: (logs: TaskLogEntry[]) => void;
@@ -197,6 +201,10 @@ export const useTaskStore = create<TaskState>()(
             setIsLogOpen: (open) => set({ isLogOpen: open }),
             setIsSettingsOpen: (open) => set({ isSettingsOpen: open }),
             setDayStartHour: (hour) => set({ dayStartHour: hour }),
+            currentTime: '',
+            currentDate: '',
+            currentDay: new Date().getDay(),
+            updateCurrentTime: (time: string, date: string, day: number) => set(() => ({ currentTime: time, currentDate: date, currentDay: day })),
             dropTarget: null,
 
             setDropTarget: (target) => set({ dropTarget: target }),
@@ -1195,6 +1203,9 @@ export const useTaskStore = create<TaskState>()(
                     history: data.state?.history || data.history || [],
                     recurringTasks: data.state?.recurringTasks || data.recurringTasks || [],
                     taskLog: data.state?.taskLog || data.taskLog || [],
+                    currentTime: '',
+                    currentDate: '',
+                    currentDay: new Date().getDay()
                 }));
             },
 

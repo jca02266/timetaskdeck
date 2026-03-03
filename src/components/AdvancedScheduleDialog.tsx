@@ -58,11 +58,37 @@ export function AdvancedScheduleDialog({
         );
     };
 
-    const handleSave = () => {
-        if (mode === 'one-time') {
-            onSave(date || undefined, time || undefined, undefined);
+    const formatTimeValue = (val: string) => {
+        // Remove all non-numeric characters
+        const digits = val.replace(/\D/g, '');
+        if (digits.length === 0) return '';
+
+        let h = '00';
+        let m = '00';
+
+        if (digits.length <= 2) {
+            h = digits.padStart(2, '0');
         } else {
-            onSave(undefined, time || undefined, daysOfWeek.length > 0 ? daysOfWeek : undefined);
+            const splitPos = digits.length - 2;
+            h = digits.slice(0, splitPos).padStart(2, '0');
+            m = digits.slice(splitPos);
+        }
+
+        // Clamp values
+        const hourNum = Math.min(23, parseInt(h));
+        const minNum = Math.min(59, parseInt(m));
+
+        return `${hourNum.toString().padStart(2, '0')}:${minNum.toString().padStart(2, '0')}`;
+    };
+
+    const handleSave = () => {
+        // Ensure format is HH:mm even if native input behavior varies
+        const formattedTime = time ? (time.includes(':') ? time : `${time.slice(0, 2)}:${time.slice(2)}`) : undefined;
+
+        if (mode === 'one-time') {
+            onSave(date || undefined, formattedTime, undefined);
+        } else {
+            onSave(undefined, formattedTime, daysOfWeek.length > 0 ? daysOfWeek : undefined);
         }
         onClose();
     };
@@ -72,9 +98,18 @@ export function AdvancedScheduleDialog({
         onClose();
     };
 
+    const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+        if (e.nativeEvent.isComposing || e.keyCode === 229) return;
+        if (e.key === 'Enter') {
+            handleSave();
+        }
+    };
+
     return createPortal(
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200"
-            onPointerDown={(e) => e.stopPropagation()}
+            onPointerDown={(e) => {
+                if (e.target === e.currentTarget) onClose();
+            }}
         >
             <div
                 className="bg-slate-900 border border-slate-700 rounded-xl shadow-2xl w-full max-w-[320px] overflow-hidden flex flex-col text-slate-200 animate-in zoom-in-95 duration-200"
@@ -148,25 +183,13 @@ export function AdvancedScheduleDialog({
                     <div className="space-y-1.5">
                         <label className="text-[10px] text-slate-500 uppercase tracking-tighter">Time</label>
                         <div className="relative group">
-                            <Clock size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500 group-focus-within:text-blue-400 transition-colors" />
+                            <Clock size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500 group-focus-within:text-blue-400 transition-colors z-10 pointer-events-none" />
                             <input
-                                type="text"
+                                type="time"
                                 value={time}
-                                onChange={(e) => {
-                                    const val = e.target.value.replace(/[^0-9:]/g, '');
-                                    if (val.length <= 5) setTime(val);
-                                }}
-                                onFocus={(e) => e.target.select()}
-                                onBlur={() => {
-                                    // Basic internal validation
-                                    if (time && !time.includes(':') && time.length >= 3) {
-                                        const h = time.slice(0, -2);
-                                        const m = time.slice(-2);
-                                        setTime(`${h.padStart(2, '0')}:${m}`);
-                                    }
-                                }}
-                                placeholder="00:00"
-                                className="w-full bg-slate-950/30 border border-slate-800 focus:border-blue-500/50 focus:outline-none rounded-lg py-3 pl-10 pr-4 text-center text-2xl font-mono tracking-widest text-white shadow-inner transition-all"
+                                onChange={(e) => setTime(e.target.value)}
+                                onKeyDown={handleKeyDown}
+                                className="w-full bg-slate-950/30 border border-slate-800 focus:border-blue-500/50 focus:outline-none rounded-lg py-3 pl-10 pr-4 text-center text-2xl font-mono tracking-widest text-white shadow-inner transition-all [color-scheme:dark] appearance-none"
                             />
                         </div>
                     </div>

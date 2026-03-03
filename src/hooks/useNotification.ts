@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useCallback, useMemo, useState } from 'react';
 
 export function useNotification() {
     // Keep track of tasks we've already notified about today to avoid spamming
@@ -22,7 +22,18 @@ export function useNotification() {
         return () => clearTimeout(timeout);
     }, []);
 
-    const sendNotification = (taskId: string, title: string, body?: string) => {
+    const [permissionStatus, setPermissionStatus] = useState<NotificationPermission>(
+        typeof window !== 'undefined' ? Notification.permission : 'default'
+    );
+
+    const requestPermission = useCallback(async () => {
+        if (!('Notification' in window)) return 'unsupported';
+        const permission = await Notification.requestPermission();
+        setPermissionStatus(permission);
+        return permission;
+    }, []);
+
+    const sendNotification = useCallback((taskId: string, title: string, body?: string) => {
         if (!('Notification' in window) || Notification.permission !== 'granted') return;
 
         // Create a unique key for the notification to avoid duplicates in the same minute
@@ -37,7 +48,11 @@ export function useNotification() {
             });
             notifiedTasksRef.current.add(notificationKey);
         }
-    };
+    }, []);
 
-    return { sendNotification };
+    return useMemo(() => ({
+        sendNotification,
+        requestPermission,
+        permission: permissionStatus
+    }), [sendNotification, requestPermission, permissionStatus]);
 }

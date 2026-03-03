@@ -84,25 +84,9 @@ export const BacklogPanel = ({ category, defaultPosition }: BacklogPanelProps) =
 
     // Drag and drop state removed (moved to store)
 
-    const [currentTime, setCurrentTime] = useState('');
-    const [currentDate, setCurrentDate] = useState('');
-    const [currentDay, setCurrentDay] = useState<number>(new Date().getDay());
-    const { sendNotification } = useNotification();
-
-    useEffect(() => {
-        const updateTime = () => {
-            const now = new Date();
-            const timeString = `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}`;
-            const dateString = `${now.getFullYear()}-${(now.getMonth() + 1).toString().padStart(2, '0')}-${now.getDate().toString().padStart(2, '0')}`;
-            const dayOfWeek = now.getDay();
-            setCurrentTime(timeString);
-            setCurrentDate(dateString);
-            setCurrentDay(dayOfWeek);
-        };
-        updateTime();
-        const interval = setInterval(updateTime, 10000); // Check every 10s
-        return () => clearInterval(interval);
-    }, []);
+    const currentTime = useTaskStore((state) => state.currentTime);
+    const currentDate = useTaskStore((state) => state.currentDate);
+    const currentDay = useTaskStore((state) => state.currentDay);
 
     const isTaskScheduledNow = (task: Task) => {
         if (task.status === 'completed') return { isDue: false, shouldNotify: false };
@@ -361,7 +345,7 @@ export const BacklogPanel = ({ category, defaultPosition }: BacklogPanelProps) =
                         const activeColorDef = colors.find(c => c.id === task.colorId);
 
                         if (shouldNotify) {
-                            sendNotification(`backlog-${task.id}`, 'バックログタスクの時間です', task.name);
+                            // sendNotification is now handled by NotificationManager
                         }
 
                         return (

@@ -15,6 +15,7 @@ import { useState } from "react";
 /* New Components */
 import { DraggablePanel } from "@/components/DraggablePanel";
 import { useTaskStore } from "@/store/useTaskStore";
+import { NotificationManager } from "@/components/NotificationManager";
 
 /* Icons */
 import { RotateCcw, Plus, Play, List, Layers, Settings, ListPlus, Table, ListTodo, Repeat, Clock, FileText } from 'lucide-react';
@@ -54,6 +55,7 @@ export default function Home() {
 
   return (
     <main className="min-h-screen relative p-8 pb-32 overflow-hidden flex flex-col bg-slate-950 text-slate-200 selection:bg-blue-500/30">
+      <NotificationManager />
       {/* Brand */}
       <div className="absolute top-8 left-1/2 -translate-x-1/2 opacity-60 z-10 pointer-events-none select-none flex justify-center">
         <img src="/logo.png" alt="TimeTaskDeck Logo" style={{ width: '220%', height: 'auto' }} className="max-w-none object-contain" />

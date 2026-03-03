@@ -62,36 +62,35 @@ export function RecurringTasks() {
         }
     };
 
-    const isTaskScheduledNow = (task: any) => {
-        if (task.status === 'completed') return { isDue: false, shouldNotify: false };
-        const now = new Date();
-        const currentDay = now.getDay();
-        const currentTime = formatTime(now);
+    const currentTime = useTaskStore((state) => state.currentTime);
+    const currentDate = useTaskStore((state) => state.currentDate);
+    const currentDay = useTaskStore((state) => state.currentDay);
 
-        const isDayMatch = !task.scheduledDaysOfWeek ||
+    const isTaskScheduledNow = (task: any) => {
+        if (task.status === 'completed' || !task.scheduledTime) return { isDue: false, shouldNotify: false };
+
+        const isMatchingMinute = task.scheduledTime === currentTime;
+        const isMatchingDate = !task.scheduledDate || task.scheduledDate === currentDate;
+        const isMatchingDay = !task.scheduledDaysOfWeek ||
             task.scheduledDaysOfWeek.length === 0 ||
             task.scheduledDaysOfWeek.includes(currentDay);
 
-        const isTimeMatch = task.scheduledTime === currentTime;
+        // Due if matching date and time has passed
+        let isDue = false;
+        if (task.scheduledDate) {
+            isDue = `${currentDate}T${currentTime}` >= `${task.scheduledDate}T${task.scheduledTime}`;
+        } else {
+            isDue = isMatchingDay && currentTime >= task.scheduledTime;
+        }
 
         return {
-            isDue: isDayMatch && isTimeMatch,
-            shouldNotify: isDayMatch && isTimeMatch && !notifiedTasks.has(task.id)
+            isDue,
+            shouldNotify: isMatchingMinute && isMatchingDate && isMatchingDay
         };
     };
 
     const formatTime = (date: Date) => {
         return `${date.getHours().toString().padStart(2, '0')}:${date.getMinutes().toString().padStart(2, '0')}`;
-    };
-
-    const [notifiedTasks] = useState(new Set());
-    const sendNotification = (id: string, title: string, body: string) => {
-        if (!notifiedTasks.has(id)) {
-            if (Notification.permission === "granted") {
-                new Notification(title, { body });
-                notifiedTasks.add(id);
-            }
-        }
     };
 
     const displayTasks = recurringTasks;
@@ -164,7 +163,7 @@ export function RecurringTasks() {
                     const activeColorDef = colors.find(c => c.id === task.colorId);
 
                     if (shouldNotify) {
-                        sendNotification(`recurring-${task.id}`, '定期タスクの時間です', task.name);
+                        // sendNotification is now handled by NotificationManager
                     }
 
                     return (
