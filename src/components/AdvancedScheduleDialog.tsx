@@ -94,7 +94,7 @@ export function AdvancedScheduleDialog({
     };
 
     const handleClear = () => {
-        onSave(undefined, undefined, undefined);
+        onSave(null as any, null as any, null as any);
         onClose();
     };
 

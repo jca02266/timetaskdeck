@@ -5,7 +5,7 @@ import { DatePicker } from './DatePicker';
 import { DraggablePanel } from './DraggablePanel';
 import { TaskScheduleInput } from './TaskScheduleInput';
 import { format, parseISO } from 'date-fns';
-import { ListTodo, Play, Plus, Pencil, Check, X, Trash2, GripVertical, Copy, Minimize2, Calendar, Clock, FileText } from 'lucide-react';
+import { ListTodo, Play, Plus, Pencil, Check, X, Trash2, GripVertical, Copy, Minimize2, Calendar, Clock, FileText, Bell } from 'lucide-react';
 import { useState, useRef, useEffect } from 'react';
 import { useNotification } from '@/hooks/useNotification';
 import { ColorPickerDialog } from './ColorPickerDialog';
@@ -63,6 +63,7 @@ export const BacklogPanel = ({ category, defaultPosition }: BacklogPanelProps) =
 
     const [activeColorPickerTaskId, setActiveColorPickerTaskId] = useState<string | null>(null);
     const [colorPickerRect, setColorPickerRect] = useState<DOMRect | undefined>(undefined);
+    const containerRef = useRef<HTMLDivElement>(null);
 
     const startEditing = (task: { id: string, name: string }) => {
         setEditingId(task.id);
@@ -148,6 +149,7 @@ export const BacklogPanel = ({ category, defaultPosition }: BacklogPanelProps) =
 
     const tasksInCategory = allBacklogTasks.filter(t => t.backlogId === category.id);
     let displayTasks = tasksInCategory;
+    const hasDueTask = displayTasks.some(t => isTaskScheduledNow(t).isDue);
 
     if (draggedTaskId && dropTarget) {
         const isTargetingThisPanel = dropTarget.panelId === category.id && dropTarget.type === 'backlog';
@@ -263,7 +265,23 @@ export const BacklogPanel = ({ category, defaultPosition }: BacklogPanelProps) =
             }
             headerControls={
                 !isEditingTitle && (
-                    <>
+                    <div className="flex items-center gap-0.5">
+                        {hasDueTask && (
+                            <button
+                                onClick={(e) => {
+                                    e.stopPropagation();
+                                    const dueElement = containerRef.current?.querySelector('[data-is-due="true"]');
+                                    if (dueElement) {
+                                        dueElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                                    }
+                                }}
+                                className="p-1.5 text-yellow-500 hover:text-yellow-400 rounded hover:bg-slate-700/50 transition-colors animate-pulse"
+                                title="Due task in this backlog"
+                                onPointerDown={(e) => e.stopPropagation()}
+                            >
+                                <Bell size={14} />
+                            </button>
+                        )}
                         <button
                             onClick={(e) => { e.stopPropagation(); setIsEditingTitle(true); }}
                             className="p-1.5 text-slate-400 hover:text-white rounded hover:bg-slate-700/50 transition-colors"
@@ -280,7 +298,7 @@ export const BacklogPanel = ({ category, defaultPosition }: BacklogPanelProps) =
                         >
                             <Minimize2 size={14} />
                         </button>
-                    </>
+                    </div>
                 )
             }
         >
@@ -332,6 +350,7 @@ export const BacklogPanel = ({ category, defaultPosition }: BacklogPanelProps) =
             </form>
 
             <div
+                ref={containerRef}
                 className="overflow-y-auto flex-1 h-full min-h-0 space-y-2 mb-4 scrollbar-thin scrollbar-thumb-slate-700 scrollbar-track-transparent px-4 pb-2"
                 data-panel-category-id={category.id}
             >
@@ -355,6 +374,7 @@ export const BacklogPanel = ({ category, defaultPosition }: BacklogPanelProps) =
                                 data-panel-id={category.id}
                                 data-panel-type="backlog"
                                 data-index={index}
+                                data-is-due={isDue ? "true" : undefined}
                                 className={`group bg-slate-900/50 hover:bg-slate-800/80 px-3 py-2 rounded-lg transition-all flex items-center gap-3 select-none
                                 ${draggedTaskId === task.id ? 'opacity-20 scale-95 shadow-none' : 'shadow-sm'}
                                 ${isDue ? 'animate-blink border-yellow-500/50 shadow-[0_0_10px_rgba(234,179,8,0.3)]' : ''}`}
@@ -394,12 +414,12 @@ export const BacklogPanel = ({ category, defaultPosition }: BacklogPanelProps) =
                                                 if (overPanel) {
                                                     const overPanelId = overPanel.getAttribute('data-panel-category-id');
                                                     if (overPanelId) {
-                                                        setDropTarget({ panelId: overPanelId, index: 0, type: 'backlog' });
+                                                        setDropTarget({ panelId: overPanelId, index: 9999, type: 'backlog' });
                                                     }
                                                 } else {
                                                     const overRecurring = overElement?.closest('div[data-panel-type="recurring"]');
                                                     if (overRecurring) {
-                                                        setDropTarget({ panelId: 'recurring', index: 0, type: 'recurring' });
+                                                        setDropTarget({ panelId: 'recurring', index: 9999, type: 'recurring' });
                                                     }
                                                 }
                                             }

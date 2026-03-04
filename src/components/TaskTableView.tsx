@@ -1,7 +1,7 @@
 import React, { useState, useMemo, useEffect, useRef, useCallback, memo } from 'react';
 import { useTaskStore, Task } from '@/store/useTaskStore';
 import { useMemoStore } from '@/store/useMemoStore';
-import { Trash2, ArrowUp, ArrowDown, Plus, X, GripVertical, ListFilter, Play, FileText, Search } from 'lucide-react';
+import { Trash2, ArrowUp, ArrowDown, Plus, X, GripVertical, ListFilter, Play, FileText, Search, Bell } from 'lucide-react';
 import { TaskScheduleInput } from './TaskScheduleInput';
 
 type SortKey = 'name' | 'color' | 'backlog' | 'scheduled';
@@ -48,6 +48,11 @@ export function TaskTableView() {
     const [searchQuery, setSearchQuery] = useState('');
     const wasPausedRef = useRef<boolean>(false);
     const hasInitializedRef = useRef<boolean>(false);
+    const containerRef = useRef<HTMLDivElement>(null);
+
+    const currentTime = useTaskStore((state) => state.currentTime);
+    const currentDate = useTaskStore((state) => state.currentDate);
+    const currentDay = useTaskStore((state) => state.currentDay);
 
     // Initialize local state when modal opens
     useEffect(() => {
@@ -143,6 +148,23 @@ export function TaskTableView() {
             return 0;
         });
     }, [localTasks, isSortActive, sortKey, sortDir, categories, colors, searchQuery, memos]);
+
+    const isTaskScheduledNow = useCallback((task: Task) => {
+        if (task.status === 'completed') return { isDue: false };
+        let isDue = false;
+        if (task.scheduledDate && task.scheduledTime) {
+            isDue = `${currentDate}T${currentTime}` >= `${task.scheduledDate}T${task.scheduledTime}`;
+        } else if (task.scheduledTime) {
+            const isMatchingDate = !task.scheduledDate || task.scheduledDate === currentDate;
+            const isMatchingDay = !task.scheduledDaysOfWeek || task.scheduledDaysOfWeek.includes(currentDay);
+            const isDaily = task.scheduledDaysOfWeek && task.scheduledDaysOfWeek.length === 7;
+            const timeMatch = isDaily || isMatchingDate || isMatchingDay;
+            isDue = timeMatch && currentTime >= task.scheduledTime;
+        }
+        return { isDue };
+    }, [currentDate, currentTime, currentDay]);
+
+    const hasDueTask = displayTasks.some(t => isTaskScheduledNow(t).isDue);
 
     const handleClose = () => {
         // Commit local state to store then close
@@ -257,6 +279,20 @@ export function TaskTableView() {
                             className="bg-slate-900 border border-slate-700/50 rounded-lg pl-9 pr-4 py-2 text-sm text-slate-200 focus:outline-none focus:border-blue-500/50 focus:ring-1 focus:ring-blue-500/30 transition-all w-64 placeholder:text-slate-600"
                         />
                     </div>
+                    {hasDueTask && (
+                        <button
+                            onClick={() => {
+                                const dueElement = containerRef.current?.querySelector('[data-is-due="true"]');
+                                if (dueElement) {
+                                    dueElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                                }
+                            }}
+                            className="p-2 text-yellow-500 hover:text-yellow-400 bg-slate-800/80 border border-slate-700/50 rounded-lg hover:bg-slate-700 transition-colors animate-pulse"
+                            title="Due task"
+                        >
+                            <Bell size={16} />
+                        </button>
+                    )}
                     <button
                         onClick={() => setIsSortActive(!isSortActive)}
                         className={`flex items-center gap-2 px-4 py-2 border rounded-lg text-sm transition-all ${isSortActive
@@ -289,7 +325,7 @@ export function TaskTableView() {
             <div className="flex-1 w-full max-w-7xl mx-auto px-8 pb-12 min-h-0">
                 <div className="w-full h-full bg-slate-900/50 border border-slate-800/80 rounded-2xl flex flex-col overflow-hidden shadow-2xl relative">
 
-                    <div className="flex-1 overflow-auto scrollbar-thin scrollbar-thumb-slate-700 scrollbar-track-transparent">
+                    <div ref={containerRef} className="flex-1 overflow-auto scrollbar-thin scrollbar-thumb-slate-700 scrollbar-track-transparent">
                         <table className="w-full text-left text-sm whitespace-nowrap">
                             <thead className="sticky top-0 bg-slate-900/95 backdrop-blur z-10 text-[11px] font-semibold tracking-widest text-slate-500 uppercase border-b border-slate-800/80">
                                 <tr>
@@ -323,6 +359,7 @@ export function TaskTableView() {
                                         categories={categories}
                                         colors={colors}
                                         onAddCategory={addBacklogCategory}
+                                        isDue={isTaskScheduledNow(task).isDue}
                                     />
                                 ))}
 
@@ -353,7 +390,8 @@ const TaskTableRow = memo(function TaskTableRow({
     onDragStart,
     categories,
     colors,
-    onAddCategory
+    onAddCategory,
+    isDue
 }: {
     task: Task;
     index: number;
@@ -365,6 +403,7 @@ const TaskTableRow = memo(function TaskTableRow({
     categories: any[];
     colors: any[];
     onAddCategory: (name?: string) => string;
+    isDue?: boolean;
 }) {
     const activeColorDef = colors.find(c => c.id === task.colorId);
     const pillClasses = getPillClasses(activeColorDef?.colorCode);
@@ -380,7 +419,8 @@ const TaskTableRow = memo(function TaskTableRow({
     return (
         <tr
             data-index={index}
-            className={`hover:bg-slate-800/40 transition-colors group ${draggedIndex === index ? 'opacity-30' : ''} ${task.backlogId === '__CURRENT__' ? 'bg-blue-500/5' : ''}`}
+            data-is-due={isDue ? "true" : undefined}
+            className={`transition-colors group ${draggedIndex === index ? 'opacity-30' : ''} ${task.backlogId === '__CURRENT__' ? 'bg-blue-500/5' : ''} ${isDue ? 'animate-blink bg-yellow-500/10' : 'hover:bg-slate-800/40'}`}
         >
             <td className="px-6 py-4 text-slate-600 relative">
                 {!isSortActive && (

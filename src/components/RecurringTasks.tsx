@@ -1,7 +1,7 @@
 import { useTaskStore } from '@/store/useTaskStore';
 import { useMemoStore } from '@/store/useMemoStore';
-import { Repeat, Play, Plus, Pencil, Check, X, Trash2, GripVertical, CheckCircle2, Circle, Minimize2, FileText, RotateCcw } from 'lucide-react';
-import { useState } from 'react';
+import { Repeat, Play, Plus, Pencil, Check, X, Trash2, GripVertical, CheckCircle2, Circle, Minimize2, FileText, RotateCcw, Bell } from 'lucide-react';
+import { useState, useRef } from 'react';
 import { TaskScheduleInput } from './TaskScheduleInput';
 import { Tooltip } from './Tooltip';
 import { DraggablePanel } from './DraggablePanel';
@@ -37,6 +37,7 @@ export function RecurringTasks() {
     const [activeColorPickerTaskId, setActiveColorPickerTaskId] = useState<string | null>(null);
     const [colorPickerRect, setColorPickerRect] = useState<DOMRect | undefined>(undefined);
     const [hideChecked, setHideChecked] = useState(true);
+    const containerRef = useRef<HTMLDivElement>(null);
 
     const startEditing = (task: { id: string, name: string }) => {
         setEditingId(task.id);
@@ -98,6 +99,8 @@ export function RecurringTasks() {
         ? recurringTasks.filter(t => t.status !== 'completed')
         : recurringTasks;
 
+    const hasDueTask = displayTasks.some(t => isTaskScheduledNow(t).isDue);
+
     if (draggedTaskId && dropTarget) {
         const isTargetingThisPanel = dropTarget.panelId === 'recurring' && dropTarget.type === 'recurring';
         if (recurringTasks.some(t => t.id === draggedTaskId) || isTargetingThisPanel) {
@@ -127,6 +130,20 @@ export function RecurringTasks() {
             }
             headerControls={
                 <div className="flex items-center gap-1">
+                    {hasDueTask && (
+                        <button
+                            onClick={() => {
+                                const dueElement = containerRef.current?.querySelector('[data-is-due="true"]');
+                                if (dueElement) {
+                                    dueElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                                }
+                            }}
+                            className="p-1.5 text-yellow-500 hover:text-yellow-400 rounded hover:bg-slate-700/50 transition-colors animate-pulse"
+                            title="Due task"
+                        >
+                            <Bell size={14} />
+                        </button>
+                    )}
                     <button
                         onClick={() => setHideChecked(!hideChecked)}
                         className={`p-1.5 rounded hover:bg-slate-700/50 transition-colors ${hideChecked ? 'text-blue-400' : 'text-slate-400 hover:text-white'}`}
@@ -177,7 +194,11 @@ export function RecurringTasks() {
                 </div>
             </div>
 
-            <div className="overflow-y-auto flex-1 p-4 space-y-2 scrollbar-thin scrollbar-thumb-slate-700 scrollbar-track-transparent">
+            <div
+                ref={containerRef}
+                data-panel-type="recurring"
+                className="overflow-y-auto flex-1 p-4 space-y-2 scrollbar-thin scrollbar-thumb-slate-700 scrollbar-track-transparent"
+            >
                 {displayTasks.length === 0 && (
                     <div className="text-slate-600 text-center py-4 text-sm italic">
                         No recurring tasks
@@ -198,6 +219,7 @@ export function RecurringTasks() {
                             data-panel-id="recurring"
                             data-panel-type="recurring"
                             data-index={index}
+                            data-is-due={isDue ? "true" : undefined}
                             className={`group bg-slate-800/30 hover:bg-slate-800/80 p-3 rounded-lg border border-transparent hover:border-slate-600 transition-all flex items-center justify-between gap-2 select-none
                                 ${draggedTaskId === task.id ? 'opacity-20 scale-95 shadow-none' : 'shadow-sm'} 
                                 ${isDue ? 'animate-blink border-yellow-500/50 shadow-[0_0_10px_rgba(234,179,8,0.3)]' : ''}`}
@@ -242,7 +264,7 @@ export function RecurringTasks() {
                                             } else {
                                                 const overRecurring = overElement?.closest('div[data-panel-type="recurring"]');
                                                 if (overRecurring) {
-                                                    setDropTarget({ panelId: 'recurring', index: 0, type: 'recurring' });
+                                                    setDropTarget({ panelId: 'recurring', index: 9999, type: 'recurring' });
                                                 }
                                             }
                                         }
