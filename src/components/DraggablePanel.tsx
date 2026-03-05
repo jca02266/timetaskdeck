@@ -4,6 +4,8 @@ import { useState, useEffect, useRef } from 'react';
 import { GripHorizontal, Maximize2 } from 'lucide-react';
 import { useTaskStore } from '@/store/useTaskStore';
 
+export type ResizeDirection = 'n' | 's' | 'e' | 'w' | 'ne' | 'nw' | 'se' | 'sw';
+
 interface Position {
     x: number;
     y: number;
@@ -38,7 +40,7 @@ export function DraggablePanel({ id, defaultPosition, defaultSize, children, tit
     const isDragging = useRef(false);
     const isResizing = useRef(false);
     const dragStart = useRef({ x: 0, y: 0 });
-    const resizeStart = useRef({ x: 0, y: 0, width: 0, height: 0 });
+    const resizeStart = useRef({ x: 0, y: 0, width: 0, height: 0, posX: 0, posY: 0 });
 
     const isFront = frontPanelId === id;
     const zIndex = isFront ? 60 : 50;
@@ -150,12 +152,19 @@ export function DraggablePanel({ id, defaultPosition, defaultSize, children, tit
         window.addEventListener('pointerup', handlePointerUp);
     };
 
-    const handleResizeStart = (e: React.PointerEvent) => {
+    const handleResizeStart = (direction: ResizeDirection) => (e: React.PointerEvent) => {
         if (e.button !== 0) return;
         bringToFront(id);
         e.stopPropagation();
         isResizing.current = true;
-        resizeStart.current = { x: e.clientX, y: e.clientY, width: size.width, height: size.height };
+        resizeStart.current = {
+            x: e.clientX,
+            y: e.clientY,
+            width: size.width,
+            height: size.height,
+            posX: position.x,
+            posY: position.y
+        };
 
         const target = e.currentTarget as HTMLElement;
         target.setPointerCapture(e.pointerId);
@@ -165,22 +174,60 @@ export function DraggablePanel({ id, defaultPosition, defaultSize, children, tit
             const deltaX = moveEvent.clientX - resizeStart.current.x;
             const deltaY = moveEvent.clientY - resizeStart.current.y;
 
-            let newWidth = Math.max(minSize.width, resizeStart.current.width + deltaX);
-            let newHeight = Math.max(minSize.height, resizeStart.current.height + deltaY);
+            const startW = resizeStart.current.width;
+            const startH = resizeStart.current.height;
+            const startX = resizeStart.current.posX;
+            const startY = resizeStart.current.posY;
+
+            let newWidth = startW;
+            let newHeight = startH;
+            let newX = startX;
+            let newY = startY;
+
+            // Handle horizontal adjustments
+            if (direction.includes('e')) {
+                newWidth = Math.max(minSize.width, startW + deltaX);
+            } else if (direction.includes('w')) {
+                newWidth = Math.max(minSize.width, startW - deltaX);
+                newX = startX + (startW - newWidth); // Shift X to keep right edge bound
+            }
+
+            // Handle vertical adjustments
+            if (direction.includes('s')) {
+                newHeight = Math.max(minSize.height, startH + deltaY);
+            } else if (direction.includes('n')) {
+                newHeight = Math.max(minSize.height, startH - deltaY);
+                newY = startY + (startH - newHeight); // Shift Y to keep bottom edge bound
+            }
 
             const SNAP = 20;
 
-            if (Math.abs(window.innerWidth - (position.x + newWidth)) < SNAP) {
-                newWidth = window.innerWidth - position.x;
+            // Optional screen boundary snapping
+            if (direction.includes('e')) {
+                if (Math.abs(window.innerWidth - (newX + newWidth)) < SNAP) {
+                    newWidth = window.innerWidth - newX;
+                }
             }
-            if (Math.abs(window.innerHeight - (position.y + newHeight)) < SNAP) {
-                newHeight = window.innerHeight - position.y;
+            if (direction.includes('s')) {
+                if (Math.abs(window.innerHeight - (newY + newHeight)) < SNAP) {
+                    newHeight = window.innerHeight - newY;
+                }
+            }
+            if (direction.includes('w')) {
+                if (Math.abs(newX) < SNAP) {
+                    newWidth = newWidth + newX;
+                    newX = 0;
+                }
+            }
+            if (direction.includes('n')) {
+                if (Math.abs(newY) < SNAP) {
+                    newHeight = newHeight + newY;
+                    newY = 0;
+                }
             }
 
-            setSize({
-                width: newWidth,
-                height: newHeight
-            });
+            setSize({ width: newWidth, height: newHeight });
+            setPosition({ x: newX, y: newY });
         };
 
         const handlePointerUp = (upEvent: PointerEvent) => {
@@ -232,14 +279,34 @@ export function DraggablePanel({ id, defaultPosition, defaultSize, children, tit
                 {children}
             </div>
 
-            {/* Resize Handle */}
+            {/* Resize Handles */}
             {resizable && (
-                <div
-                    onPointerDown={handleResizeStart}
-                    className="absolute bottom-0 right-0 p-1 cursor-se-resize text-slate-500 hover:text-slate-300 z-10"
-                >
-                    <Maximize2 size={12} className="rotate-90" />
-                </div>
+                <>
+                    {/* Edges */}
+                    <div onPointerDown={handleResizeStart('n')} className="absolute top-0 left-2 right-2 h-[6px] -translate-y-[2px] cursor-n-resize z-50 group" style={{ touchAction: 'none' }}>
+                        <div className="w-full h-full group-hover:bg-blue-500/30 transition-colors" />
+                    </div>
+                    <div onPointerDown={handleResizeStart('s')} className="absolute bottom-0 left-2 right-2 h-[6px] translate-y-[2px] cursor-s-resize z-50 group" style={{ touchAction: 'none' }}>
+                        <div className="w-full h-full group-hover:bg-blue-500/30 transition-colors" />
+                    </div>
+                    <div onPointerDown={handleResizeStart('w')} className="absolute top-2 bottom-2 left-0 w-[6px] -translate-x-[2px] cursor-w-resize z-50 group" style={{ touchAction: 'none' }}>
+                        <div className="w-full h-full group-hover:bg-blue-500/30 transition-colors" />
+                    </div>
+                    <div onPointerDown={handleResizeStart('e')} className="absolute top-2 bottom-2 right-0 w-[6px] translate-x-[2px] cursor-e-resize z-50 group" style={{ touchAction: 'none' }}>
+                        <div className="w-full h-full group-hover:bg-blue-500/30 transition-colors" />
+                    </div>
+
+                    {/* Corners */}
+                    <div onPointerDown={handleResizeStart('nw')} className="absolute top-0 left-0 w-3 h-3 -translate-x-1 -translate-y-1 cursor-nw-resize z-50" style={{ touchAction: 'none' }} />
+                    <div onPointerDown={handleResizeStart('ne')} className="absolute top-0 right-0 w-3 h-3 translate-x-1 -translate-y-1 cursor-ne-resize z-50" style={{ touchAction: 'none' }} />
+                    <div onPointerDown={handleResizeStart('sw')} className="absolute bottom-0 left-0 w-3 h-3 -translate-x-1 translate-y-1 cursor-sw-resize z-50" style={{ touchAction: 'none' }} />
+                    <div onPointerDown={handleResizeStart('se')} className="absolute bottom-0 right-0 w-3 h-3 translate-x-1 translate-y-1 cursor-se-resize z-50" style={{ touchAction: 'none' }} />
+
+                    {/* Bottom-right visual icon */}
+                    <div className="absolute bottom-1 right-1 pointer-events-none text-slate-500 z-40">
+                        <Maximize2 size={12} className="rotate-90 opacity-50" />
+                    </div>
+                </>
             )}
         </div>
     );
