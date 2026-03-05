@@ -281,16 +281,20 @@ export function TaskTableView() {
                     </div>
                     {hasDueTask && (
                         <button
-                            onClick={() => {
+                            onClick={(e) => {
+                                e.stopPropagation();
+                                // Find the due element within the table rows
                                 const dueElement = containerRef.current?.querySelector('[data-is-due="true"]');
                                 if (dueElement) {
                                     dueElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
                                 }
                             }}
-                            className="p-2 text-yellow-500 hover:text-yellow-400 bg-slate-800/80 border border-slate-700/50 rounded-lg hover:bg-slate-700 transition-colors animate-pulse"
-                            title="Due task"
+                            className="flex items-center gap-1.5 px-3 py-1.5 min-w-[60px] justify-center text-white rounded-md animate-alert-flash transition-colors font-bold tracking-widest text-[10px]"
+                            title="Due task in this view"
+                            onPointerDown={(e) => e.stopPropagation()}
                         >
-                            <Bell size={16} />
+                            <Bell size={14} className="animate-bell-ring" />
+                            <span>DUE</span>
                         </button>
                     )}
                     <button

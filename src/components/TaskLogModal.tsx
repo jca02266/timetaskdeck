@@ -584,7 +584,7 @@ export function TaskLogModal() {
             {activeSelectionLogId && (
                 <TaskSelectionDialog
                     onSelect={(taskId, name) => {
-                        const log = sortedLogs.find(l => l.id === activeSelectionLogId);
+                        const log = displayLogs.find(l => l.id === activeSelectionLogId);
                         if (log) {
                             if (log.taskId === 'break') {
                                 // Conversion logic for break
