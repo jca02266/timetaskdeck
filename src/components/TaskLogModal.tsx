@@ -459,19 +459,21 @@ export function TaskLogModal() {
                                     const overlapsNext = viewMode === 'timeline' && nextInTime && log.endTime !== null && log.endTime > nextInTime.startTime;
 
                                     const isInvalid = isSelfInvalid || overlapsPrev || overlapsNext;
+                                    const isShort = !isInvalid && log.id !== 'current-active-task' && log.taskId !== 'break' && Math.abs(log.duration) < 60000;
                                     const invalidTextClass = isInvalid ? "text-red-500 font-bold" : "";
+                                    const shortTextClass = isShort ? "text-slate-500" : "";
 
                                     return (
                                         <tr key={log.id || `agg-${i}`} className={`transition-colors ${isInvalid ? 'bg-red-900/10 hover:bg-red-900/20' : log.id === 'current-active-task' ? 'bg-blue-900/20 hover:bg-blue-900/30' :
                                             log.taskId === 'break' ? 'bg-slate-800/30 text-slate-500' :
-                                                'hover:bg-slate-800/50'
+                                                isShort ? 'opacity-50 text-slate-500' : 'hover:bg-slate-800/50'
                                             }`}>
-                                            <td className={`p-4 font-medium truncate max-w-[200px] ${log.taskId === 'break' ? 'italic' : ''} ${invalidTextClass}`} title={log.name}>
+                                            <td className={`p-4 font-medium truncate max-w-[200px] ${log.taskId === 'break' ? 'italic' : ''} ${invalidTextClass || shortTextClass}`} title={log.name}>
                                                 <div className="flex items-center gap-2">
                                                     {log.id !== 'current-active-task' && log.taskId !== 'break' ? (
                                                         <button
                                                             onClick={() => setActiveSelectionLogId(log.id)}
-                                                            className={`text-left flex-1 max-w-[250px] truncate border-b border-transparent hover:border-slate-700 transition-all ${isInvalid ? 'text-red-500' : 'text-slate-200 hover:text-white'}`}
+                                                            className={`text-left flex-1 max-w-[250px] truncate border-b border-transparent hover:border-slate-700 transition-all ${isInvalid ? 'text-red-500' : isShort ? 'text-slate-400 hover:text-slate-200' : 'text-slate-200 hover:text-white'}`}
                                                             title="Click to change task"
                                                         >
                                                             {log.name}
@@ -490,7 +492,7 @@ export function TaskLogModal() {
                                                 </div>
                                             </td>
                                             {viewMode === 'timeline' && (
-                                                <td className={`p-4 font-mono ${invalidTextClass || 'text-slate-400'}`}>
+                                                <td className={`p-4 font-mono ${invalidTextClass || shortTextClass || 'text-slate-400'}`}>
                                                     {log.id === 'current-active-task' || log.taskId === 'break' ? (
                                                         format(log.startTime, 'HH:mm')
                                                     ) : (
@@ -506,7 +508,7 @@ export function TaskLogModal() {
                                                 </td>
                                             )}
                                             {viewMode === 'timeline' && (
-                                                <td className={`p-4 font-mono ${invalidTextClass || 'text-slate-400'}`}>
+                                                <td className={`p-4 font-mono ${invalidTextClass || shortTextClass || 'text-slate-400'}`}>
                                                     {log.id === 'current-active-task' ? (
                                                         '--:--'
                                                     ) : log.taskId === 'break' ? (
@@ -523,7 +525,7 @@ export function TaskLogModal() {
                                                     )}
                                                 </td>
                                             )}
-                                            <td className={`p-4 font-mono font-medium ${invalidTextClass || 'text-slate-200'}`}>
+                                            <td className={`p-4 font-mono font-medium ${invalidTextClass || (isShort ? 'text-slate-400' : 'text-slate-200')}`}>
                                                 {formatDurationHHmm(Math.abs(log.duration))}
                                                 {log.duration < 0 && <span className="text-red-500 text-xs ml-1">(Negative)</span>}
                                             </td>
