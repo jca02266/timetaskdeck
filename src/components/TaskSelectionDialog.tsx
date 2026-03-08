@@ -1,29 +1,50 @@
 "use client";
 
-import { useTaskStore } from '@/store/useTaskStore';
-import { X, Search, Play, Layers, ListTodo, Repeat, Clock, Plus } from 'lucide-react';
+import { useTaskStore, getLogicalDate } from '@/store/useTaskStore';
+import { X, Search, Play, Layers, ListTodo, Repeat, Clock, Plus, CheckCircle2 } from 'lucide-react';
 import { useState, useMemo } from 'react';
 import { createPortal } from 'react-dom';
+import { isSameDay, startOfDay } from 'date-fns';
 
 interface TaskSelectionDialogProps {
     onSelect: (taskId: string, name: string) => void;
     onClose: () => void;
+    referenceDate?: Date; // Use this to filter "Completed Today"
 }
 
-export function TaskSelectionDialog({ onSelect, onClose }: TaskSelectionDialogProps) {
+export function TaskSelectionDialog({ onSelect, onClose, referenceDate }: TaskSelectionDialogProps) {
     const {
         currentTask,
         taskStack,
         backlogTasks,
         backlogCategories,
         recurringTasks,
-        history
+        history,
+        dayStartHour
     } = useTaskStore();
 
     const [search, setSearch] = useState('');
 
     const filteredSections = useMemo(() => {
         const s = search.toLowerCase();
+        // If referenceDate is provided, it's already the target logical day's start (from TaskLogModal)
+        // If not, calculate from current time
+        const logicalToday = referenceDate
+            ? startOfDay(referenceDate)
+            : getLogicalDate(Date.now(), dayStartHour);
+
+        const todayTasks = history.filter(t => t.endTime && isSameDay(getLogicalDate(t.endTime, dayStartHour), logicalToday));
+
+        // Helper to de-duplicate tasks by name, keeping the most recent one
+        const uniqueByName = (tasks: typeof history) => {
+            const map = new Map<string, typeof history[0]>();
+            tasks.forEach(t => {
+                if (!map.has(t.name)) {
+                    map.set(t.name, t);
+                }
+            });
+            return Array.from(map.values());
+        };
 
         const sections = [
             {
@@ -33,6 +54,11 @@ export function TaskSelectionDialog({ onSelect, onClose }: TaskSelectionDialogPr
                     ...(currentTask ? [{ id: currentTask.id, name: currentTask.name, type: 'current' }] : []),
                     ...taskStack.map(t => ({ id: t.id, name: t.name, type: 'stack' }))
                 ]
+            },
+            {
+                title: 'Completed Today',
+                icon: <CheckCircle2 size={14} className="text-emerald-400" />,
+                tasks: uniqueByName(todayTasks).map(t => ({ id: t.id, name: t.name, type: 'today' }))
             },
             {
                 title: 'Backlog',
@@ -47,8 +73,7 @@ export function TaskSelectionDialog({ onSelect, onClose }: TaskSelectionDialogPr
             {
                 title: 'Recent History',
                 icon: <Clock size={14} className="text-slate-400" />,
-                tasks: Array.from(new Map(history.slice(-50).reverse().map(t => [t.name, t])).values())
-                    .map(t => ({ id: t.id, name: t.name, type: 'history' }))
+                tasks: uniqueByName(history.slice(0, 50)).map(t => ({ id: t.id, name: t.name, type: 'history' }))
             }
         ];
 
@@ -56,7 +81,7 @@ export function TaskSelectionDialog({ onSelect, onClose }: TaskSelectionDialogPr
             ...section,
             tasks: section.tasks.filter(t => t.name.toLowerCase().includes(s))
         })).filter(section => section.tasks.length > 0);
-    }, [search, currentTask, taskStack, backlogTasks, recurringTasks, history]);
+    }, [search, currentTask, taskStack, backlogTasks, recurringTasks, history, dayStartHour]);
 
     return createPortal(
         <div className="fixed inset-0 z-[500] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-in fade-in duration-200">

@@ -585,6 +585,7 @@ export function TaskLogModal() {
             </div>
             {activeSelectionLogId && (
                 <TaskSelectionDialog
+                    referenceDate={selectedDate}
                     onSelect={(taskId, name) => {
                         const log = displayLogs.find(l => l.id === activeSelectionLogId);
                         if (log) {
