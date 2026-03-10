@@ -60,6 +60,7 @@ export interface Task {
     scheduledDaysOfWeek?: number[]; // 0=Sun, 6=Sat
     backlogId?: string;
     colorId?: string;
+    autoStart?: boolean;
 }
 
 export interface TaskLogEntry {
@@ -126,7 +127,7 @@ interface TaskState {
 
     // Timer Control
     togglePause: () => void;
-    updateTaskSchedule: (taskId: string, date?: string, time?: string, daysOfWeek?: number[]) => void;
+    updateTaskSchedule: (taskId: string, date?: string | null, time?: string | null, daysOfWeek?: number[] | null, autoStart?: boolean) => void;
     resumeFromStack: () => void;
     reorderBacklogTasks: (startIndex: number, endIndex: number) => void;
     moveTaskToLocation: (taskId: string, location: 'current' | 'stack' | 'backlog', backlogId?: string) => void;
@@ -1062,12 +1063,12 @@ export const useTaskStore = create<TaskState>()(
                 });
             },
 
-            updateTaskSchedule: (taskId, date, time, daysOfWeek) => {
+            updateTaskSchedule: (taskId: string, date?: string | null, time?: string | null, daysOfWeek?: number[] | null, autoStart?: boolean) => {
                 set((state) => {
                     const updateTask = (task: Task) => {
-                        let newTime = time !== undefined ? time : task.scheduledTime;
-                        let newDate = date !== undefined ? date : task.scheduledDate;
-                        let newDays = daysOfWeek !== undefined ? daysOfWeek : task.scheduledDaysOfWeek;
+                        let newTime: string | undefined = time !== undefined ? (time ?? undefined) : task.scheduledTime;
+                        let newDate: string | undefined = date !== undefined ? (date ?? undefined) : task.scheduledDate;
+                        let newDays: number[] | undefined = daysOfWeek !== undefined ? (daysOfWeek ?? undefined) : task.scheduledDaysOfWeek;
 
                         // If explicitly cleared (to undefined or null or empty string)
                         if (date === null || date === '') newDate = undefined;
@@ -1078,7 +1079,13 @@ export const useTaskStore = create<TaskState>()(
                         if (date) newDays = undefined;
                         if (daysOfWeek && daysOfWeek.length > 0) newDate = undefined;
 
-                        return { ...task, scheduledDate: newDate, scheduledTime: newTime, scheduledDaysOfWeek: newDays };
+                        return {
+                            ...task,
+                            scheduledDate: newDate,
+                            scheduledTime: newTime,
+                            scheduledDaysOfWeek: newDays,
+                            autoStart: autoStart !== undefined ? autoStart : task.autoStart
+                        };
                     };
 
                     const updateList = (list: Task[]) => {

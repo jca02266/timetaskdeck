@@ -46,6 +46,19 @@ export function NotificationManager() {
 
                         if (isMatchingDate && isMatchingDay) {
                             sendNotification(task.id, 'Task Schedule', task.name);
+
+                            // Auto-start logic
+                            const autoStart = task.autoStart ?? true; // Default to true
+                            if (autoStart) {
+                                // Find where it is and move to current
+                                if (state.backlogTasks.some(t => t.id === task.id)) {
+                                    state.pickFromBacklog(task.id);
+                                } else if (state.recurringTasks.some(t => t.id === task.id)) {
+                                    state.startRecurringTask(task.id);
+                                } else if (state.taskStack.some(t => t.id === task.id)) {
+                                    state.moveTaskToLocation(task.id, 'current');
+                                }
+                            }
                         }
                     }
                 });

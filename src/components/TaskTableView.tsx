@@ -527,7 +527,8 @@ const TaskTableRow = memo(function TaskTableRow({
                     date={task.scheduledDate}
                     time={task.scheduledTime}
                     daysOfWeek={task.scheduledDaysOfWeek}
-                    onUpdate={(d, t, days) => onUpdate(task.id, { scheduledDate: d, scheduledTime: t, scheduledDaysOfWeek: days })}
+                    autoStart={task.autoStart}
+                    onUpdate={(d, t, days, auto) => onUpdate(task.id, { scheduledDate: d, scheduledTime: t, scheduledDaysOfWeek: days, autoStart: auto })}
                 />
             </td>
 

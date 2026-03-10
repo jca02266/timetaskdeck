@@ -11,7 +11,8 @@ interface AdvancedScheduleDialogProps {
     currentDate?: string;
     currentTime?: string;
     currentDaysOfWeek?: number[];
-    onSave: (date?: string, time?: string, daysOfWeek?: number[]) => void;
+    currentAutoStart?: boolean;
+    onSave: (date?: string, time?: string, daysOfWeek?: number[], autoStart?: boolean) => void;
 }
 
 const DAYS = [
@@ -30,12 +31,14 @@ export function AdvancedScheduleDialog({
     currentDate,
     currentTime,
     currentDaysOfWeek,
+    currentAutoStart,
     onSave
 }: AdvancedScheduleDialogProps) {
     const [mode, setMode] = useState<'one-time' | 'weekly'>(currentDaysOfWeek && currentDaysOfWeek.length > 0 ? 'weekly' : 'one-time');
     const [date, setDate] = useState(currentDate || '');
     const [time, setTime] = useState(currentTime || '');
     const [daysOfWeek, setDaysOfWeek] = useState<number[]>(currentDaysOfWeek || []);
+    const [autoStart, setAutoStart] = useState(currentAutoStart ?? true);
     const datePickerRef = useRef<DatePickerRef>(null);
 
     const [mounted, setMounted] = useState(false);
@@ -47,8 +50,9 @@ export function AdvancedScheduleDialog({
             setDate(currentDate || '');
             setTime(currentTime || '');
             setDaysOfWeek(currentDaysOfWeek || []);
+            setAutoStart(currentAutoStart ?? true);
         }
-    }, [isOpen, currentDate, currentTime, currentDaysOfWeek]);
+    }, [isOpen, currentDate, currentTime, currentDaysOfWeek, currentAutoStart]);
 
     if (!isOpen || !mounted) return null;
 
@@ -86,15 +90,15 @@ export function AdvancedScheduleDialog({
         const formattedTime = time ? (time.includes(':') ? time : `${time.slice(0, 2)}:${time.slice(2)}`) : undefined;
 
         if (mode === 'one-time') {
-            onSave(date || undefined, formattedTime, undefined);
+            onSave(date || undefined, formattedTime, undefined, autoStart);
         } else {
-            onSave(undefined, formattedTime, daysOfWeek.length > 0 ? daysOfWeek : undefined);
+            onSave(undefined, formattedTime, daysOfWeek.length > 0 ? daysOfWeek : undefined, autoStart);
         }
         onClose();
     };
 
     const handleClear = () => {
-        onSave(null as any, null as any, null as any);
+        onSave(null as any, null as any, null as any, undefined);
         onClose();
     };
 
@@ -194,6 +198,19 @@ export function AdvancedScheduleDialog({
                                 }}
                                 className="w-full bg-slate-950/30 border border-slate-800 focus:border-blue-500/50 focus:outline-none rounded-lg py-3 pl-10 pr-4 text-center text-2xl font-mono tracking-widest text-white shadow-inner transition-all [color-scheme:dark] appearance-none"
                             />
+                        </div>
+                    </div>
+
+                    {/* Auto-start Toggle */}
+                    <div className="flex items-center justify-between bg-slate-950/30 p-3 rounded-lg border border-slate-800 hover:border-slate-700 transition-colors group cursor-pointer"
+                        onClick={() => setAutoStart(!autoStart)}
+                    >
+                        <div className="space-y-0.5">
+                            <div className="text-xs font-bold text-slate-200">自動開始 (Auto-start)</div>
+                            <div className="text-[10px] text-slate-500">時間になったら現在のタスクにする</div>
+                        </div>
+                        <div className={`w-10 h-6 rounded-full p-1 transition-colors duration-200 ${autoStart ? 'bg-blue-600' : 'bg-slate-700'}`}>
+                            <div className={`w-4 h-4 rounded-full bg-white transition-transform duration-200 ${autoStart ? 'translate-x-4' : 'translate-x-0'}`} />
                         </div>
                     </div>
                 </div>

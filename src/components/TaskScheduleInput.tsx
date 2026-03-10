@@ -8,13 +8,14 @@ interface TaskScheduleInputProps {
     date?: string;
     time?: string;
     daysOfWeek?: number[];
-    onUpdate: (date?: string, time?: string, daysOfWeek?: number[]) => void;
+    autoStart?: boolean;
+    onUpdate: (date?: string, time?: string, daysOfWeek?: number[], autoStart?: boolean) => void;
     className?: string;
 }
 
 const WEEKDAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
-export function TaskScheduleInput({ date, time, daysOfWeek, onUpdate, className }: TaskScheduleInputProps) {
+export function TaskScheduleInput({ date, time, daysOfWeek, autoStart, onUpdate, className }: TaskScheduleInputProps) {
     const [isDialogOpen, setIsDialogOpen] = useState(false);
 
     const hasDays = daysOfWeek && daysOfWeek.length > 0;
@@ -57,6 +58,7 @@ export function TaskScheduleInput({ date, time, daysOfWeek, onUpdate, className 
                     )}
                     <span className={`font-medium ${hasSchedule ? 'text-blue-400' : 'text-slate-500'}`}>
                         {displayLabel}
+                        {autoStart && time && <span className="ml-1 text-[8px] opacity-70">⚡</span>}
                     </span>
                 </div>
             </div>
@@ -67,6 +69,7 @@ export function TaskScheduleInput({ date, time, daysOfWeek, onUpdate, className 
                 currentDate={date}
                 currentTime={time}
                 currentDaysOfWeek={daysOfWeek}
+                currentAutoStart={autoStart}
                 onSave={onUpdate}
             />
         </>
