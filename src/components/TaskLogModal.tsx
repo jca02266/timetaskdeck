@@ -601,11 +601,27 @@ export function TaskLogModal() {
                                     duration: log.duration,
                                     status: 'completed' as const
                                 };
+
+                                // Find its place in the sorted sequence to get neighbors
+                                const timeIndex = sortedLogs.findIndex(sl => sl.startTime > log.startTime);
+                                let newOrderValue = 0;
+                                if (timeIndex === 0) {
+                                    const nextOrder = orderMap[sortedLogs[0].id] ?? 1000;
+                                    newOrderValue = nextOrder - 5;
+                                } else if (timeIndex === -1) {
+                                    const prevOrder = orderMap[sortedLogs[sortedLogs.length - 1].id] ?? 0;
+                                    newOrderValue = prevOrder + 5;
+                                } else {
+                                    const prevOrder = orderMap[sortedLogs[timeIndex - 1].id] ?? 0;
+                                    const nextOrder = orderMap[sortedLogs[timeIndex].id] ?? (prevOrder + 10);
+                                    newOrderValue = (prevOrder + nextOrder) / 2;
+                                }
+
                                 setLocalLogs(prev => {
                                     setHasChanges(true);
                                     setOrderMap(order => ({
                                         ...order,
-                                        [newId]: (orderMap[log.id] ?? 0)
+                                        [newId]: newOrderValue
                                     }));
                                     return [...prev, convLog];
                                 });
