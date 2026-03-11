@@ -525,7 +525,8 @@ export const BacklogPanel = ({ category, defaultPosition }: BacklogPanelProps) =
                                     date={task.scheduledDate}
                                     time={task.scheduledTime}
                                     daysOfWeek={task.scheduledDaysOfWeek}
-                                    onUpdate={(date, time, days) => updateTaskSchedule(task.id, date, time, days)}
+                                    autoStart={task.autoStart}
+                                    onUpdate={(date, time, days, auto) => updateTaskSchedule(task.id, date, time, days, auto)}
                                     className="ml-auto"
                                 />
 
