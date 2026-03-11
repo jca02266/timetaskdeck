@@ -2,7 +2,7 @@
 
 import { TaskTimer } from "@/components/TaskTimer";
 import { TaskInput } from "@/components/TaskInput";
-import { TaskStack } from "@/components/TaskStack";
+import { TaskStack, STACK_CONFIG } from "@/components/TaskStack";
 // import { BacklogList } from "@/components/BacklogList";
 import { BacklogPanel } from "@/components/BacklogPanel";
 import { RecurringTasks } from "@/components/RecurringTasks";
@@ -126,7 +126,12 @@ export default function Home() {
       >
         <div className="relative w-full h-full flex items-end justify-center pb-8">
           <TaskStack isExpanded={isStackExpanded} onToggle={setStackExpanded} />
-          <div className={`scale-90 origin-bottom transition-opacity duration-300 ${isStackExpanded ? 'opacity-0 pointer-events-none' : 'opacity-100'}`}>
+          <div 
+            className={`origin-bottom transition-all duration-300 ${isStackExpanded ? 'opacity-0 pointer-events-none' : 'opacity-100'}`}
+            style={{
+              transform: isStackExpanded ? 'translateY(0) scale(1)' : `translateY(${STACK_CONFIG.OFFSET_BASE}px) scale(1)`
+            }}
+          >
             <TaskTimer />
           </div>
         </div>
