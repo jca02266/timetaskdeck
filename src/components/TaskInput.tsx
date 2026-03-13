@@ -3,6 +3,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { useTaskStore } from '@/store/useTaskStore';
 import { Play } from 'lucide-react';
+import { getSmartPasteText } from '@/utils/taskParsing';
 
 export function TaskInput() {
     const { startTask, history, backlogTasks } = useTaskStore();
@@ -71,6 +72,11 @@ export function TaskInput() {
                     value={input}
                     onChange={(e) => setInput(e.target.value)}
                     onKeyDown={handleKeyDown}
+                    onPaste={(e) => {
+                        e.preventDefault();
+                        const text = getSmartPasteText(e.clipboardData);
+                        setInput(prev => prev + text);
+                    }}
                     placeholder="New Task... (Shift+Enter for Memo)"
                     className="flex-1 bg-slate-800/50 border border-slate-700 rounded-xl px-6 py-4 text-xl focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-all text-white placeholder-slate-500 glass resize-none overflow-hidden min-h-[60px]"
                     autoFocus

@@ -6,6 +6,7 @@ import { DraggablePanel } from './DraggablePanel';
 import { TaskScheduleInput } from './TaskScheduleInput';
 import { format, parseISO } from 'date-fns';
 import { ListTodo, Play, Plus, Pencil, Check, X, Trash2, GripVertical, Copy, Minimize2, Calendar, Clock, FileText, Bell } from 'lucide-react';
+import { getSmartPasteText } from '@/utils/taskParsing';
 import { useState, useRef, useEffect } from 'react';
 import { useNotification } from '@/hooks/useNotification';
 import { ColorPickerDialog } from './ColorPickerDialog';
@@ -335,12 +336,33 @@ export const BacklogPanel = ({ category, defaultPosition }: BacklogPanelProps) =
             </div>
 
             <form onSubmit={handleAdd} className="flex gap-2 shrink-0 mb-3 px-4 pt-3">
-                <input
-                    type="text"
+                <textarea
                     value={newItem}
                     onChange={(e) => setNewItem(e.target.value)}
-                    placeholder="Add quick task..."
-                    className="flex-1 bg-slate-900/50 border border-slate-700 rounded px-3 py-2 text-sm text-white focus:outline-none focus:border-blue-500"
+                    onPaste={(e) => {
+                        e.preventDefault();
+                        const text = getSmartPasteText(e.clipboardData);
+                        setNewItem(prev => prev + text);
+                    }}
+                    onKeyDown={(e) => {
+                        if (e.nativeEvent.isComposing || e.keyCode === 229) return;
+                        if (e.key === 'Enter' && !e.shiftKey) {
+                            e.preventDefault();
+                            if (newItem.trim()) {
+                                addToBacklog(newItem, category.id);
+                                setNewItem('');
+                            }
+                        }
+                    }}
+                    placeholder="Add quick task... (Shift+Enter for Memo)"
+                    className="flex-1 bg-slate-900/50 border border-slate-700 rounded px-3 py-2 text-sm text-white focus:outline-none focus:border-blue-500 resize-none overflow-hidden min-h-[38px]"
+                    rows={1}
+                    ref={(el) => {
+                        if (el) {
+                            el.style.height = 'auto';
+                            el.style.height = `${el.scrollHeight}px`;
+                        }
+                    }}
                 />
                 <button
                     type="submit"

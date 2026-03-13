@@ -2,6 +2,7 @@ import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import { useMemoStore } from './useMemoStore';
 import { startOfDay, subDays } from 'date-fns';
+import { parseTaskInput } from '@/utils/taskParsing';
 
 export const getLogicalDate = (timestamp: number, dayStartHour: number): Date => {
     const date = new Date(timestamp);
@@ -322,25 +323,26 @@ export const useTaskStore = create<TaskState>()(
             startTask: (name, recurringTaskId) => {
                 const state = get();
 
-                // Parse multi-line input
-                const lines = name.split('\n');
-                const taskName = lines[0].trim();
-                const memoContent = lines.slice(1).join('\n').trim();
+                // Parse multi-line input and schedule
+                const parsed = parseTaskInput(name, 'current');
 
                 const defaultBacklogId = state.backlogCategories.length > 0 ? state.backlogCategories[0].id : 'main';
                 const newTask: Task = {
                     id: crypto.randomUUID(),
-                    name: taskName, // Use parsed name
+                    name: parsed.name,
                     startTime: Date.now(),
                     duration: 0,
                     status: 'pending',
                     recurringTaskId,
-                    backlogId: defaultBacklogId
+                    backlogId: defaultBacklogId,
+                    scheduledDate: parsed.scheduledDate,
+                    scheduledTime: parsed.scheduledTime,
+                    scheduledDaysOfWeek: parsed.scheduledDaysOfWeek
                 };
 
                 // Save memo if present
-                if (memoContent) {
-                    useMemoStore.getState().setMemo(newTask.id, memoContent);
+                if (parsed.memo) {
+                    useMemoStore.getState().setMemo(newTask.id, parsed.memo);
                 }
 
                 set((state) => {
@@ -536,16 +538,25 @@ export const useTaskStore = create<TaskState>()(
 
             addToBacklog: (name, backlogId) => {
                 const state = get();
+                const parsed = parseTaskInput(name, 'backlog');
                 // Default to first category if none provided
                 const targetBacklogId = backlogId || (state.backlogCategories.length > 0 ? state.backlogCategories[0].id : 'main');
                 const newTask: Task = {
                     id: crypto.randomUUID(),
-                    name,
+                    name: parsed.name,
                     startTime: 0,
                     duration: 0,
                     status: 'pending',
-                    backlogId: targetBacklogId
+                    backlogId: targetBacklogId,
+                    scheduledDate: parsed.scheduledDate,
+                    scheduledTime: parsed.scheduledTime,
+                    scheduledDaysOfWeek: parsed.scheduledDaysOfWeek
                 };
+
+                if (parsed.memo) {
+                    useMemoStore.getState().setMemo(newTask.id, parsed.memo);
+                }
+
                 set((state) => ({ backlogTasks: [newTask, ...state.backlogTasks] }));
             },
 
@@ -945,14 +956,21 @@ export const useTaskStore = create<TaskState>()(
             },
 
             addRecurringTask: (name) => {
+                const parsed = parseTaskInput(name, 'recurring');
                 const newTask: Task = {
                     id: crypto.randomUUID(),
-                    name,
+                    name: parsed.name,
                     startTime: 0,
                     duration: 0,
                     status: 'pending',
-                    scheduledTime: ''
+                    scheduledTime: parsed.scheduledTime || '',
+                    scheduledDaysOfWeek: parsed.scheduledDaysOfWeek
                 };
+
+                if (parsed.memo) {
+                    useMemoStore.getState().setMemo(newTask.id, parsed.memo);
+                }
+
                 set((state) => ({ recurringTasks: [newTask, ...state.recurringTasks] }));
             },
 

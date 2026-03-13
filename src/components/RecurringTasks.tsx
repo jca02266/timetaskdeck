@@ -1,6 +1,7 @@
 import { useTaskStore } from '@/store/useTaskStore';
 import { useMemoStore } from '@/store/useMemoStore';
 import { Repeat, Play, Plus, Pencil, Check, X, Trash2, GripVertical, CheckCircle2, Circle, Minimize2, FileText, RotateCcw, Bell } from 'lucide-react';
+import { getSmartPasteText } from '@/utils/taskParsing';
 import { useState, useRef } from 'react';
 import { TaskScheduleInput } from './TaskScheduleInput';
 import { Tooltip } from './Tooltip';
@@ -176,16 +177,30 @@ export function RecurringTasks() {
         >
             <div className="p-4 pt-2 border-b border-slate-700/50 bg-slate-800/20">
                 <div className="flex gap-1">
-                    <input
-                        type="text"
+                    <textarea
                         value={newItem}
                         onChange={(e) => setNewItem(e.target.value)}
                         onPointerDown={(e) => e.stopPropagation()}
-                        placeholder="Add recurring task..."
-                        className="flex-1 bg-slate-900/50 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-blue-500 transition-all"
+                        onPaste={(e) => {
+                            e.preventDefault();
+                            const text = getSmartPasteText(e.clipboardData);
+                            setNewItem(prev => prev + text);
+                        }}
                         onKeyDown={(e) => {
                             if (e.nativeEvent.isComposing || e.keyCode === 229) return;
-                            if (e.key === 'Enter') handleAdd();
+                            if (e.key === 'Enter' && !e.shiftKey) {
+                                e.preventDefault();
+                                handleAdd();
+                            }
+                        }}
+                        placeholder="Add recurring task... (Shift+Enter for Memo)"
+                        className="flex-1 bg-slate-900/50 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-blue-500 transition-all resize-none overflow-hidden min-h-[38px]"
+                        rows={1}
+                        ref={(el) => {
+                            if (el) {
+                                el.style.height = 'auto';
+                                el.style.height = `${el.scrollHeight}px`;
+                            }
                         }}
                     />
                     <button
