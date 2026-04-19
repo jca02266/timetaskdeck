@@ -166,6 +166,7 @@ interface TaskState {
 
     addManualTaskLogEntry: (taskId: string, name: string, startTime: number, endTime: number, duration: number, status: TaskStatus) => void;
     updateTaskLogs: (logs: TaskLogEntry[]) => void;
+    settleStaleTasks: () => void;
 
     // Drag & Drop
     dropTarget: DropTarget | null;
@@ -1374,6 +1375,64 @@ export const useTaskStore = create<TaskState>()(
 
             updateTaskLogs: (logs) => {
                 set({ taskLog: logs });
+            },
+
+            settleStaleTasks: () => {
+                const state = get();
+                const now = Date.now();
+                const currentLogicalDate = getLogicalDate(now, state.dayStartHour);
+
+                let newCurrentTask = state.currentTask;
+                let newTaskLog = [...state.taskLog];
+                let newTaskStack = [...state.taskStack];
+
+                // Process currentTask if it's from a previous logical day and pending
+                if (newCurrentTask && newCurrentTask.status === 'pending') {
+                    const taskLogicalDate = getLogicalDate(newCurrentTask.startTime, state.dayStartHour);
+
+                    if (taskLogicalDate.getTime() !== currentLogicalDate.getTime()) {
+                        // Calculate the day boundary: next day's dayStartHour after the task's logical date
+                        const boundary = new Date(taskLogicalDate);
+                        boundary.setDate(boundary.getDate() + 1);
+                        boundary.setHours(state.dayStartHour, 0, 0, 0);
+                        const boundaryMs = boundary.getTime();
+
+                        const sessionDuration = boundaryMs - newCurrentTask.startTime;
+
+                        // Add activity log entry capped at the day boundary
+                        newTaskLog.unshift({
+                            id: crypto.randomUUID(),
+                            taskId: newCurrentTask.id,
+                            name: newCurrentTask.name,
+                            startTime: newCurrentTask.startTime,
+                            endTime: boundaryMs,
+                            duration: sessionDuration,
+                            status: 'paused' as TaskStatus
+                        });
+
+                        // Keep as currentTask but set to paused (not started)
+                        newCurrentTask = {
+                            ...newCurrentTask,
+                            status: 'paused' as TaskStatus,
+                            duration: newCurrentTask.duration + sessionDuration
+                        };
+                    }
+                }
+
+                // Process taskStack: reset startTime for stale tasks
+                newTaskStack = newTaskStack.map(task => {
+                    const taskLogicalDate = getLogicalDate(task.startTime, state.dayStartHour);
+                    if (task.startTime > 0 && taskLogicalDate.getTime() !== currentLogicalDate.getTime()) {
+                        return { ...task, startTime: now };
+                    }
+                    return task;
+                });
+
+                set({
+                    currentTask: newCurrentTask,
+                    taskLog: newTaskLog,
+                    taskStack: newTaskStack
+                });
             }
         }),
         {

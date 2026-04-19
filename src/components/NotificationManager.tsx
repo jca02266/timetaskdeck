@@ -8,6 +8,15 @@ export function NotificationManager() {
     const updateCurrentTime = useTaskStore(state => state.updateCurrentTime);
     const { sendNotification } = useNotification();
     const lastCheckMinute = useRef<string>('');
+    const hasSettled = useRef(false);
+
+    // On mount, settle any stale tasks from previous days
+    useEffect(() => {
+        if (!hasSettled.current) {
+            hasSettled.current = true;
+            useTaskStore.getState().settleStaleTasks();
+        }
+    }, []);
 
     useEffect(() => {
         const updateTimer = () => {

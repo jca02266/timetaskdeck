@@ -542,7 +542,7 @@ export function TaskLogModal() {
                                                                         e.preventDefault();
                                                                         document.getElementById(`log-input-${log.id}-end`)?.focus();
                                                                     } else {
-                                                                        const prevLog = displayLogs[index - 1];
+                                                                        const prevLog = displayLogs[i - 1];
                                                                         if (prevLog) {
                                                                             e.preventDefault();
                                                                             document.getElementById(`log-input-${prevLog.id}-end`)?.focus();
@@ -572,7 +572,7 @@ export function TaskLogModal() {
                                                                 if (e.key === 'Enter') handleTimeBlur(log.id, 'end');
                                                                 if (e.key === 'Tab') {
                                                                     if (!e.shiftKey) {
-                                                                        const nextLog = displayLogs[index + 1];
+                                                                        const nextLog = displayLogs[i + 1];
                                                                         if (nextLog) {
                                                                             e.preventDefault();
                                                                             document.getElementById(`log-input-${nextLog.id}-start`)?.focus();
