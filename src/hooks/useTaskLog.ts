@@ -193,8 +193,12 @@ export function useTaskLog() {
             const index = newLogs.findIndex(l => l.id === logId);
             if (index === -1) return prev;
             const log = { ...newLogs[index] };
-            const baseDate = new Date(type === 'start' ? log.startTime : (log.endTime || log.startTime));
-            const newTimestamp = new Date(baseDate.getFullYear(), baseDate.getMonth(), baseDate.getDate(), hours, minutes).getTime();
+            // dayStartHour を考慮: 入力時刻が日替わり時刻より前なら翌カレンダー日とする
+            const base = selectedDate;
+            const calDay = hours < dayStartHour
+                ? new Date(base.getFullYear(), base.getMonth(), base.getDate() + 1)
+                : base;
+            const newTimestamp = new Date(calDay.getFullYear(), calDay.getMonth(), calDay.getDate(), hours, minutes).getTime();
             if (type === 'start') {
                 if (log.startTime === newTimestamp) return prev;
                 log.startTime = newTimestamp;
