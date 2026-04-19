@@ -155,6 +155,8 @@ interface TaskState {
     openDialog: (name: 'log' | 'settings' | 'taskTable' | null) => void;
     dayStartHour: number;
     setDayStartHour: (hour: number) => void;
+    missedTaskWindowMinutes: number;
+    setMissedTaskWindowMinutes: (minutes: number) => void;
     currentTime: string; // HH:mm
     currentDate: string; // YYYY-MM-DD
     currentDay: number; // 0-6
@@ -194,8 +196,10 @@ export const useTaskStore = create<TaskState>()(
             activeDialog: null,
             openDialog: (name) => set({ activeDialog: name }),
             dayStartHour: 5,
+            missedTaskWindowMinutes: 5,
 
             setDayStartHour: (hour) => set({ dayStartHour: hour }),
+            setMissedTaskWindowMinutes: (minutes) => set({ missedTaskWindowMinutes: minutes }),
             currentTime: '',
             currentDate: '',
             currentDay: new Date().getDay(),

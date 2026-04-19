@@ -14,6 +14,8 @@ export function SettingsDialog() {
         openDialog,
         dayStartHour,
         setDayStartHour,
+        missedTaskWindowMinutes,
+        setMissedTaskWindowMinutes,
         colors,
         updateColorName,
         importState
@@ -164,6 +166,23 @@ export function SettingsDialog() {
                                     className="w-14 bg-slate-950 border border-slate-700 rounded-lg px-2 py-1.5 text-xs text-center text-white focus:outline-none focus:border-blue-500 transition-all"
                                 />
                                 <span className="text-[10px] font-bold text-slate-500">:00</span>
+                            </div>
+                        </div>
+                        <div className="bg-slate-800/40 border border-slate-700/50 rounded-xl p-4 flex items-center justify-between group hover:border-slate-600 transition-colors">
+                            <div>
+                                <p className="text-sm font-semibold text-slate-200">Missed Task Window</p>
+                                <p className="text-[10px] text-slate-500 mt-0.5">Minutes to look back for missed scheduled tasks on app start or tab focus</p>
+                            </div>
+                            <div className="flex items-center gap-2">
+                                <input
+                                    type="number"
+                                    min="0"
+                                    max="60"
+                                    value={missedTaskWindowMinutes}
+                                    onChange={(e) => setMissedTaskWindowMinutes(Math.max(0, Math.min(60, parseInt(e.target.value) || 0)))}
+                                    className="w-14 bg-slate-950 border border-slate-700 rounded-lg px-2 py-1.5 text-xs text-center text-white focus:outline-none focus:border-blue-500 transition-all"
+                                />
+                                <span className="text-[10px] font-bold text-slate-500">min</span>
                             </div>
                         </div>
                     </section>
