@@ -304,7 +304,7 @@ export function SettingsDialog() {
                 </div>
 
                 <div className="p-4 bg-slate-800/30 border-t border-slate-800 flex justify-center">
-                    <p className="text-[9px] text-slate-500 uppercase tracking-widest font-bold">TimeTask v2.0 Settings</p>
+                    <p className="text-[9px] text-slate-500 uppercase tracking-widest font-bold">TimeTask v{process.env.NEXT_PUBLIC_APP_VERSION} Settings</p>
                 </div>
             </div>
         </div>
