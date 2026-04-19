@@ -310,7 +310,7 @@ export function TaskLogModal() {
 
     const handleClose = () => {
         if (hasChanges) {
-            const hasInvalid = localLogs.some(l => l.endTime !== null && l.startTime > l.endTime);
+            const hasInvalid = localLogs.some(l => l.endTime !== null && Math.floor(l.startTime / 60000) > Math.floor(l.endTime / 60000));
             if (hasInvalid) {
                 if (window.confirm('開始時刻が終了時刻より後になっている不正なタスクがあります。変更を破棄して閉じますか？\n（キャンセルを押すと編集に戻ります）')) {
                     setHasChanges(false);
@@ -454,9 +454,14 @@ export function TaskLogModal() {
                                     const prevInTime = timeIndex > 0 ? sortedLogs[timeIndex - 1] : null;
                                     const nextInTime = timeIndex < sortedLogs.length - 1 ? sortedLogs[timeIndex + 1] : null;
 
-                                    const isSelfInvalid = log.endTime !== null && log.startTime > log.endTime;
-                                    const overlapsPrev = viewMode === 'timeline' && prevInTime && prevInTime.endTime !== null && log.startTime < prevInTime.endTime;
-                                    const overlapsNext = viewMode === 'timeline' && nextInTime && log.endTime !== null && log.endTime > nextInTime.startTime;
+                                    const startMin = Math.floor(log.startTime / 60000);
+                                    const endMin = log.endTime !== null ? Math.floor(log.endTime / 60000) : null;
+                                    const prevEndMin = (prevInTime && prevInTime.endTime !== null) ? Math.floor(prevInTime.endTime / 60000) : null;
+                                    const nextStartMin = nextInTime ? Math.floor(nextInTime.startTime / 60000) : null;
+
+                                    const isSelfInvalid = endMin !== null && startMin > endMin;
+                                    const overlapsPrev = viewMode === 'timeline' && prevEndMin !== null && startMin < prevEndMin;
+                                    const overlapsNext = viewMode === 'timeline' && nextStartMin !== null && endMin !== null && endMin > nextStartMin;
 
                                     const isInvalid = isSelfInvalid || overlapsPrev || overlapsNext;
                                     const isShort = !isInvalid && log.id !== 'current-active-task' && log.taskId !== 'break' && Math.abs(log.duration) < 60000;
