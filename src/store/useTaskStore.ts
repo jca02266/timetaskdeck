@@ -1411,9 +1411,12 @@ export const useTaskStore = create<TaskState>()(
                         });
 
                         // Keep as currentTask but set to paused (not started)
+                        // Reset startTime to now so the virtual entry in ActivityLog
+                        // appears on today's date, not the previous day
                         newCurrentTask = {
                             ...newCurrentTask,
                             status: 'paused' as TaskStatus,
+                            startTime: now,
                             duration: newCurrentTask.duration + sessionDuration
                         };
                     }
