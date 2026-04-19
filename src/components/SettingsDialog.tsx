@@ -6,6 +6,7 @@ import { X, Check, Save, Upload, Download, Settings, Palette, Clock } from 'luci
 import { useState, useRef } from 'react';
 import { useNotification } from '@/hooks/useNotification';
 import { Bell, BellOff, Info } from 'lucide-react';
+import { validateImportData } from '@/utils/validate';
 
 export function SettingsDialog() {
     const {
@@ -95,16 +96,21 @@ export function SettingsDialog() {
         reader.onload = (event) => {
             try {
                 const json = JSON.parse(event.target?.result as string);
+                const validated = validateImportData(json);
+                if (!validated) {
+                    alert("インポートファイルの形式が正しくありません。");
+                    return;
+                }
                 if (window.confirm("データをインポートしますか？現在の状態は上書きされます。")) {
-                    if (json.tasks || json.memos) {
-                        if (json.tasks && json.tasks.state) {
-                            importState(json.tasks.state);
+                    if (validated.tasks || validated.memos) {
+                        if (validated.tasks?.state) {
+                            importState(validated.tasks.state);
                         }
-                        if (json.memos && json.memos.state) {
-                            importMemoState(json.memos.state);
+                        if (validated.memos?.state) {
+                            importMemoState(validated.memos.state);
                         }
                     } else {
-                        importState(json);
+                        importState(validated);
                     }
                     alert("インポートが完了しました。");
                     if (fileInputRef.current) fileInputRef.current.value = '';

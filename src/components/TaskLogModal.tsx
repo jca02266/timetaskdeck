@@ -4,6 +4,8 @@ import { format, startOfDay, addDays, subDays, isSameDay, parseISO } from 'date-
 import { useState, useEffect, useMemo } from 'react';
 import { DatePicker } from './DatePicker';
 import { TaskSelectionDialog } from './TaskSelectionDialog';
+import { TimeInput } from './ui/TimeInput';
+import { parseTime } from '@/utils/validate';
 
 export function TaskLogModal() {
     const isLogOpen = useTaskStore((state) => state.isLogOpen);
@@ -198,9 +200,9 @@ export function TaskLogModal() {
     };
 
     const applyTimeUpdate = (logId: string, type: 'start' | 'end', timeStr: string) => {
-        if (!timeStr) return;
-        const [hours, minutes] = timeStr.split(':').map(Number);
-        if (isNaN(hours) || isNaN(minutes)) return;
+        const parsed = parseTime(timeStr);
+        if (!parsed) return;
+        const { hours, minutes } = parsed;
 
         setLocalLogs(prev => {
             const newLogs = [...prev];
@@ -529,11 +531,11 @@ export function TaskLogModal() {
                                                     {log.id === 'current-active-task' || log.taskId === 'break' ? (
                                                         format(log.startTime, 'HH:mm')
                                                     ) : (
-                                                        <input
+                                                        <TimeInput
                                                             id={`log-input-${log.id}-start`}
-                                                            type="time"
+                                                            variant="inline"
                                                             value={editingValue?.id === log.id && editingValue?.type === 'start' ? editingValue.value : format(log.startTime, 'HH:mm')}
-                                                            onChange={(e) => handleTimeChange(log.id, 'start', e.target.value)}
+                                                            onChange={(v) => handleTimeChange(log.id, 'start', v)}
                                                             onBlur={() => handleTimeBlur(log.id, 'start')}
                                                             onKeyDown={(e) => {
                                                                 if (e.key === 'Enter') handleTimeBlur(log.id, 'start');
@@ -550,7 +552,7 @@ export function TaskLogModal() {
                                                                     }
                                                                 }
                                                             }}
-                                                            className={`bg-transparent border-b border-transparent focus:outline-none w-24 ${isInvalid ? 'border-red-500/50 focus:border-red-500' : 'hover:border-slate-700 focus:border-blue-500'}`}
+                                                            isInvalid={isInvalid}
                                                         />
                                                     )}
                                                 </td>
@@ -562,11 +564,11 @@ export function TaskLogModal() {
                                                     ) : log.taskId === 'break' ? (
                                                         log.endTime ? format(log.endTime, 'HH:mm') : '--:--'
                                                     ) : (
-                                                        <input
+                                                        <TimeInput
                                                             id={`log-input-${log.id}-end`}
-                                                            type="time"
+                                                            variant="inline"
                                                             value={editingValue?.id === log.id && editingValue?.type === 'end' ? editingValue.value : (log.endTime ? format(log.endTime, 'HH:mm') : '')}
-                                                            onChange={(e) => handleTimeChange(log.id, 'end', e.target.value)}
+                                                            onChange={(v) => handleTimeChange(log.id, 'end', v)}
                                                             onBlur={() => handleTimeBlur(log.id, 'end')}
                                                             onKeyDown={(e) => {
                                                                 if (e.key === 'Enter') handleTimeBlur(log.id, 'end');
@@ -583,7 +585,7 @@ export function TaskLogModal() {
                                                                     }
                                                                 }
                                                             }}
-                                                            className={`bg-transparent border-b border-transparent focus:outline-none w-24 ${isInvalid ? 'border-red-500/50 focus:border-red-500' : 'hover:border-slate-700 focus:border-blue-500'}`}
+                                                            isInvalid={isInvalid}
                                                         />
                                                     )}
                                                 </td>
