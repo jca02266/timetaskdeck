@@ -327,6 +327,26 @@ export function useTaskLog() {
         });
     };
 
+    const handleRefresh = () => {
+        if (hasChanges) {
+            const hasInvalid = localLogs.some(l => l.endTime !== null && Math.floor(l.startTime / 60000) > Math.floor(l.endTime / 60000));
+            if (hasInvalid) {
+                if (!window.confirm('不正なタスクがあります。変更を破棄してリフレッシュしますか？')) return;
+            } else {
+                useTaskStore.getState().updateTaskLogs(localLogs);
+            }
+        }
+        const freshLogs = useTaskStore.getState().taskLog;
+        const sorted = [...freshLogs].sort((a, b) =>
+            a.startTime !== b.startTime ? a.startTime - b.startTime : a.id.localeCompare(b.id)
+        );
+        const newMap: Record<string, number> = {};
+        sorted.forEach((l, i) => { newMap[l.id] = i * 10; });
+        setLocalLogs(freshLogs);
+        setOrderMap(newMap);
+        setHasChanges(false);
+    };
+
     const handleClose = () => {
         if (hasChanges) {
             const hasInvalid = localLogs.some(l => l.endTime !== null && Math.floor(l.startTime / 60000) > Math.floor(l.endTime / 60000));
@@ -379,6 +399,7 @@ export function useTaskLog() {
         handleDeleteLog,
         handleChangeTask,
         handleConvertBreak,
+        handleRefresh,
         handleSort,
         handleAddLog,
         handleClose,

@@ -1,4 +1,4 @@
-import { X, Clock, ChevronLeft, ChevronRight, Copy, Check, List, Layers, Trash2, Plus } from 'lucide-react';
+import { X, Clock, ChevronLeft, ChevronRight, Copy, Check, List, Layers, Trash2, Plus, RefreshCw } from 'lucide-react';
 import { format, startOfDay, parseISO } from 'date-fns';
 import { DatePicker } from './DatePicker';
 import { TaskSelectionDialog } from './TaskSelectionDialog';
@@ -33,6 +33,7 @@ export function TaskLogModal() {
         handleDeleteLog,
         handleChangeTask,
         handleConvertBreak,
+        handleRefresh,
         handleSort,
         handleAddLog,
         handleClose,
@@ -123,6 +124,14 @@ export function TaskLogModal() {
                     </div>
 
                     <div className="flex items-center gap-2">
+                        <button
+                            onClick={handleRefresh}
+                            className="flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-colors border bg-slate-800 hover:bg-slate-700 text-slate-300 border-slate-700 hover:text-white"
+                            title="保存してリフレッシュ（時刻順に並び替え）"
+                        >
+                            <RefreshCw size={14} />
+                            <span>Refresh</span>
+                        </button>
                         <button
                             onClick={handleCopy}
                             className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-colors border ${copied
