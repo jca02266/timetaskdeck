@@ -45,7 +45,7 @@ export function TaskLogModal() {
         return () => clearInterval(interval);
     }, [isLogOpen, dayStartHour]);
 
-    const allLogs = currentTask ? [
+    const allLogs = (currentTask && currentTask.startTime > 0) ? [
         {
             id: 'current-active-task',
             taskId: currentTask.id,

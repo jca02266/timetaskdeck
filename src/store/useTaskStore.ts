@@ -351,24 +351,29 @@ export const useTaskStore = create<TaskState>()(
                     let newLog = [...state.taskLog];
 
                     if (state.currentTask) {
-                        const now = Date.now();
-                        const sessionDuration = now - state.currentTask.startTime;
-                        newLog.unshift({
-                            id: crypto.randomUUID(),
-                            taskId: state.currentTask.id,
-                            name: state.currentTask.name,
-                            startTime: state.currentTask.startTime,
-                            endTime: now,
-                            duration: sessionDuration,
-                            status: 'interrupted' as TaskStatus
-                        });
+                        if (state.currentTask.status === 'pending' && state.currentTask.startTime > 0) {
+                            const now = Date.now();
+                            const sessionDuration = now - state.currentTask.startTime;
+                            newLog.unshift({
+                                id: crypto.randomUUID(),
+                                taskId: state.currentTask.id,
+                                name: state.currentTask.name,
+                                startTime: state.currentTask.startTime,
+                                endTime: now,
+                                duration: sessionDuration,
+                                status: 'interrupted' as TaskStatus
+                            });
 
-                        const pausedTask = {
-                            ...state.currentTask,
-                            duration: state.currentTask.duration + sessionDuration,
-                            status: 'paused' as TaskStatus
-                        };
-                        newStack = [...state.taskStack, pausedTask];
+                            const pausedTask = {
+                                ...state.currentTask,
+                                duration: state.currentTask.duration + sessionDuration,
+                                status: 'paused' as TaskStatus
+                            };
+                            newStack = [...state.taskStack, pausedTask];
+                        } else {
+                            // Task is paused or not yet started (startTime=0) — just push to stack without logging
+                            newStack = [...state.taskStack, { ...state.currentTask, status: 'paused' as TaskStatus }];
+                        }
                     }
 
                     return {
@@ -384,9 +389,10 @@ export const useTaskStore = create<TaskState>()(
                     if (!state.currentTask) return {};
 
                     const now = Date.now();
-                    const sessionDuration = now - state.currentTask.startTime;
+                    const isActive = state.currentTask.status === 'pending' && state.currentTask.startTime > 0;
+                    const sessionDuration = isActive ? now - state.currentTask.startTime : 0;
 
-                    const logEntry: TaskLogEntry = {
+                    const logEntry: TaskLogEntry | null = isActive ? {
                         id: crypto.randomUUID(),
                         taskId: state.currentTask.id,
                         name: state.currentTask.name,
@@ -394,7 +400,7 @@ export const useTaskStore = create<TaskState>()(
                         endTime: now,
                         duration: sessionDuration,
                         status: 'paused'
-                    };
+                    } : null;
 
                     const stoppedTask = {
                         ...state.currentTask,
@@ -416,7 +422,7 @@ export const useTaskStore = create<TaskState>()(
                         currentTask: resumedTask,
                         taskStack: newStack,
                         backlogTasks: [stoppedTask, ...state.backlogTasks],
-                        taskLog: [logEntry, ...state.taskLog]
+                        taskLog: logEntry ? [logEntry, ...state.taskLog] : state.taskLog
                     };
                 });
             },
@@ -426,9 +432,10 @@ export const useTaskStore = create<TaskState>()(
                     if (!state.currentTask) return {};
 
                     const now = Date.now();
-                    const sessionDuration = now - state.currentTask.startTime;
+                    const isActive = state.currentTask.status === 'pending' && state.currentTask.startTime > 0;
+                    const sessionDuration = isActive ? now - state.currentTask.startTime : 0;
 
-                    const logEntry: TaskLogEntry = {
+                    const logEntry: TaskLogEntry | null = isActive ? {
                         id: crypto.randomUUID(),
                         taskId: state.currentTask.id,
                         name: state.currentTask.name,
@@ -436,7 +443,7 @@ export const useTaskStore = create<TaskState>()(
                         endTime: now,
                         duration: sessionDuration,
                         status: 'completed'
-                    };
+                    } : null;
 
                     const completedTask = {
                         ...state.currentTask,
@@ -469,7 +476,7 @@ export const useTaskStore = create<TaskState>()(
                         currentTask: resumedTask,
                         taskStack: newStack,
                         history: [completedTask, ...state.history],
-                        taskLog: [logEntry, ...state.taskLog],
+                        taskLog: logEntry ? [logEntry, ...state.taskLog] : state.taskLog,
                         recurringTasks: newRecurringTasks
                     };
                 });
@@ -499,24 +506,28 @@ export const useTaskStore = create<TaskState>()(
                     let newLog = [...state.taskLog];
 
                     if (state.currentTask) {
-                        const now = Date.now();
-                        const sessionDuration = now - state.currentTask.startTime;
+                        if (state.currentTask.status === 'pending' && state.currentTask.startTime > 0) {
+                            const now = Date.now();
+                            const sessionDuration = now - state.currentTask.startTime;
 
-                        newLog.unshift({
-                            id: crypto.randomUUID(),
-                            taskId: state.currentTask.id,
-                            name: state.currentTask.name,
-                            startTime: state.currentTask.startTime,
-                            endTime: now,
-                            duration: sessionDuration,
-                            status: 'interrupted' as TaskStatus
-                        });
+                            newLog.unshift({
+                                id: crypto.randomUUID(),
+                                taskId: state.currentTask.id,
+                                name: state.currentTask.name,
+                                startTime: state.currentTask.startTime,
+                                endTime: now,
+                                duration: sessionDuration,
+                                status: 'interrupted' as TaskStatus
+                            });
 
-                        const pausedTask = {
-                            ...state.currentTask,
-                            duration: state.currentTask.duration + sessionDuration,
-                        };
-                        newStack = [...state.taskStack, pausedTask];
+                            const pausedTask = {
+                                ...state.currentTask,
+                                duration: state.currentTask.duration + sessionDuration,
+                            };
+                            newStack = [...state.taskStack, pausedTask];
+                        } else {
+                            newStack = [...state.taskStack, { ...state.currentTask, status: 'paused' as TaskStatus }];
+                        }
                     }
 
                     const defaultBacklogId = state.backlogCategories.length > 0 ? state.backlogCategories[0].id : 'main';
@@ -570,25 +581,29 @@ export const useTaskStore = create<TaskState>()(
                     let newLog = [...state.taskLog];
 
                     if (state.currentTask) {
-                        const now = Date.now();
-                        const sessionDuration = now - state.currentTask.startTime;
+                        if (state.currentTask.status === 'pending' && state.currentTask.startTime > 0) {
+                            const now = Date.now();
+                            const sessionDuration = now - state.currentTask.startTime;
 
-                        newLog.unshift({
-                            id: crypto.randomUUID(),
-                            taskId: state.currentTask.id,
-                            name: state.currentTask.name,
-                            startTime: state.currentTask.startTime,
-                            endTime: now,
-                            duration: sessionDuration,
-                            status: 'interrupted' as TaskStatus
-                        });
+                            newLog.unshift({
+                                id: crypto.randomUUID(),
+                                taskId: state.currentTask.id,
+                                name: state.currentTask.name,
+                                startTime: state.currentTask.startTime,
+                                endTime: now,
+                                duration: sessionDuration,
+                                status: 'interrupted' as TaskStatus
+                            });
 
-                        const pausedTask = {
-                            ...state.currentTask,
-                            duration: state.currentTask.duration + sessionDuration,
-                            status: 'paused' as TaskStatus
-                        };
-                        newStack = [...state.taskStack, pausedTask];
+                            const pausedTask = {
+                                ...state.currentTask,
+                                duration: state.currentTask.duration + sessionDuration,
+                                status: 'paused' as TaskStatus
+                            };
+                            newStack = [...state.taskStack, pausedTask];
+                        } else {
+                            newStack = [...state.taskStack, { ...state.currentTask, status: 'paused' as TaskStatus }];
+                        }
                     }
 
                     const taskToStart = state.backlogTasks[taskIndex];
@@ -776,25 +791,29 @@ export const useTaskStore = create<TaskState>()(
                     let newLog = [...state.taskLog];
 
                     if (state.currentTask) {
-                        const now = Date.now();
-                        const sessionDuration = now - state.currentTask.startTime;
+                        if (state.currentTask.status === 'pending' && state.currentTask.startTime > 0) {
+                            const now = Date.now();
+                            const sessionDuration = now - state.currentTask.startTime;
 
-                        newLog.unshift({
-                            id: crypto.randomUUID(),
-                            taskId: state.currentTask.id,
-                            name: state.currentTask.name,
-                            startTime: state.currentTask.startTime,
-                            endTime: now,
-                            duration: sessionDuration,
-                            status: 'interrupted' as TaskStatus
-                        });
+                            newLog.unshift({
+                                id: crypto.randomUUID(),
+                                taskId: state.currentTask.id,
+                                name: state.currentTask.name,
+                                startTime: state.currentTask.startTime,
+                                endTime: now,
+                                duration: sessionDuration,
+                                status: 'interrupted' as TaskStatus
+                            });
 
-                        const pausedTask = {
-                            ...state.currentTask,
-                            duration: state.currentTask.duration + sessionDuration,
-                            status: 'paused' as TaskStatus
-                        };
-                        newStack = [...state.taskStack, pausedTask];
+                            const pausedTask = {
+                                ...state.currentTask,
+                                duration: state.currentTask.duration + sessionDuration,
+                                status: 'paused' as TaskStatus
+                            };
+                            newStack = [...state.taskStack, pausedTask];
+                        } else {
+                            newStack = [...state.taskStack, { ...state.currentTask, status: 'paused' as TaskStatus }];
+                        }
                     }
 
                     const reopenedTask = {
@@ -832,25 +851,29 @@ export const useTaskStore = create<TaskState>()(
                     let newLog = [...state.taskLog];
 
                     if (state.currentTask) {
-                        const now = Date.now();
-                        const sessionDuration = now - state.currentTask.startTime;
+                        if (state.currentTask.status === 'pending' && state.currentTask.startTime > 0) {
+                            const now = Date.now();
+                            const sessionDuration = now - state.currentTask.startTime;
 
-                        newLog.unshift({
-                            id: crypto.randomUUID(),
-                            taskId: state.currentTask.id,
-                            name: state.currentTask.name,
-                            startTime: state.currentTask.startTime,
-                            endTime: now,
-                            duration: sessionDuration,
-                            status: 'interrupted' as TaskStatus
-                        });
+                            newLog.unshift({
+                                id: crypto.randomUUID(),
+                                taskId: state.currentTask.id,
+                                name: state.currentTask.name,
+                                startTime: state.currentTask.startTime,
+                                endTime: now,
+                                duration: sessionDuration,
+                                status: 'interrupted' as TaskStatus
+                            });
 
-                        const pausedTask = {
-                            ...state.currentTask,
-                            duration: state.currentTask.duration + sessionDuration,
-                            status: 'paused' as TaskStatus
-                        };
-                        newStack.push(pausedTask);
+                            const pausedTask = {
+                                ...state.currentTask,
+                                duration: state.currentTask.duration + sessionDuration,
+                                status: 'paused' as TaskStatus
+                            };
+                            newStack.push(pausedTask);
+                        } else {
+                            newStack.push({ ...state.currentTask, status: 'paused' as TaskStatus });
+                        }
                     }
 
                     return {
@@ -916,10 +939,11 @@ export const useTaskStore = create<TaskState>()(
                 set((state) => {
                     if (!state.currentTask) return {};
 
+                    const isActive = state.currentTask.status === 'pending' && state.currentTask.startTime > 0;
                     const now = Date.now();
-                    const sessionDuration = now - state.currentTask.startTime;
+                    const sessionDuration = isActive ? now - state.currentTask.startTime : 0;
 
-                    const logEntry: TaskLogEntry = {
+                    const logEntry: TaskLogEntry | null = isActive ? {
                         id: crypto.randomUUID(),
                         taskId: state.currentTask.id,
                         name: state.currentTask.name,
@@ -927,7 +951,7 @@ export const useTaskStore = create<TaskState>()(
                         endTime: now,
                         duration: sessionDuration,
                         status: 'interrupted' as TaskStatus
-                    };
+                    } : null;
 
                     const pausedTask = {
                         ...state.currentTask,
@@ -951,7 +975,7 @@ export const useTaskStore = create<TaskState>()(
                             status: 'pending'
                         } : null,
                         taskStack: newStack,
-                        taskLog: [logEntry, ...state.taskLog]
+                        taskLog: logEntry ? [logEntry, ...state.taskLog] : state.taskLog
                     };
                 });
             },
@@ -1057,27 +1081,31 @@ export const useTaskStore = create<TaskState>()(
                             }
                         };
                     } else {
-                        const now = Date.now();
-                        const sessionDuration = now - state.currentTask.startTime;
+                        if (state.currentTask.startTime > 0) {
+                            const now = Date.now();
+                            const sessionDuration = now - state.currentTask.startTime;
 
-                        const logEntry: TaskLogEntry = {
-                            id: crypto.randomUUID(),
-                            taskId: state.currentTask.id,
-                            name: state.currentTask.name,
-                            startTime: state.currentTask.startTime,
-                            endTime: now,
-                            duration: sessionDuration,
-                            status: 'paused'
-                        };
+                            const logEntry: TaskLogEntry = {
+                                id: crypto.randomUUID(),
+                                taskId: state.currentTask.id,
+                                name: state.currentTask.name,
+                                startTime: state.currentTask.startTime,
+                                endTime: now,
+                                duration: sessionDuration,
+                                status: 'paused'
+                            };
 
-                        return {
-                            currentTask: {
-                                ...state.currentTask,
-                                status: 'paused',
-                                duration: state.currentTask.duration + sessionDuration
-                            },
-                            taskLog: [logEntry, ...state.taskLog]
-                        };
+                            return {
+                                currentTask: {
+                                    ...state.currentTask,
+                                    status: 'paused',
+                                    duration: state.currentTask.duration + sessionDuration
+                                },
+                                taskLog: [logEntry, ...state.taskLog]
+                            };
+                        } else {
+                            return { currentTask: { ...state.currentTask, status: 'paused' } };
+                        }
                     }
                 });
             },
@@ -1274,18 +1302,22 @@ export const useTaskStore = create<TaskState>()(
 
                     let newLog = [...state.taskLog];
                     if (state.currentTask && state.currentTask.id !== topTask.id) {
-                        const now = Date.now();
-                        const duration = now - state.currentTask.startTime;
-                        newLog.unshift({
-                            id: crypto.randomUUID(),
-                            taskId: state.currentTask.id,
-                            name: state.currentTask.name,
-                            startTime: state.currentTask.startTime,
-                            endTime: now,
-                            duration,
-                            status: 'paused'
-                        });
-                        topTask.startTime = now;
+                        if (state.currentTask.status === 'pending' && state.currentTask.startTime > 0) {
+                            const now = Date.now();
+                            const duration = now - state.currentTask.startTime;
+                            newLog.unshift({
+                                id: crypto.randomUUID(),
+                                taskId: state.currentTask.id,
+                                name: state.currentTask.name,
+                                startTime: state.currentTask.startTime,
+                                endTime: now,
+                                duration,
+                                status: 'paused'
+                            });
+                            topTask.startTime = now;
+                        } else {
+                            topTask.startTime = Date.now();
+                        }
                     } else if (!state.currentTask) {
                         topTask.startTime = Date.now();
                     }
@@ -1315,20 +1347,24 @@ export const useTaskStore = create<TaskState>()(
                 set((state) => {
                     if (!state.currentTask) return {};
                     if (paused && state.currentTask.status !== 'paused') {
-                        const now = Date.now();
-                        const duration = now - state.currentTask.startTime;
-                        return {
-                            currentTask: { ...state.currentTask, status: 'paused', duration: state.currentTask.duration + duration },
-                            taskLog: [{
-                                id: crypto.randomUUID(),
-                                taskId: state.currentTask.id,
-                                name: state.currentTask.name,
-                                startTime: state.currentTask.startTime,
-                                endTime: now,
-                                duration,
-                                status: 'paused'
-                            }, ...state.taskLog]
-                        };
+                        if (state.currentTask.startTime > 0) {
+                            const now = Date.now();
+                            const duration = now - state.currentTask.startTime;
+                            return {
+                                currentTask: { ...state.currentTask, status: 'paused', duration: state.currentTask.duration + duration },
+                                taskLog: [{
+                                    id: crypto.randomUUID(),
+                                    taskId: state.currentTask.id,
+                                    name: state.currentTask.name,
+                                    startTime: state.currentTask.startTime,
+                                    endTime: now,
+                                    duration,
+                                    status: 'paused'
+                                }, ...state.taskLog]
+                            };
+                        } else {
+                            return { currentTask: { ...state.currentTask, status: 'paused' } };
+                        }
                     } else if (!paused && state.currentTask.status === 'paused') {
                         return {
                             currentTask: { ...state.currentTask, status: 'pending', startTime: Date.now() }
@@ -1410,13 +1446,12 @@ export const useTaskStore = create<TaskState>()(
                             status: 'paused' as TaskStatus
                         });
 
-                        // Keep as currentTask but set to paused (not started)
-                        // Reset startTime to now so the virtual entry in ActivityLog
-                        // appears on today's date, not the previous day
+                        // Keep as currentTask but set to paused with startTime=0 (not yet started today)
+                        // When user resumes via togglePause, startTime will be set to Date.now()
                         newCurrentTask = {
                             ...newCurrentTask,
                             status: 'paused' as TaskStatus,
-                            startTime: now,
+                            startTime: 0,
                             duration: newCurrentTask.duration + sessionDuration
                         };
                     }
