@@ -16,7 +16,7 @@ export const STACK_CONFIG = {
     // ユーザー設定: ここでスタックの見た目を調整してください
     // ------------------------------------------------------------------
     OFFSET_BASE: -10,   // スタック全体の上下位置（負の値で上へ移動）
-    OFFSET_STEP: 30,    // カード同士の重なり間隔（px）- 前面のカードよりも上に飛び出す量
+    OFFSET_STEP: 16,    // カード同士の重なり間隔（px）- 前面のカードよりも上に飛び出す量
     SCALE_STEP: 0.05,   // 奥に行くごとの縮小率（5 %ずつ小さく）
     SCALE_X_STEP: 0.08, // 横方向の縮小率（8 %ずつ小さく）
     VISIBLE_COUNT: 8,   // 表示する最大枚数
@@ -41,7 +41,7 @@ export function TaskStack({ isExpanded, onToggle }: TaskStackProps) {
         <div
             // Use justify-end to align bottom with Timer, p-8 matches page padding
             className={`absolute inset-0 -z-10 flex flex-col items-center transition-all duration-500 ${isExpanded ? 'z-[150] bg-slate-950/95 backdrop-blur-md overflow-y-auto pt-20 pb-10 justify-start' : 'justify-end pb-8 overflow-hidden'}`}
-            style={{ perspective: '1000px' }}
+            style={{}}
             onClick={() => !isExpanded && onToggle(true)}
         >
             {/* Close Overlay when expanded */}
@@ -65,8 +65,7 @@ export function TaskStack({ isExpanded, onToggle }: TaskStackProps) {
                 // Hide current task card in TaskStack when collapsed since TaskTimer is on top
                 if (!isExpanded && isCurrent) return null;
 
-                // 3D Transform Logic (Collapsed)
-                const zOffset = -reverseIndex * 50;
+                // 2D Transform Logic (Collapsed) — translateZ を排除してブラウザ差をなくす
                 const yOffset = STACK_CONFIG.OFFSET_BASE - (reverseIndex * STACK_CONFIG.OFFSET_STEP);
 
                 const scale = 1 - (reverseIndex * STACK_CONFIG.SCALE_STEP);
@@ -96,7 +95,7 @@ export function TaskStack({ isExpanded, onToggle }: TaskStackProps) {
                             height: STACK_CONFIG.CARD_HEIGHT,
                             transform: isExpanded
                                 ? `translateY(0) scale(${expandedScale}) translateZ(0)`
-                                : `translateY(${yOffset}px) translateZ(${zOffset}px) scale(${scaleX}, ${scale})`,
+                                : `translateY(${yOffset}px) scale(${scaleX}, ${scale})`,
                             opacity: isExpanded ? 1 : opacity,
                             zIndex: isExpanded ? 100 : (10 - reverseIndex), // Ensure positive zIndex so they are above background
                             position: isExpanded ? 'relative' : 'absolute',

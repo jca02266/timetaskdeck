@@ -2,8 +2,10 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
-import { Calendar, Repeat, Clock, X, Check } from 'lucide-react';
+import { Calendar, Repeat, Check } from 'lucide-react';
 import { DatePicker, DatePickerRef } from './DatePicker';
+import { TimeInput } from './ui/TimeInput';
+import { useTimeInput } from '@/hooks/useTimeInput';
 
 interface AdvancedScheduleDialogProps {
     isOpen: boolean;
@@ -36,7 +38,7 @@ export function AdvancedScheduleDialog({
 }: AdvancedScheduleDialogProps) {
     const [mode, setMode] = useState<'one-time' | 'weekly'>(currentDaysOfWeek && currentDaysOfWeek.length > 0 ? 'weekly' : 'one-time');
     const [date, setDate] = useState(currentDate || '');
-    const [time, setTime] = useState(currentTime || '');
+    const timeInput = useTimeInput(currentTime || '');
     const [daysOfWeek, setDaysOfWeek] = useState<number[]>(currentDaysOfWeek || []);
     const [autoStart, setAutoStart] = useState(currentAutoStart ?? true);
     const datePickerRef = useRef<DatePickerRef>(null);
@@ -48,7 +50,7 @@ export function AdvancedScheduleDialog({
         if (isOpen) {
             setMode(currentDaysOfWeek && currentDaysOfWeek.length > 0 ? 'weekly' : 'one-time');
             setDate(currentDate || '');
-            setTime(currentTime || '');
+            timeInput.reset(currentTime || '');
             setDaysOfWeek(currentDaysOfWeek || []);
             setAutoStart(currentAutoStart ?? true);
         }
@@ -62,32 +64,8 @@ export function AdvancedScheduleDialog({
         );
     };
 
-    const formatTimeValue = (val: string) => {
-        // Remove all non-numeric characters
-        const digits = val.replace(/\D/g, '');
-        if (digits.length === 0) return '';
-
-        let h = '00';
-        let m = '00';
-
-        if (digits.length <= 2) {
-            h = digits.padStart(2, '0');
-        } else {
-            const splitPos = digits.length - 2;
-            h = digits.slice(0, splitPos).padStart(2, '0');
-            m = digits.slice(splitPos);
-        }
-
-        // Clamp values
-        const hourNum = Math.min(23, parseInt(h));
-        const minNum = Math.min(59, parseInt(m));
-
-        return `${hourNum.toString().padStart(2, '0')}:${minNum.toString().padStart(2, '0')}`;
-    };
-
     const handleSave = () => {
-        // Ensure format is HH:mm even if native input behavior varies
-        const formattedTime = time ? (time.includes(':') ? time : `${time.slice(0, 2)}:${time.slice(2)}`) : undefined;
+        const formattedTime = timeInput.formatted; // parseTime で正規化済み、不正値は undefined
 
         if (mode === 'one-time') {
             onSave(date || undefined, formattedTime, undefined, autoStart);
@@ -183,22 +161,12 @@ export function AdvancedScheduleDialog({
                     {/* Time Input */}
                     <div className="space-y-1.5">
                         <label className="text-[10px] text-slate-500 uppercase tracking-tighter">Time</label>
-                        <div className="relative group">
-                            <Clock size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500 group-focus-within:text-blue-400 transition-colors z-10 pointer-events-none" />
-                            <input
-                                type="time"
-                                value={time}
-                                onChange={(e) => setTime(e.target.value)}
-                                onKeyDown={(e) => {
-                                    if (e.nativeEvent.isComposing || e.keyCode === 229) return;
-                                    if (e.key === 'Enter') {
-                                        handleSave();
-                                    }
-                                    // Let Tab and Arrow keys work normally for type="time"
-                                }}
-                                className="w-full bg-slate-950/30 border border-slate-800 focus:border-blue-500/50 focus:outline-none rounded-lg py-3 pl-10 pr-4 text-center text-2xl font-mono tracking-widest text-white shadow-inner transition-all [color-scheme:dark] appearance-none"
-                            />
-                        </div>
+                        <TimeInput
+                            value={timeInput.value}
+                            onChange={timeInput.setValue}
+                            onKeyDown={handleKeyDown}
+                            variant="dialog"
+                        />
                     </div>
 
                     {/* Auto-start Toggle */}

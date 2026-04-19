@@ -20,8 +20,8 @@ function getPillClasses(colorCode?: string) {
 }
 
 export function TaskTableView() {
-    const isTaskTableOpen = useTaskStore((state) => state.isTaskTableOpen);
-    const setIsTaskTableOpen = useTaskStore((state) => state.setIsTaskTableOpen);
+    const isTaskTableOpen = useTaskStore((state) => state.activeDialog === 'taskTable');
+    const openDialog = useTaskStore((state) => state.openDialog);
 
     // Store data
     const backlogTasks = useTaskStore((state) => state.backlogTasks);
@@ -186,7 +186,7 @@ export function TaskTableView() {
         });
 
         reorderAllTasks(merged);
-        setIsTaskTableOpen(false);
+        openDialog(null);
     };
 
     const handleLocalUpdate = useCallback((taskId: string, updates: Partial<Task>) => {

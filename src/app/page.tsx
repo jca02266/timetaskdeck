@@ -25,12 +25,8 @@ export default function Home() {
   const [draggedDockId, setDraggedDockId] = useState<string | null>(null);
 
   const {
-    isLogOpen,
-    isSettingsOpen,
-    isTaskTableOpen,
-    setIsLogOpen,
-    setIsSettingsOpen,
-    setIsTaskTableOpen,
+    activeDialog,
+    openDialog,
     backlogCategories,
     addBacklogCategory,
     isRecurringMinimized,
@@ -81,14 +77,14 @@ export default function Home() {
                 <span>Add Backlog</span>
               </button>
               <button
-                onClick={() => setIsTaskTableOpen(true)}
+                onClick={() => openDialog('taskTable')}
                 className="flex items-center gap-1 px-2 py-1 bg-slate-800/50 hover:bg-slate-700/50 rounded text-xs text-slate-400 hover:text-white transition-colors border border-slate-700"
               >
                 <Table size={14} />
                 <span>Table View</span>
               </button>
               <button
-                onClick={() => setIsSettingsOpen(true)}
+                onClick={() => openDialog('settings')}
                 className="flex items-center gap-1 px-2 py-1 bg-slate-800/50 hover:bg-slate-700/50 rounded text-xs text-slate-400 hover:text-white transition-colors border border-slate-700"
               >
                 <Settings size={14} />
@@ -96,7 +92,7 @@ export default function Home() {
               </button>
             </div>
             <button
-              onClick={() => setIsLogOpen(true)}
+              onClick={() => openDialog('log')}
               className="flex items-center gap-2 px-3 py-1 bg-slate-800/50 hover:bg-slate-700/50 rounded text-xs text-slate-400 hover:text-white transition-colors border border-slate-700 hover:border-slate-500"
             >
               <List size={14} />

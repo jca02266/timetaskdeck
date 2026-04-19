@@ -1,15 +1,11 @@
 import { useTaskStore, BacklogCategory, Task } from '@/store/useTaskStore';
 import { useMemoStore } from '@/store/useMemoStore';
-import { Tooltip } from './Tooltip';
-import { DatePicker } from './DatePicker';
 import { DraggablePanel } from './DraggablePanel';
-import { TaskScheduleInput } from './TaskScheduleInput';
-import { format, parseISO } from 'date-fns';
-import { ListTodo, Play, Plus, Pencil, Check, X, Trash2, GripVertical, Copy, Minimize2, Calendar, Clock, FileText, Bell } from 'lucide-react';
+import { BacklogTaskItem } from './BacklogTaskItem';
+import { ListTodo, Plus, Pencil, Trash2, Minimize2, Bell } from 'lucide-react';
 import { getSmartPasteText } from '@/utils/taskParsing';
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef } from 'react';
 import { useNotification } from '@/hooks/useNotification';
-import { ColorPickerDialog } from './ColorPickerDialog';
 
 function getPillClasses(colorCode?: string) {
     if (!colorCode) return 'bg-slate-800 border-slate-700 text-slate-400';
@@ -59,32 +55,7 @@ export const BacklogPanel = ({ category, defaultPosition }: BacklogPanelProps) =
     const [newItem, setNewItem] = useState('');
     const [isEditingTitle, setIsEditingTitle] = useState(false);
     const [titleValue, setTitleValue] = useState(category.name);
-    const [editingId, setEditingId] = useState<string | null>(null);
-    const [editValue, setEditValue] = useState('');
-
-    const [activeColorPickerTaskId, setActiveColorPickerTaskId] = useState<string | null>(null);
-    const [colorPickerRect, setColorPickerRect] = useState<DOMRect | undefined>(undefined);
     const containerRef = useRef<HTMLDivElement>(null);
-
-    const startEditing = (task: { id: string, name: string }) => {
-        setEditingId(task.id);
-        setEditValue(task.name);
-    };
-
-    const saveEdit = () => {
-        if (editingId && editValue.trim()) {
-            updateTaskName(editingId, editValue.trim());
-        }
-        setEditingId(null);
-        setEditValue('');
-    };
-
-    const cancelEdit = () => {
-        setEditingId(null);
-        setEditValue('');
-    };
-
-    // Drag and drop state removed (moved to store)
 
     const currentTime = useTaskStore((state) => state.currentTime);
     const currentDate = useTaskStore((state) => state.currentDate);
@@ -383,218 +354,15 @@ export const BacklogPanel = ({ category, defaultPosition }: BacklogPanelProps) =
                     </div>
                 ) : (
                     displayTasks.map((task, index) => {
-                        const { isDue, shouldNotify } = isTaskScheduledNow(task);
-                        const activeColorDef = colors.find(c => c.id === task.colorId);
-
-                        if (shouldNotify) {
-                            // sendNotification is now handled by NotificationManager
-                        }
-
+                        const { isDue } = isTaskScheduledNow(task);
                         return (
-                            <div
+                            <BacklogTaskItem
                                 key={task.id}
-                                data-task-id={task.id}
-                                data-panel-id={category.id}
-                                data-panel-type="backlog"
-                                data-index={index}
-                                data-is-due={isDue ? "true" : undefined}
-                                className={`group bg-slate-900/50 hover:bg-slate-800/80 px-3 py-2 rounded-lg transition-all flex items-center gap-3 select-none
-                                ${draggedTaskId === task.id ? 'opacity-20 scale-95 shadow-none' : 'shadow-sm'}
-                                ${isDue ? 'animate-blink border-yellow-500/50 shadow-[0_0_10px_rgba(234,179,8,0.3)]' : ''}`}
-                                style={{ touchAction: 'none' }}
-                                onPointerDown={(e) => {
-                                    if (e.button !== 0) return;
-                                    const startTime = Date.now();
-                                    const startPos = { x: e.clientX, y: e.clientY };
-                                    let hasMoved = false;
-
-                                    const target = e.currentTarget as HTMLElement;
-                                    target.setPointerCapture(e.pointerId);
-
-                                    const onPointerMove = (moveEvent: PointerEvent) => {
-                                        const dist = Math.sqrt(
-                                            Math.pow(moveEvent.clientX - startPos.x, 2) +
-                                            Math.pow(moveEvent.clientY - startPos.y, 2)
-                                        );
-
-                                        if (dist > 8 && !hasMoved) {
-                                            hasMoved = true;
-                                            setDraggedTaskId(task.id);
-                                        }
-
-                                        if (hasMoved) {
-                                            const overElement = document.elementFromPoint(moveEvent.clientX, moveEvent.clientY);
-                                            const overTaskRow = overElement?.closest('div[data-task-id]');
-                                            if (overTaskRow) {
-                                                const overPanelId = overTaskRow.getAttribute('data-panel-id');
-                                                const overPanelType = overTaskRow.getAttribute('data-panel-type') as any || 'backlog';
-                                                const overIndex = parseInt(overTaskRow.getAttribute('data-index') || '0');
-                                                if (overPanelId) {
-                                                    setDropTarget({ panelId: overPanelId, index: overIndex, type: overPanelType });
-                                                }
-                                            } else {
-                                                const overPanel = overElement?.closest('div[data-panel-category-id]');
-                                                if (overPanel) {
-                                                    const overPanelId = overPanel.getAttribute('data-panel-category-id');
-                                                    if (overPanelId) {
-                                                        setDropTarget({ panelId: overPanelId, index: 9999, type: 'backlog' });
-                                                    }
-                                                } else {
-                                                    const overRecurring = overElement?.closest('div[data-panel-type="recurring"]');
-                                                    if (overRecurring) {
-                                                        setDropTarget({ panelId: 'recurring', index: 9999, type: 'recurring' });
-                                                    }
-                                                }
-                                            }
-                                        }
-                                    };
-
-                                    const onPointerUp = (upEvent: PointerEvent) => {
-                                        target.releasePointerCapture(upEvent.pointerId);
-                                        window.removeEventListener('pointermove', onPointerMove);
-                                        window.removeEventListener('pointerup', onPointerUp);
-
-                                        if (hasMoved) {
-                                            commitMove();
-                                        } else {
-                                            setDraggedTaskId(null);
-                                            setDropTarget(null);
-                                        }
-                                    };
-
-                                    window.addEventListener('pointermove', onPointerMove);
-                                    window.addEventListener('pointerup', onPointerUp);
-                                }}
-                            >
-                                {/* 1. Drag Handle */}
-                                <div className="cursor-grab text-slate-600 hover:text-slate-400 shrink-0">
-                                    <GripVertical size={14} />
-                                </div>
-
-                                {/* 2. Tag (Color Pulse) */}
-                                <div className="relative shrink-0 ml-1">
-                                    <button
-                                        onClick={(e) => {
-                                            e.stopPropagation();
-                                            const rect = e.currentTarget.getBoundingClientRect();
-                                            setColorPickerRect(rect);
-                                            setActiveColorPickerTaskId(task.id);
-                                        }}
-                                        onPointerDown={(e) => e.stopPropagation()}
-                                        className="w-6 h-6 flex items-center justify-center rounded-full hover:bg-slate-700/50 transition-all"
-                                        title="タグを設定"
-                                    >
-                                        <div className={`w-3 h-3 rounded-full border border-white/10 shadow-sm ${activeColorDef?.colorCode || 'bg-slate-700'}`} />
-                                    </button>
-                                    {activeColorPickerTaskId === task.id && (
-                                        <ColorPickerDialog
-                                            currentColorId={task.colorId}
-                                            onSelect={(colorId) => updateTaskColorId(task.id, colorId)}
-                                            onClose={() => setActiveColorPickerTaskId(null)}
-                                            triggerRect={colorPickerRect}
-                                        />
-                                    )}
-                                </div>
-
-                                {/* 3. Start Task */}
-                                <button
-                                    onClick={(e) => {
-                                        e.stopPropagation();
-                                        pickFromBacklog(task.id);
-                                    }}
-                                    onPointerDown={(e) => e.stopPropagation()}
-                                    className="text-blue-500 hover:text-blue-400 p-1.5 rounded-full bg-blue-500/10 hover:bg-blue-500/20 transition-all"
-                                    title="Start Task"
-                                >
-                                    <Play size={14} className="fill-current" />
-                                </button>
-
-                                {/* 4. Subject */}
-                                <div className="flex-1 min-w-0">
-                                    {editingId === task.id ? (
-                                        <div className="flex items-center gap-1 w-full">
-                                            <input
-                                                type="text"
-                                                value={editValue}
-                                                onChange={(e) => setEditValue(e.target.value)}
-                                                onPointerDown={(e) => e.stopPropagation()}
-                                                className="flex-1 bg-slate-900 border border-slate-600 rounded px-2 py-1 text-xs text-white focus:outline-none focus:border-blue-500"
-                                                autoFocus
-                                                onKeyDown={(e) => {
-                                                    if (e.nativeEvent.isComposing || e.keyCode === 229) return;
-                                                    if (e.key === 'Enter') saveEdit();
-                                                    if (e.key === 'Escape') cancelEdit();
-                                                }}
-                                            />
-                                            <button onClick={saveEdit} className="text-green-400 hover:text-green-300 p-1">
-                                                <Check size={14} />
-                                            </button>
-                                            <button onClick={cancelEdit} className="text-red-400 hover:text-red-300 p-1">
-                                                <X size={14} />
-                                            </button>
-                                        </div>
-                                    ) : (
-                                        <Tooltip text={task.name}>
-                                            <span className="truncate block text-sm text-slate-300">
-                                                {task.name}
-                                            </span>
-                                        </Tooltip>
-                                    )}
-                                </div>
-
-                                {/* 5. Schedule */}
-                                <TaskScheduleInput
-                                    date={task.scheduledDate}
-                                    time={task.scheduledTime}
-                                    daysOfWeek={task.scheduledDaysOfWeek}
-                                    autoStart={task.autoStart}
-                                    onUpdate={(date, time, days, auto) => updateTaskSchedule(task.id, date, time, days, auto)}
-                                    className="ml-auto"
-                                />
-
-                                <div className="flex items-center gap-1 shrink-0">
-                                    {/* 6. Rename */}
-                                    <button
-                                        onClick={(e) => {
-                                            e.stopPropagation();
-                                            startEditing(task);
-                                        }}
-                                        onPointerDown={(e) => e.stopPropagation()}
-                                        className="text-slate-400 hover:text-slate-200 p-1 rounded opacity-0 group-hover:opacity-100 transition-opacity"
-                                        title="Rename"
-                                    >
-                                        <Pencil size={14} />
-                                    </button>
-
-                                    {/* 7. Open Memo */}
-                                    <button
-                                        onClick={(e) => {
-                                            e.stopPropagation();
-                                            useTaskStore.getState().openMemo(task.id);
-                                        }}
-                                        onPointerDown={(e) => e.stopPropagation()}
-                                        className={`p-1.5 text-slate-400 hover:text-blue-400 rounded hover:bg-slate-700/50 transition-colors ${!!memos[task.id] ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'}`}
-                                        title="Open Memo"
-                                    >
-                                        <FileText size={14} />
-                                    </button>
-
-                                    {/* 8. Delete Task */}
-                                    <button
-                                        onClick={(e) => {
-                                            e.stopPropagation();
-                                            if (window.confirm('Delete this task?')) {
-                                                deleteTask(task.id);
-                                            }
-                                        }}
-                                        onPointerDown={(e) => e.stopPropagation()}
-                                        className="p-1.5 text-slate-600 hover:text-red-400 transition-all opacity-0 group-hover:opacity-100"
-                                        title="Delete Task"
-                                    >
-                                        <Trash2 size={14} />
-                                    </button>
-                                </div>
-                            </div>
+                                task={task}
+                                index={index}
+                                categoryId={category.id}
+                                isDue={isDue}
+                            />
                         );
                     })
                 )}

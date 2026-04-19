@@ -150,14 +150,10 @@ interface TaskState {
     toggleMemoMinimized: () => void;
     getTaskById: (taskId: string) => Task | undefined;
 
-    // Modal Global States
-    isTaskTableOpen: boolean;
-    isLogOpen: boolean;
-    isSettingsOpen: boolean;
+    // Modal Global States — 同時に1つのみ開く
+    activeDialog: 'log' | 'settings' | 'taskTable' | null;
+    openDialog: (name: 'log' | 'settings' | 'taskTable' | null) => void;
     dayStartHour: number;
-    setIsTaskTableOpen: (open: boolean) => void;
-    setIsLogOpen: (open: boolean) => void;
-    setIsSettingsOpen: (open: boolean) => void;
     setDayStartHour: (hour: number) => void;
     currentTime: string; // HH:mm
     currentDate: string; // YYYY-MM-DD
@@ -195,14 +191,10 @@ export const useTaskStore = create<TaskState>()(
             isMemoMinimized: typeof window !== 'undefined' ? localStorage.getItem('timetask-ui-memo-minimized') === 'true' : false,
 
             // Modal Global States Initialization
-            isTaskTableOpen: false,
-            isLogOpen: false,
-            isSettingsOpen: false,
+            activeDialog: null,
+            openDialog: (name) => set({ activeDialog: name }),
             dayStartHour: 5,
 
-            setIsTaskTableOpen: (open) => set({ isTaskTableOpen: open }),
-            setIsLogOpen: (open) => set({ isLogOpen: open }),
-            setIsSettingsOpen: (open) => set({ isSettingsOpen: open }),
             setDayStartHour: (hour) => set({ dayStartHour: hour }),
             currentTime: '',
             currentDate: '',
