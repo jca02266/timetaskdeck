@@ -2,6 +2,7 @@ import { useState, useEffect, useMemo } from 'react';
 import { format, isSameDay, startOfDay } from 'date-fns';
 import { useTaskStore, getLogicalDate, TaskLogEntry } from '@/store/useTaskStore';
 import { parseTime } from '@/utils/validate';
+import { setTimeOnDate, calendarDayForTime } from '@/utils/dateUtils';
 
 export function useTaskLog() {
     const isLogOpen = useTaskStore((state) => state.activeDialog === 'log');
@@ -193,12 +194,8 @@ export function useTaskLog() {
             const index = newLogs.findIndex(l => l.id === logId);
             if (index === -1) return prev;
             const log = { ...newLogs[index] };
-            // dayStartHour を考慮: 入力時刻が日替わり時刻より前なら翌カレンダー日とする
-            const base = selectedDate;
-            const calDay = hours < dayStartHour
-                ? new Date(base.getFullYear(), base.getMonth(), base.getDate() + 1)
-                : base;
-            const newTimestamp = new Date(calDay.getFullYear(), calDay.getMonth(), calDay.getDate(), hours, minutes).getTime();
+            const calDay = calendarDayForTime(selectedDate, hours, dayStartHour);
+            const newTimestamp = setTimeOnDate(calDay, hours, minutes);
             if (type === 'start') {
                 if (log.startTime === newTimestamp) return prev;
                 log.startTime = newTimestamp;

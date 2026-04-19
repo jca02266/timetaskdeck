@@ -1,4 +1,5 @@
 import { useEffect, useRef, useCallback, useMemo, useState } from 'react';
+import { addDays, startOfDay } from 'date-fns';
 
 export function useNotification() {
     // Keep track of tasks we've already notified about today to avoid spamming
@@ -12,7 +13,7 @@ export function useNotification() {
 
         // Reset notified tasks at midnight
         const now = new Date();
-        const tomorrow = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1);
+        const tomorrow = addDays(startOfDay(now), 1);
         const msUntilMidnight = tomorrow.getTime() - now.getTime();
 
         const timeout = setTimeout(() => {
