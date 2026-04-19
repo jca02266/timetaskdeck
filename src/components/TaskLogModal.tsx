@@ -8,8 +8,8 @@ import { TimeInput } from './ui/TimeInput';
 import { parseTime } from '@/utils/validate';
 
 export function TaskLogModal() {
-    const isLogOpen = useTaskStore((state) => state.isLogOpen);
-    const setIsLogOpen = useTaskStore((state) => state.setIsLogOpen);
+    const isLogOpen = useTaskStore((state) => state.activeDialog === 'log');
+    const openDialog = useTaskStore((state) => state.openDialog);
     const currentTask = useTaskStore((state) => state.currentTask);
     const { taskLog, history, backlogTasks, taskStack, addManualTaskLogEntry } = useTaskStore();
 
@@ -340,14 +340,14 @@ export function TaskLogModal() {
                 if (window.confirm('開始時刻が終了時刻より後になっている不正なタスクがあります。変更を破棄して閉じますか？\n（キャンセルを押すと編集に戻ります）')) {
                     setHasChanges(false);
                     // Reset to original on next open
-                    setIsLogOpen(false);
+                    openDialog(null);
                 }
                 return;
             }
             useTaskStore.getState().updateTaskLogs(localLogs);
             setHasChanges(false);
         }
-        setIsLogOpen(false);
+        openDialog(null);
     };
 
     if (!isLogOpen) return null;

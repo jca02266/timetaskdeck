@@ -1,12 +1,12 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
 
-const mockSetIsLogOpen = vi.fn();
+const mockOpenDialog = vi.fn();
 const mockUpdateTaskLogs = vi.fn();
 
-const makeState = (overrides = {}) => ({
-    isLogOpen: true,
-    setIsLogOpen: mockSetIsLogOpen,
+const makeState = (overrides: Record<string, unknown> = {}) => ({
+    activeDialog: 'log' as const,
+    openDialog: mockOpenDialog,
     currentTask: null,
     taskLog: [],
     history: [],
@@ -51,7 +51,7 @@ describe('TaskLogModal', () => {
     });
 
     it('isLogOpen=false のとき何も表示しない', async () => {
-        storeMock = makeStoreMock({ isLogOpen: false });
+        storeMock = makeStoreMock({ activeDialog: null });
         const { TaskLogModal } = await import('../TaskLogModal');
         render(<TaskLogModal />);
         expect(screen.queryByText('Activity Log')).toBeNull();

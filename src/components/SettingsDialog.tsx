@@ -10,14 +10,15 @@ import { validateImportData } from '@/utils/validate';
 
 export function SettingsDialog() {
     const {
-        isSettingsOpen,
-        setIsSettingsOpen,
+        activeDialog,
+        openDialog,
         dayStartHour,
         setDayStartHour,
         colors,
         updateColorName,
         importState
     } = useTaskStore();
+    const isSettingsOpen = activeDialog === 'settings';
 
     const importMemoState = useMemoStore((state) => state.importState);
     const fileInputRef = useRef<HTMLInputElement>(null);
@@ -134,7 +135,7 @@ export function SettingsDialog() {
                         <h2 className="text-sm font-bold text-slate-100 uppercase tracking-widest">Settings</h2>
                     </div>
                     <button
-                        onClick={() => setIsSettingsOpen(false)}
+                        onClick={() => openDialog(null)}
                         className="p-2 text-slate-400 hover:text-white hover:bg-slate-800 rounded-full transition-all"
                     >
                         <X size={18} />

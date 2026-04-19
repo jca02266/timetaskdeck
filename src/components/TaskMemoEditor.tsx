@@ -83,10 +83,10 @@ export function TaskMemoEditor() {
     const closeMemo = useTaskStore((state) => state.closeMemo);
     const getTaskById = useTaskStore((state) => state.getTaskById);
 
-    const isTaskTableOpen = useTaskStore((state) => state.isTaskTableOpen);
-    const isLogOpen = useTaskStore((state) => state.isLogOpen);
-    const isSettingsOpen = useTaskStore((state) => state.isSettingsOpen);
-    const isAnyModalOpen = isTaskTableOpen || isLogOpen || isSettingsOpen;
+    
+    
+    const activeDialog = useTaskStore((state) => state.activeDialog);
+    const isAnyModalOpen = activeDialog !== null;
 
     const setMemo = useMemoStore((state) => state.setMemo);
     const memos = useMemoStore((state) => state.memos);
