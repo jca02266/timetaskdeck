@@ -1,7 +1,7 @@
 import { useTaskStore, getLogicalDate } from '@/store/useTaskStore';
 import { X, Clock, ChevronLeft, ChevronRight, Copy, Check, List, Layers, Trash2, Plus } from 'lucide-react';
 import { format, startOfDay, addDays, subDays, isSameDay, parseISO } from 'date-fns';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { DatePicker } from './DatePicker';
 import { TaskSelectionDialog } from './TaskSelectionDialog';
 
@@ -45,8 +45,6 @@ export function TaskLogModal() {
         return () => clearInterval(interval);
     }, [isLogOpen, dayStartHour]);
 
-    if (!isLogOpen) return null;
-
     const allLogs = currentTask ? [
         {
             id: 'current-active-task',
@@ -59,6 +57,31 @@ export function TaskLogModal() {
         },
         ...localLogs
     ] : localLogs;
+
+    const availableDates = useMemo(() => {
+        const dates = new Set<number>();
+        localLogs.forEach(log => {
+            dates.add(getLogicalDate(log.startTime, dayStartHour).getTime());
+        });
+        if (currentTask) {
+            dates.add(getLogicalDate(currentTask.startTime, dayStartHour).getTime());
+        }
+        return Array.from(dates).sort((a, b) => a - b);
+    }, [localLogs, currentTask, dayStartHour]);
+
+    const navigateDate = (direction: 'prev' | 'next') => {
+        const currentMs = selectedDate.getTime();
+        if (direction === 'prev') {
+            const prev = [...availableDates].reverse().find(d => d < currentMs);
+            if (prev) setSelectedDate(new Date(prev));
+        } else {
+            const next = availableDates.find(d => d > currentMs);
+            if (next) setSelectedDate(new Date(next));
+        }
+    };
+
+    const hasPrevLog = availableDates.some(d => d < selectedDate.getTime());
+    const hasNextLog = availableDates.some(d => d > selectedDate.getTime());
 
     const sortedLogs = [...allLogs.filter(log =>
         isSameDay(getLogicalDate(log.startTime, dayStartHour), selectedDate) &&
@@ -325,6 +348,8 @@ export function TaskLogModal() {
         setIsLogOpen(false);
     };
 
+    if (!isLogOpen) return null;
+
     return (
         <div className="fixed inset-0 z-[100] flex items-start justify-center bg-black/50 backdrop-blur-sm p-4 pt-20 sm:pt-24">
             <div className="bg-slate-900 border border-slate-700 w-full max-w-4xl max-h-[80vh] rounded-xl shadow-2xl flex flex-col overflow-hidden">
@@ -339,8 +364,10 @@ export function TaskLogModal() {
                         {/* Date Navigation */}
                         <div className="flex items-center gap-1 bg-slate-900/50 rounded-lg p-1 border border-slate-700">
                             <button
-                                onClick={() => setSelectedDate(subDays(selectedDate, 1))}
-                                className="p-1 rounded hover:bg-slate-800 text-slate-400 hover:text-white transition-colors"
+                                onClick={() => navigateDate('prev')}
+                                className="p-1 rounded hover:bg-slate-800 text-slate-400 hover:text-white transition-colors disabled:opacity-20 disabled:cursor-not-allowed"
+                                disabled={!hasPrevLog}
+                                title={hasPrevLog ? "Previous log date" : "No previous logs"}
                             >
                                 <ChevronLeft size={16} />
                             </button>
@@ -354,9 +381,10 @@ export function TaskLogModal() {
                                 />
                             </div>
                             <button
-                                onClick={() => setSelectedDate(addDays(selectedDate, 1))}
-                                className="p-1 rounded hover:bg-slate-800 text-slate-400 hover:text-white transition-colors disabled:opacity-30 disabled:hover:bg-transparent"
-                                disabled={isSameDay(selectedDate, startOfDay(new Date()))}
+                                onClick={() => navigateDate('next')}
+                                className="p-1 rounded hover:bg-slate-800 text-slate-400 hover:text-white transition-colors disabled:opacity-20 disabled:cursor-not-allowed"
+                                disabled={!hasNextLog}
+                                title={hasNextLog ? "Next log date" : "No next logs"}
                             >
                                 <ChevronRight size={16} />
                             </button>
@@ -502,11 +530,26 @@ export function TaskLogModal() {
                                                         format(log.startTime, 'HH:mm')
                                                     ) : (
                                                         <input
+                                                            id={`log-input-${log.id}-start`}
                                                             type="time"
                                                             value={editingValue?.id === log.id && editingValue?.type === 'start' ? editingValue.value : format(log.startTime, 'HH:mm')}
                                                             onChange={(e) => handleTimeChange(log.id, 'start', e.target.value)}
                                                             onBlur={() => handleTimeBlur(log.id, 'start')}
-                                                            onKeyDown={(e) => e.key === 'Enter' && handleTimeBlur(log.id, 'start')}
+                                                            onKeyDown={(e) => {
+                                                                if (e.key === 'Enter') handleTimeBlur(log.id, 'start');
+                                                                if (e.key === 'Tab') {
+                                                                    if (!e.shiftKey) {
+                                                                        e.preventDefault();
+                                                                        document.getElementById(`log-input-${log.id}-end`)?.focus();
+                                                                    } else {
+                                                                        const prevLog = displayLogs[index - 1];
+                                                                        if (prevLog) {
+                                                                            e.preventDefault();
+                                                                            document.getElementById(`log-input-${prevLog.id}-end`)?.focus();
+                                                                        }
+                                                                    }
+                                                                }
+                                                            }}
                                                             className={`bg-transparent border-b border-transparent focus:outline-none w-24 ${isInvalid ? 'border-red-500/50 focus:border-red-500' : 'hover:border-slate-700 focus:border-blue-500'}`}
                                                         />
                                                     )}
@@ -520,11 +563,26 @@ export function TaskLogModal() {
                                                         log.endTime ? format(log.endTime, 'HH:mm') : '--:--'
                                                     ) : (
                                                         <input
+                                                            id={`log-input-${log.id}-end`}
                                                             type="time"
                                                             value={editingValue?.id === log.id && editingValue?.type === 'end' ? editingValue.value : (log.endTime ? format(log.endTime, 'HH:mm') : '')}
                                                             onChange={(e) => handleTimeChange(log.id, 'end', e.target.value)}
                                                             onBlur={() => handleTimeBlur(log.id, 'end')}
-                                                            onKeyDown={(e) => e.key === 'Enter' && handleTimeBlur(log.id, 'end')}
+                                                            onKeyDown={(e) => {
+                                                                if (e.key === 'Enter') handleTimeBlur(log.id, 'end');
+                                                                if (e.key === 'Tab') {
+                                                                    if (!e.shiftKey) {
+                                                                        const nextLog = displayLogs[index + 1];
+                                                                        if (nextLog) {
+                                                                            e.preventDefault();
+                                                                            document.getElementById(`log-input-${nextLog.id}-start`)?.focus();
+                                                                        }
+                                                                    } else {
+                                                                        e.preventDefault();
+                                                                        document.getElementById(`log-input-${log.id}-start`)?.focus();
+                                                                    }
+                                                                }
+                                                            }}
                                                             className={`bg-transparent border-b border-transparent focus:outline-none w-24 ${isInvalid ? 'border-red-500/50 focus:border-red-500' : 'hover:border-slate-700 focus:border-blue-500'}`}
                                                         />
                                                     )}
