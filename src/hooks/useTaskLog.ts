@@ -237,14 +237,6 @@ export function useTaskLog() {
         });
     };
 
-    const handleSort = () => {
-        const currentLogs = localLogs.filter(l => isSameDay(getLogicalDate(l.startTime, dayStartHour), selectedDate));
-        const sorted = [...currentLogs].sort((a, b) => a.startTime - b.startTime);
-        const newMap: Record<string, number> = {};
-        sorted.forEach((l, i) => { newMap[l.id] = i * 10; });
-        setOrderMap(newMap);
-        setHasChanges(true);
-    };
 
     const handleAddLog = (beforeLogId?: string) => {
         const currentDayLogs = [...localLogs]
@@ -400,7 +392,6 @@ export function useTaskLog() {
         handleChangeTask,
         handleConvertBreak,
         handleRefresh,
-        handleSort,
         handleAddLog,
         handleClose,
     };

@@ -34,7 +34,6 @@ export function TaskLogModal() {
         handleChangeTask,
         handleConvertBreak,
         handleRefresh,
-        handleSort,
         handleAddLog,
         handleClose,
     } = useTaskLog();
@@ -99,16 +98,6 @@ export function TaskLogModal() {
                         </div>
 
                         {/* Sort Button */}
-                        {viewMode === 'timeline' && (
-                            <button
-                                onClick={handleSort}
-                                className="px-3 py-1 bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white rounded-lg text-xs font-medium border border-slate-700 transition-all flex items-center gap-1.5"
-                                title="時刻順に並べ替え"
-                            >
-                                <List size={14} className="opacity-50" />
-                                <span>Sort by Time</span>
-                            </button>
-                        )}
                         {/* Sort Toggle (Timeline Only) */}
                         {viewMode === 'timeline' && (
                             <div className="flex items-center gap-1 bg-slate-900/50 rounded-lg p-1 border border-slate-700 ml-4">
