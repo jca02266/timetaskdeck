@@ -55,6 +55,7 @@ export function NotificationManager() {
     const { sendNotification } = useNotification();
     const lastCheckMinute = useRef<string>('');
     const hasSettled = useRef(false);
+    const checkedMissedMinutes = useRef<Set<string>>(new Set());
 
     useEffect(() => {
         if (!hasSettled.current) {
@@ -67,15 +68,18 @@ export function NotificationManager() {
     const checkMissedTasks = (windowMinutes: number) => {
         const now = new Date();
         const state = useTaskStore.getState();
+        // currentTask は既に実行中のため除外（定期タスクが recurringTasks に残り続けるため二重起動を防ぐ）
         const allTasks = [...state.backlogTasks, ...state.recurringTasks, ...state.taskStack];
-        if (state.currentTask) allTasks.push(state.currentTask);
 
         for (let i = windowMinutes; i >= 1; i--) {
             const t = new Date(now.getTime() - i * 60 * 1000);
             const timeStr = `${t.getHours().toString().padStart(2, '0')}:${t.getMinutes().toString().padStart(2, '0')}`;
             const dateStr = `${t.getFullYear()}-${(t.getMonth() + 1).toString().padStart(2, '0')}-${t.getDate().toString().padStart(2, '0')}`;
-            const dayNum = t.getDay();
-            checkAndAutoStart(allTasks, timeStr, dateStr, dayNum, sendNotification);
+            const key = `${dateStr}-${timeStr}`;
+            // 同じ分を二重チェックしない
+            if (checkedMissedMinutes.current.has(key)) continue;
+            checkedMissedMinutes.current.add(key);
+            checkAndAutoStart(allTasks, timeStr, dateStr, t.getDay(), sendNotification);
         }
     };
 
