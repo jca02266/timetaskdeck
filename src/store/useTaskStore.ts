@@ -3,6 +3,7 @@ import { persist, createJSONStorage } from 'zustand/middleware';
 import { useMemoStore } from './useMemoStore';
 import { startOfDay, subDays } from 'date-fns';
 import { parseTaskInput } from '@/utils/taskParsing';
+import { indexedDbStorage } from './indexedDbStorage';
 
 export const getLogicalDate = (timestamp: number, dayStartHour: number): Date => {
     const date = new Date(timestamp);
@@ -1471,7 +1472,7 @@ export const useTaskStore = create<TaskState>()(
         }),
         {
             name: 'timetask-storage',
-            storage: createJSONStorage(() => localStorage),
+            storage: createJSONStorage(() => indexedDbStorage),
             version: 1,
             migrate: (persistedState: any, version: number) => {
                 if (version === 0) {

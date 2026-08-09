@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
+import { indexedDbStorage } from './indexedDbStorage';
 
 interface MemoState {
     memos: Record<string, string>;
@@ -30,7 +31,7 @@ export const useMemoStore = create<MemoState>()(
         }),
         {
             name: 'timetask-memos',
-            storage: createJSONStorage(() => localStorage),
+            storage: createJSONStorage(() => indexedDbStorage),
         }
     )
 );

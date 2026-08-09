@@ -7,6 +7,7 @@ import { useState, useRef } from 'react';
 import { useNotification } from '@/hooks/useNotification';
 import { Bell, BellOff, Info } from 'lucide-react';
 import { validateImportData } from '@/utils/validate';
+import { getPersistedValue } from '@/store/indexedDbStorage';
 
 export function SettingsDialog() {
     const {
@@ -58,9 +59,9 @@ export function SettingsDialog() {
         setEditColorValue('');
     };
 
-    const handleExport = () => {
-        const rawTaskData = localStorage.getItem('timetask-storage');
-        const rawMemoData = localStorage.getItem('timetask-memos');
+    const handleExport = async () => {
+        const rawTaskData = await getPersistedValue('timetask-storage');
+        const rawMemoData = await getPersistedValue('timetask-memos');
 
         if (!rawTaskData) {
             alert("保存されたデータが見つかりません。");

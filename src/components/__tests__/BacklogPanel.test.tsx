@@ -72,7 +72,8 @@ vi.mock('../DraggablePanel', () => ({
 const testCategory: BacklogCategory = {
     id: 'main',
     name: 'Main',
-    minimized: false,
+    allocatedMinutes: 0,
+    isMinimized: false,
 };
 
 describe('BacklogPanel', () => {

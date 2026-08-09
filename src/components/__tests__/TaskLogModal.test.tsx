@@ -21,9 +21,13 @@ const makeState = (overrides: Record<string, unknown> = {}) => ({
 // useTaskStore は selector あり・なし両方で使われるため両パターンを処理
 function makeStoreMock(stateOverrides = {}) {
     const state = makeState(stateOverrides);
+    type StoreHook = {
+        (selector?: (s: typeof state) => unknown): unknown;
+        getState: () => typeof state;
+    };
     const hook = vi.fn((selector?: (s: typeof state) => unknown) =>
         selector ? selector(state) : state
-    ) as typeof hook & { getState: () => typeof state };
+    ) as unknown as StoreHook;
     hook.getState = () => state;
     return hook;
 }
@@ -40,7 +44,7 @@ async function setStoreState(overrides = {}) {
     storeMock = makeStoreMock(overrides);
     const mod = await import('@/store/useTaskStore');
     vi.mocked(mod.useTaskStore).mockImplementation((...args) =>
-        storeMock(...args as Parameters<typeof storeMock>)
+        storeMock(...args as unknown as Parameters<typeof storeMock>)
     );
 }
 
