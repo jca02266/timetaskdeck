@@ -5,11 +5,12 @@ import type {
     Task,
     TaskLogEntry,
 } from './useTaskStore';
+import type { Timebox } from './useTimeboxStore';
 
 export const INDEXED_DB_NAME = 'timetask-db';
-const DB_VERSION = 2;
+const DB_VERSION = 3;
 const LEGACY_STORE_NAME = 'persisted-state';
-const MIGRATION_VERSION = 2;
+const MIGRATION_VERSION = 3;
 const FALLBACK_PREFIX = 'timetask-fallback-';
 
 const STORE = {
@@ -21,6 +22,7 @@ const STORE = {
     taskLists: 'task-lists',
     settings: 'settings',
     migrationMeta: 'migration-meta',
+    timeboxes: 'timeboxes',
 } as const;
 
 type StoreName = typeof STORE[keyof typeof STORE];
@@ -77,6 +79,7 @@ let databaseConnection: IDBDatabase | undefined;
 let migrationPromise: Promise<void> | undefined;
 let taskSnapshot: NormalizedTaskState | undefined;
 let memoSnapshot: NormalizedMemoState | undefined;
+let timeboxSnapshot: Timebox[] | undefined;
 
 const areEqual = (left: unknown, right: unknown) => JSON.stringify(left) === JSON.stringify(right);
 
@@ -362,6 +365,7 @@ const migrateLegacyData = async (database: IDBDatabase): Promise<void> => {
         readAllValues<unknown>(database, STORE.colors),
         readAllValues<unknown>(database, STORE.taskLists),
         readAllValues<unknown>(database, STORE.settings),
+        readAllValues<unknown>(database, STORE.timeboxes),
     ])).some((records) => records.length > 0);
 
     await runTransaction(database, [STORE.migrationMeta], (transaction) => {
@@ -380,6 +384,7 @@ const migrateLegacyData = async (database: IDBDatabase): Promise<void> => {
         STORE.colors,
         STORE.taskLists,
         STORE.settings,
+        STORE.timeboxes,
         STORE.migrationMeta,
     ], (transaction) => {
         if (hasLegacyData || !existingSplitData) {
@@ -477,6 +482,12 @@ const getTaskState = async (database: IDBDatabase): Promise<string> => {
     return JSON.stringify({ state, version: 1 });
 };
 
+const getTimeboxState = async (database: IDBDatabase): Promise<string> => {
+    const timeboxes = await readAllValues<Timebox>(database, STORE.timeboxes);
+    timeboxSnapshot = timeboxes;
+    return JSON.stringify({ state: { timeboxes }, version: 1 });
+};
+
 const getMemoState = async (database: IDBDatabase): Promise<string> => {
     const records = await readAllEntries<string>(database, STORE.memos);
     const memos = Object.fromEntries(records);
@@ -521,6 +532,15 @@ const setMemoState = async (database: IDBDatabase, rawValue: string): Promise<vo
     memoSnapshot = next;
 };
 
+const setTimeboxState = async (database: IDBDatabase, rawValue: string): Promise<void> => {
+    const state = (JSON.parse(rawValue) as PersistedEnvelope<{ timeboxes?: Timebox[] }>).state ?? {};
+    const timeboxes = state.timeboxes ?? [];
+    await runTransaction(database, [STORE.timeboxes], (transaction) => {
+        putRecords(transaction, STORE.timeboxes, timeboxes, timeboxSnapshot);
+    });
+    timeboxSnapshot = timeboxes;
+};
+
 const fallbackStorage: StateStorage = {
     getItem: (name) => getLocalStorage()?.getItem(`${FALLBACK_PREFIX}${name}`)
         ?? getLocalStorage()?.getItem(name)
@@ -537,9 +557,9 @@ export const indexedDbStorage: StateStorage = {
         if (!isIndexedDBAvailable()) return fallbackStorage.getItem(name);
         try {
             const database = await ensureDatabaseMigrated();
-            return name === 'timetask-memos'
-                ? await getMemoState(database)
-                : await getTaskState(database);
+            if (name === 'timetask-memos') return await getMemoState(database);
+            if (name === 'timetask-timeboxes') return await getTimeboxState(database);
+            return await getTaskState(database);
         } catch {
             return fallbackStorage.getItem(name);
         }
@@ -552,6 +572,7 @@ export const indexedDbStorage: StateStorage = {
         try {
             const database = await ensureDatabaseMigrated();
             if (name === 'timetask-memos') await setMemoState(database, value);
+            else if (name === 'timetask-timeboxes') await setTimeboxState(database, value);
             else await setTaskState(database, value);
         } catch {
             fallbackStorage.setItem(name, value);
@@ -564,7 +585,15 @@ export const indexedDbStorage: StateStorage = {
         }
         try {
             const database = await ensureDatabaseMigrated();
-            await runTransaction(database, name === 'timetask-memos' ? [STORE.memos] : [
+            if (name === 'timetask-memos') {
+                await runTransaction(database, [STORE.memos], (transaction) => {
+                    transaction.objectStore(STORE.memos).clear();
+                });
+            } else if (name === 'timetask-timeboxes') {
+                await runTransaction(database, [STORE.timeboxes], (transaction) => {
+                    transaction.objectStore(STORE.timeboxes).clear();
+                });
+            } else await runTransaction(database, [
                 STORE.tasks,
                 STORE.taskLogs,
                 STORE.backlogCategories,
@@ -572,11 +601,8 @@ export const indexedDbStorage: StateStorage = {
                 STORE.taskLists,
                 STORE.settings,
             ], (transaction) => {
-                if (name === 'timetask-memos') transaction.objectStore(STORE.memos).clear();
-                else {
-                    [STORE.tasks, STORE.taskLogs, STORE.backlogCategories, STORE.colors, STORE.taskLists, STORE.settings]
-                        .forEach((storeName) => transaction.objectStore(storeName).clear());
-                }
+                [STORE.tasks, STORE.taskLogs, STORE.backlogCategories, STORE.colors, STORE.taskLists, STORE.settings]
+                    .forEach((storeName) => transaction.objectStore(storeName).clear());
             });
         } catch {
             fallbackStorage.removeItem(name);
@@ -594,4 +620,5 @@ export const resetIndexedDbStorageForTests = () => {
     migrationPromise = undefined;
     taskSnapshot = undefined;
     memoSnapshot = undefined;
+    timeboxSnapshot = undefined;
 };

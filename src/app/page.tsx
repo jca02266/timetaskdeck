@@ -11,6 +11,7 @@ import { TaskLogModal } from "@/components/TaskLogModal";
 import { SettingsDialog } from "@/components/SettingsDialog";
 import { TaskTableView } from "@/components/TaskTableView";
 import { TaskMemoEditor } from "@/components/TaskMemoEditor";
+import { TimeboxDeck } from "@/components/TimeboxDeck";
 import { useState } from "react";
 /* New Components */
 import { DraggablePanel } from "@/components/DraggablePanel";
@@ -23,6 +24,7 @@ import { RotateCcw, Plus, Play, List, Layers, Settings, ListPlus, Table, ListTod
 export default function Home() {
   const [isStackExpanded, setStackExpanded] = useState(false);
   const [draggedDockId, setDraggedDockId] = useState<string | null>(null);
+  const [isTimeboxOpen, setTimeboxOpen] = useState(false);
 
   const {
     activeDialog,
@@ -206,6 +208,19 @@ export default function Home() {
               <span className="max-w-[150px] truncate">{category.name}</span>
             </button>
           ))}
+          {/* Timebox Deck Dock Item */}
+          <button
+            onClick={() => setTimeboxOpen(true)}
+            className={`pointer-events-auto flex items-center gap-2 px-4 py-2 backdrop-blur-md border rounded-full text-sm font-medium transition-all shadow-xl hover:-translate-y-0.5
+              ${isTimeboxOpen
+                ? 'bg-cyan-900/40 border-cyan-500/50 text-cyan-100 shadow-cyan-900/20'
+                : 'bg-slate-900/90 border-slate-700/50 text-slate-400 hover:text-white hover:bg-slate-800'}`}
+            title="タイムボックスデッキを開く"
+          >
+            <Clock size={16} className={isTimeboxOpen ? 'text-cyan-400' : 'opacity-60'} />
+            <span>タイムボックス</span>
+          </button>
+
           {/* Recurring Tasks Dock Item */}
           <button
             onClick={() => {
@@ -274,6 +289,7 @@ export default function Home() {
       ))}
 
       <TaskTableView />
+      {isTimeboxOpen && <TimeboxDeck onClose={() => setTimeboxOpen(false)} />}
       {!isRecurringMinimized && <RecurringTasks />}
       {!isHistoryMinimized && <HistoryView />}
       <TaskMemoEditor />

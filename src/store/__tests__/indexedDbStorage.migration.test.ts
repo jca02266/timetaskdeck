@@ -13,7 +13,7 @@ const openDatabase = (version: number) => new Promise<IDBDatabase>((resolve, rej
             request.result.createObjectStore('persisted-state');
         }
         if (version >= 2) {
-            ['tasks', 'task-logs', 'memos', 'backlog-categories', 'colors', 'task-lists', 'settings', 'migration-meta']
+            ['tasks', 'task-logs', 'memos', 'backlog-categories', 'colors', 'task-lists', 'settings', 'migration-meta', 'timeboxes']
                 .forEach((storeName) => {
                     if (!request.result.objectStoreNames.contains(storeName)) {
                         request.result.createObjectStore(storeName);
@@ -43,7 +43,7 @@ const putLegacyValue = async (name: string, value: unknown, version = 1) => {
 };
 
 const readStoreValue = async <T>(storeName: string, key: string): Promise<T | undefined> => {
-    const database = await openDatabase(2);
+    const database = await openDatabase(3);
     return new Promise<T | undefined>((resolve, reject) => {
         const transaction = database.transaction(storeName, 'readonly');
         const request = transaction.objectStore(storeName).get(key);
@@ -84,7 +84,7 @@ describe('indexedDbStorage migration', () => {
         expect(localStorage.getItem('timetask-storage')).toBeNull();
         expect(localStorage.getItem('timetask-memos')).toBeNull();
         expect(await readStoreValue('migration-meta', 'schema')).toMatchObject({
-            schemaVersion: 2,
+            schemaVersion: 3,
             status: 'completed',
         });
     });
@@ -133,7 +133,7 @@ describe('indexedDbStorage migration', () => {
     });
 
     it('does not clear existing split data when no legacy source exists', async () => {
-        const database = await openDatabase(2);
+        const database = await openDatabase(3);
         await new Promise<void>((resolve, reject) => {
             const transaction = database.transaction('tasks', 'readwrite');
             transaction.objectStore('tasks').put({ id: 'existing', name: 'Existing' }, 'existing');
