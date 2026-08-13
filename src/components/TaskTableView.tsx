@@ -289,11 +289,11 @@ export function TaskTableView() {
                                     dueElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
                                 }
                             }}
-                            className="flex items-center gap-1.5 px-3 py-1.5 min-w-[60px] justify-center text-white rounded-md animate-alert-flash transition-colors font-bold tracking-widest text-[10px]"
+                            className="animate-due-indicator flex items-center gap-1.5 px-3 py-1.5 min-w-[60px] justify-center text-red-200 bg-red-950/60 border border-red-500/50 rounded-md font-bold tracking-widest text-[10px]"
                             title="Due task in this view"
                             onPointerDown={(e) => e.stopPropagation()}
                         >
-                            <Bell size={14} className="animate-bell-ring" />
+                            <Bell size={14} />
                             <span>DUE</span>
                         </button>
                     )}
@@ -424,7 +424,7 @@ const TaskTableRow = memo(function TaskTableRow({
         <tr
             data-index={index}
             data-is-due={isDue ? "true" : undefined}
-            className={`transition-colors group ${draggedIndex === index ? 'opacity-30' : ''} ${task.backlogId === '__CURRENT__' ? 'bg-blue-500/5' : ''} ${isDue ? 'animate-blink bg-yellow-500/10' : 'hover:bg-slate-800/40'}`}
+            className={`transition-colors group ${draggedIndex === index ? 'opacity-30' : ''} ${task.backlogId === '__CURRENT__' ? 'bg-blue-500/5' : ''} ${isDue ? 'animate-due-card' : 'hover:bg-slate-800/40'}`}
         >
             <td className="px-6 py-4 text-slate-600 relative">
                 {!isSortActive && (

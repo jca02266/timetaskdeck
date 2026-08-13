@@ -46,7 +46,7 @@ export function TaskTimer() {
             const now = Date.now();
             const currentDuration = now - currentTask.startTime;
             setElapsed(currentTask.duration + currentDuration);
-        }, 100);
+        }, 1000);
 
         return () => clearInterval(interval);
     }, [currentTask]);

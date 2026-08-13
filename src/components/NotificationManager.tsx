@@ -54,6 +54,7 @@ export function NotificationManager() {
     const missedTaskWindowMinutes = useTaskStore(state => state.missedTaskWindowMinutes);
     const { sendNotification } = useNotification();
     const lastCheckMinute = useRef<string>('');
+    const lastPublishedTime = useRef<string>('');
     const hasSettled = useRef(false);
     const checkedMissedMinutes = useRef<Set<string>>(new Set());
 
@@ -90,7 +91,13 @@ export function NotificationManager() {
             const dateStr = `${now.getFullYear()}-${(now.getMonth() + 1).toString().padStart(2, '0')}-${now.getDate().toString().padStart(2, '0')}`;
             const dayNum = now.getDay();
 
-            updateCurrentTime(timeStr, dateStr, dayNum);
+            // The UI uses minute precision. Avoid persisting the same clock value
+            // every second, which causes unnecessary IndexedDB writes and renders.
+            const timeStateKey = `${dateStr}-${timeStr}-${dayNum}`;
+            if (lastPublishedTime.current !== timeStateKey) {
+                lastPublishedTime.current = timeStateKey;
+                updateCurrentTime(timeStr, dateStr, dayNum);
+            }
 
             if (lastCheckMinute.current !== timeStr) {
                 lastCheckMinute.current = timeStr;
