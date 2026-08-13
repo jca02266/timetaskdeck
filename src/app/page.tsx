@@ -17,6 +17,7 @@ import { useState } from "react";
 import { DraggablePanel } from "@/components/DraggablePanel";
 import { useTaskStore } from "@/store/useTaskStore";
 import { NotificationManager } from "@/components/NotificationManager";
+import { useShallow } from 'zustand/react/shallow';
 
 /* Icons */
 import { RotateCcw, Plus, Play, List, Layers, Settings, ListPlus, Table, ListTodo, Repeat, Clock, FileText } from 'lucide-react';
@@ -40,7 +41,21 @@ export default function Home() {
     history,
     currentTask,
     taskStack
-  } = useTaskStore();
+  } = useTaskStore(useShallow((state) => ({
+    activeDialog: state.activeDialog,
+    openDialog: state.openDialog,
+    backlogCategories: state.backlogCategories,
+    addBacklogCategory: state.addBacklogCategory,
+    isRecurringMinimized: state.isRecurringMinimized,
+    isHistoryMinimized: state.isHistoryMinimized,
+    toggleRecurringMinimized: state.toggleRecurringMinimized,
+    toggleHistoryMinimized: state.toggleHistoryMinimized,
+    activeMemoTaskId: state.activeMemoTaskId,
+    isMemoMinimized: state.isMemoMinimized,
+    history: state.history,
+    currentTask: state.currentTask,
+    taskStack: state.taskStack,
+  })));
 
   const deckTaskCount = (currentTask ? 1 : 0) + taskStack.length;
 

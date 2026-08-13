@@ -1146,8 +1146,13 @@ export const useTaskStore = create<TaskState>()(
                     }
 
                     return {
+                        currentTask: state.currentTask?.id === taskId
+                            ? updateTask(state.currentTask)
+                            : state.currentTask,
+                        taskStack: updateList(state.taskStack),
                         backlogTasks: updateList(state.backlogTasks),
-                        recurringTasks: updateList(state.recurringTasks)
+                        recurringTasks: updateList(state.recurringTasks),
+                        history: updateList(state.history),
                     };
                 });
             },

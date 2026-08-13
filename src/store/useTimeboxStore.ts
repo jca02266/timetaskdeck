@@ -28,7 +28,7 @@ const normalizeMinutes = (minutes: number) => Math.max(
 
 export const useTimeboxStore = create<TimeboxState>()(
     persist(
-        (set) => ({
+        (set, get) => ({
             timeboxes: [],
             addTimebox: (logicalDate, startMinute, taskId, durationMinutes = TIMEBOX_SLOT_MINUTES) => {
                 const id = crypto.randomUUID();
@@ -43,33 +43,45 @@ export const useTimeboxStore = create<TimeboxState>()(
                 }));
                 return id;
             },
-            syncScheduledTimebox: (logicalDate, startMinute, taskId, durationMinutes) => set((state) => {
-                const existing = state.timeboxes.find((timebox) =>
+            syncScheduledTimebox: (logicalDate, startMinute, taskId, durationMinutes) => {
+                const normalizedStart = Math.max(0, Math.min(1425, startMinute));
+                const normalizedDuration = normalizeMinutes(durationMinutes);
+                const current = get();
+                const existing = current.timeboxes.find((timebox) =>
                     timebox.logicalDate === logicalDate && timebox.taskId === taskId,
                 );
-                if (existing) return state;
-
-                const emptySlot = state.timeboxes.find((timebox) =>
-                    timebox.logicalDate === logicalDate && timebox.startMinute === startMinute && !timebox.taskId,
-                );
-                if (emptySlot) {
-                    return {
-                        timeboxes: state.timeboxes.map((timebox) => timebox.id === emptySlot.id
-                            ? { ...timebox, taskId, durationMinutes: normalizeMinutes(durationMinutes) }
+                if (existing) {
+                    if (existing.startMinute === normalizedStart && existing.durationMinutes === normalizedDuration) return;
+                    set((state) => ({
+                        timeboxes: state.timeboxes.map((timebox) => timebox.id === existing.id
+                            ? { ...timebox, startMinute: normalizedStart, durationMinutes: normalizedDuration }
                             : timebox),
-                    };
+                    }));
+                    return;
                 }
 
-                return {
+                const emptySlot = current.timeboxes.find((timebox) =>
+                    timebox.logicalDate === logicalDate && timebox.startMinute === normalizedStart && !timebox.taskId,
+                );
+                if (emptySlot) {
+                    set((state) => ({
+                        timeboxes: state.timeboxes.map((timebox) => timebox.id === emptySlot.id
+                            ? { ...timebox, taskId, durationMinutes: normalizedDuration }
+                            : timebox),
+                    }));
+                    return;
+                }
+
+                set((state) => ({
                     timeboxes: [...state.timeboxes, {
                         id: crypto.randomUUID(),
                         logicalDate,
-                        startMinute: Math.max(0, Math.min(1425, startMinute)),
-                        durationMinutes: normalizeMinutes(durationMinutes),
+                        startMinute: normalizedStart,
+                        durationMinutes: normalizedDuration,
                         taskId,
                     }],
-                };
-            }),
+                }));
+            },
             updateTimebox: (id, updates) => set((state) => ({
                 timeboxes: state.timeboxes.map((timebox) => timebox.id === id
                     ? {
