@@ -69,47 +69,28 @@ input::placeholder {
   box-shadow: 0 0 5px var(--primary), 0 0 10px var(--primary-glow);
 }
 
-@keyframes blink {
-  0%,
-  100% {
-    opacity: 1;
-  }
-  50% {
-    opacity: 0.3;
-  }
+/* Blink only the small DUE badge. Keeping the card and its shadows static avoids
+   continuously repainting a large translucent panel. */
+@keyframes due-indicator-blink {
+  0%, 49% { opacity: 1; }
+  50%, 100% { opacity: 0; }
 }
 
-.animate-blink {
-  animation: blink 1s ease-in-out infinite;
+.animate-due-indicator {
+  animation: due-indicator-blink 1.4s step-end infinite;
 }
 
-@keyframes bell-ring {
-  0% { transform: rotate(0); }
-  10% { transform: rotate(15deg); }
-  20% { transform: rotate(-10deg); }
-  30% { transform: rotate(15deg); }
-  40% { transform: rotate(-10deg); }
-  50% { transform: rotate(0); }
-  100% { transform: rotate(0); }
-}
-
-@keyframes alert-flash {
-  0%, 100% {
-    background-color: rgba(220, 38, 38, 0.2); /* red-600/20 */
-    border-color: rgba(239, 68, 68, 0.4); /* red-500/40 */
-    box-shadow: 0 0 10px rgba(239, 68, 68, 0.3);
+@keyframes due-card-blink {
+  0%, 49% {
+    border-color: rgba(234, 179, 8, 0.8);
+    background-color: rgba(234, 179, 8, 0.12);
   }
-  50% {
-    background-color: rgba(220, 38, 38, 0.6); /* red-600/60 */
-    border-color: rgba(248, 113, 113, 0.8); /* red-400/80 */
-    box-shadow: 0 0 20px rgba(239, 68, 68, 0.8), inset 0 0 10px rgba(239, 68, 68, 0.4);
+  50%, 100% {
+    border-color: rgba(234, 179, 8, 0.18);
+    background-color: transparent;
   }
 }
 
-.animate-bell-ring {
-  animation: bell-ring 2s ease-in-out infinite;
-}
-
-.animate-alert-flash {
-  animation: alert-flash 1s ease-in-out infinite;
+.animate-due-card {
+  animation: due-card-blink 1.4s step-end infinite;
 }

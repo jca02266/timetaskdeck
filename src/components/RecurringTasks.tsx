@@ -140,11 +140,11 @@ export function RecurringTasks() {
                                     dueElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
                                 }
                             }}
-                            className="flex items-center gap-1.5 px-2 py-1 text-white rounded-md animate-alert-flash transition-colors font-bold tracking-widest text-[10px]"
+                            className="animate-due-indicator flex items-center gap-1.5 px-2 py-1 text-red-200 bg-red-950/60 border border-red-500/50 rounded-md font-bold tracking-widest text-[10px]"
                             title="Due recurring task"
                             onPointerDown={(e) => e.stopPropagation()}
                         >
-                            <Bell size={14} className="animate-bell-ring" />
+                            <Bell size={14} />
                             <span>DUE</span>
                         </button>
                     )}
@@ -240,7 +240,7 @@ export function RecurringTasks() {
                             data-is-due={isDue ? "true" : undefined}
                             className={`group bg-slate-800/30 hover:bg-slate-800/80 p-3 rounded-lg border border-transparent hover:border-slate-600 transition-all flex items-center justify-between gap-2 select-none
                                 ${draggedTaskId === task.id ? 'opacity-20 scale-95 shadow-none' : 'shadow-sm'} 
-                                ${isDue ? 'animate-blink border-yellow-500/50 shadow-[0_0_10px_rgba(234,179,8,0.3)]' : ''}`}
+                                ${isDue ? 'animate-due-card' : ''}`}
                             style={{ touchAction: 'none' }}
                             onPointerDown={(e) => {
                                 if (e.button !== 0 || editingId !== null) return;

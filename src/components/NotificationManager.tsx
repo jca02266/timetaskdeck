@@ -51,12 +51,10 @@ function checkAndAutoStart(
 
 export function NotificationManager() {
     const updateCurrentTime = useTaskStore(state => state.updateCurrentTime);
-    const currentTime = useTaskStore(state => state.currentTime);
-    const currentDate = useTaskStore(state => state.currentDate);
-    const currentDay = useTaskStore(state => state.currentDay);
     const missedTaskWindowMinutes = useTaskStore(state => state.missedTaskWindowMinutes);
     const { sendNotification } = useNotification();
     const lastCheckMinute = useRef<string>('');
+    const lastPublishedTime = useRef<string>('');
     const hasSettled = useRef(false);
     const checkedMissedMinutes = useRef<Set<string>>(new Set());
 
@@ -93,9 +91,11 @@ export function NotificationManager() {
             const dateStr = `${now.getFullYear()}-${(now.getMonth() + 1).toString().padStart(2, '0')}-${now.getDate().toString().padStart(2, '0')}`;
             const dayNum = now.getDay();
 
-            // The displayed time has minute precision. Avoid updating the store
-            // (and persisting to IndexedDB) every second when the minute has not changed.
-            if (currentTime !== timeStr || currentDate !== dateStr || currentDay !== dayNum) {
+            // The UI uses minute precision. Avoid persisting the same clock value
+            // every second, which causes unnecessary IndexedDB writes and renders.
+            const timeStateKey = `${dateStr}-${timeStr}-${dayNum}`;
+            if (lastPublishedTime.current !== timeStateKey) {
+                lastPublishedTime.current = timeStateKey;
                 updateCurrentTime(timeStr, dateStr, dayNum);
             }
 
@@ -132,7 +132,7 @@ export function NotificationManager() {
             clearInterval(interval);
             document.removeEventListener('visibilitychange', handleVisibilityChange);
         };
-    }, [sendNotification, updateCurrentTime, missedTaskWindowMinutes, currentTime, currentDate, currentDay]);
+    }, [sendNotification, updateCurrentTime, missedTaskWindowMinutes]);
 
     return null;
 }

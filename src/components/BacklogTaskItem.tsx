@@ -57,7 +57,7 @@ export function BacklogTaskItem({ task, index, categoryId, isDue }: BacklogTaskI
             data-is-due={isDue ? "true" : undefined}
             className={`group bg-slate-900/50 hover:bg-slate-800/80 px-3 py-2 rounded-lg transition-all flex items-center gap-3 select-none
             ${draggedTaskId === task.id ? 'opacity-20 scale-95 shadow-none' : 'shadow-sm'}
-            ${isDue ? 'animate-blink border-yellow-500/50 shadow-[0_0_10px_rgba(234,179,8,0.3)]' : ''}`}
+            ${isDue ? 'animate-due-card border' : ''}`}
             style={{ touchAction: 'none' }}
             onPointerDown={(e) => {
                 if (e.button !== 0) return;

@@ -247,11 +247,11 @@ export const BacklogPanel = ({ category, defaultPosition }: BacklogPanelProps) =
                                         dueElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
                                     }
                                 }}
-                                className="flex items-center gap-1.5 px-2 py-1 text-white rounded-md animate-alert-flash transition-colors font-bold tracking-widest text-[10px]"
+                                className="animate-due-indicator flex items-center gap-1.5 px-2 py-1 text-red-200 bg-red-950/60 border border-red-500/50 rounded-md font-bold tracking-widest text-[10px]"
                                 title="Due task in this backlog"
                                 onPointerDown={(e) => e.stopPropagation()}
                             >
-                                <Bell size={14} className="animate-bell-ring" />
+                                <Bell size={14} />
                                 <span>DUE</span>
                             </button>
                         )}
