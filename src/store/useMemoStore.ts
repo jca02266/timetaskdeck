@@ -32,6 +32,8 @@ export const useMemoStore = create<MemoState>()(
         {
             name: 'timetask-memos',
             storage: createJSONStorage(() => indexedDbStorage),
+            version: 1,
+            migrate: (persistedState) => persistedState as MemoState,
         }
     )
 );

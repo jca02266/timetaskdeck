@@ -206,7 +206,8 @@ export function TaskTableView() {
             startTime: 0,
             duration: 0,
             status: 'pending',
-            backlogId: categories[0]?.id || 'main'
+            backlogId: categories[0]?.id || 'main',
+            estimatedDurationMinutes: 30,
         };
         setLocalTasks(prev => [...prev, newTask]);
     };
@@ -346,6 +347,7 @@ export function TaskTableView() {
                                     <th className="px-4 py-4 cursor-pointer hover:text-slate-300 transition-colors w-48" onClick={() => handleSort('scheduled')}>
                                         <div className="flex items-center gap-1.5">Scheduled Date <SortIcon columnKey="scheduled" /></div>
                                     </th>
+                                    <th className="px-4 py-4 w-24">予定時間</th>
                                     <th className="px-6 py-4 w-20 text-right">Actions</th>
                                 </tr>
                             </thead>
@@ -369,7 +371,7 @@ export function TaskTableView() {
 
                                 {displayTasks.length === 0 && (
                                     <tr>
-                                        <td colSpan={6} className="text-center py-12 text-slate-500 text-sm">
+                                        <td colSpan={7} className="text-center py-12 text-slate-500 text-sm">
                                             No tasks found. Click "Create Card" to get started.
                                         </td>
                                     </tr>
@@ -530,6 +532,20 @@ const TaskTableRow = memo(function TaskTableRow({
                     autoStart={task.autoStart}
                     onUpdate={(d, t, days, auto) => onUpdate(task.id, { scheduledDate: d, scheduledTime: t, scheduledDaysOfWeek: days, autoStart: auto })}
                 />
+            </td>
+
+            <td className="px-4 py-4">
+                <input
+                    type="number"
+                    min="15"
+                    max="1440"
+                    step="15"
+                    value={task.estimatedDurationMinutes ?? 30}
+                    onChange={(e) => onUpdate(task.id, { estimatedDurationMinutes: Math.max(15, Math.min(1440, Math.round((Number(e.target.value) || 30) / 15) * 15)) })}
+                    className="w-16 bg-slate-800/50 border border-transparent rounded px-2 py-1.5 text-xs text-center text-slate-300 focus:border-blue-500 focus:outline-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                    aria-label="予定時間（分）"
+                />
+                <span className="ml-1 text-[10px] text-slate-500">分</span>
             </td>
 
             <td className="px-6 py-4 text-right flex items-center justify-end gap-1">

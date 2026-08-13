@@ -55,6 +55,7 @@ export function TimeboxDeck({ onClose }: TimeboxDeckProps) {
     const updateTimebox = useTimeboxStore((state) => state.updateTimebox);
     const deleteTimebox = useTimeboxStore((state) => state.deleteTimebox);
     const assignTask = useTimeboxStore((state) => state.assignTask);
+    const syncScheduledTimebox = useTimeboxStore((state) => state.syncScheduledTimebox);
 
     const [selectedDate, setSelectedDate] = useState(() => getLogicalDate(Date.now(), dayStartHour));
     const [now, setNow] = useState(() => Date.now());
@@ -75,14 +76,36 @@ export function TimeboxDeck({ onClose }: TimeboxDeckProps) {
     const dayTimeboxes = timeboxes
         .filter((timebox) => timebox.logicalDate === logicalDateKey)
         .sort((a, b) => a.startMinute - b.startMinute);
-    const tasks = uniqueTasks([
+    const tasks = useMemo(() => uniqueTasks([
         ...(currentTask ? [currentTask] : []),
         ...taskStack,
         ...backlogTasks,
         ...recurringTasks,
         ...history,
-    ]);
+    ]), [currentTask, taskStack, backlogTasks, recurringTasks, history]);
     const taskById = new Map(tasks.map((task) => [task.id, task]));
+
+    useEffect(() => {
+        const scheduledTasks = tasks.filter((task) => {
+            if (task.status === 'completed' || !task.scheduledTime) return false;
+            if (task.scheduledDate) return task.scheduledDate === logicalDateKey;
+            if (task.scheduledDaysOfWeek && task.scheduledDaysOfWeek.length > 0) {
+                return task.scheduledDaysOfWeek.includes(selectedDate.getDay());
+            }
+            return true;
+        });
+
+        scheduledTasks.forEach((task) => {
+            const [hours, minutes] = task.scheduledTime!.split(':').map(Number);
+            const startMinute = ((hours * 60 + minutes) - dayStartHour * 60 + 1440) % 1440;
+            syncScheduledTimebox(
+                logicalDateKey,
+                Math.floor(startMinute / TIMEBOX_SLOT_MINUTES) * TIMEBOX_SLOT_MINUTES,
+                task.id,
+                task.estimatedDurationMinutes ?? 30,
+            );
+        });
+    }, [tasks, logicalDateKey, selectedDate, dayStartHour, syncScheduledTimebox]);
 
     const findTimebox = (startMinute: number) => dayTimeboxes.find((timebox) =>
         timebox.startMinute <= startMinute && timebox.startMinute + timebox.durationMinutes > startMinute,

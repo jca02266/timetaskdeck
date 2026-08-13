@@ -19,6 +19,7 @@ export function BacklogTaskItem({ task, index, categoryId, isDue }: BacklogTaskI
     const updateTaskName = useTaskStore((state) => state.updateTaskName);
     const deleteTask = useTaskStore((state) => state.deleteTask);
     const updateTaskSchedule = useTaskStore((state) => state.updateTaskSchedule);
+    const updateTaskEstimatedDuration = useTaskStore((state) => state.updateTaskEstimatedDuration);
     const updateTaskColorId = useTaskStore((state) => state.updateTaskColorId);
     const draggedTaskId = useTaskStore((state) => state.draggedTaskId);
     const setDraggedTaskId = useTaskStore((state) => state.setDraggedTaskId);
@@ -188,6 +189,21 @@ export function BacklogTaskItem({ task, index, categoryId, isDue }: BacklogTaskI
                 onUpdate={(date, time, days, auto) => updateTaskSchedule(task.id, date, time, days, auto)}
                 className="ml-auto"
             />
+
+            <div className="flex items-center gap-1 shrink-0" title="タイムボックスの予定時間">
+                <input
+                    type="number"
+                    min="15"
+                    max="1440"
+                    step="15"
+                    value={task.estimatedDurationMinutes ?? 30}
+                    onChange={(e) => updateTaskEstimatedDuration(task.id, Number(e.target.value) || 30)}
+                    onPointerDown={(e) => e.stopPropagation()}
+                    className="w-12 bg-slate-950/30 border border-slate-800 rounded px-1 py-1.5 text-[10px] text-center text-slate-300 focus:outline-none focus:border-blue-500 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                    aria-label="予定時間（分）"
+                />
+                <span className="text-[10px] text-slate-500">分</span>
+            </div>
 
             <div className="flex items-center gap-1 shrink-0">
                 {/* Rename */}

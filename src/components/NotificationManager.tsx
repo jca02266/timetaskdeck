@@ -51,6 +51,9 @@ function checkAndAutoStart(
 
 export function NotificationManager() {
     const updateCurrentTime = useTaskStore(state => state.updateCurrentTime);
+    const currentTime = useTaskStore(state => state.currentTime);
+    const currentDate = useTaskStore(state => state.currentDate);
+    const currentDay = useTaskStore(state => state.currentDay);
     const missedTaskWindowMinutes = useTaskStore(state => state.missedTaskWindowMinutes);
     const { sendNotification } = useNotification();
     const lastCheckMinute = useRef<string>('');
@@ -90,7 +93,11 @@ export function NotificationManager() {
             const dateStr = `${now.getFullYear()}-${(now.getMonth() + 1).toString().padStart(2, '0')}-${now.getDate().toString().padStart(2, '0')}`;
             const dayNum = now.getDay();
 
-            updateCurrentTime(timeStr, dateStr, dayNum);
+            // The displayed time has minute precision. Avoid updating the store
+            // (and persisting to IndexedDB) every second when the minute has not changed.
+            if (currentTime !== timeStr || currentDate !== dateStr || currentDay !== dayNum) {
+                updateCurrentTime(timeStr, dateStr, dayNum);
+            }
 
             if (lastCheckMinute.current !== timeStr) {
                 lastCheckMinute.current = timeStr;
@@ -125,7 +132,7 @@ export function NotificationManager() {
             clearInterval(interval);
             document.removeEventListener('visibilitychange', handleVisibilityChange);
         };
-    }, [sendNotification, updateCurrentTime, missedTaskWindowMinutes]);
+    }, [sendNotification, updateCurrentTime, missedTaskWindowMinutes, currentTime, currentDate, currentDay]);
 
     return null;
 }

@@ -14,7 +14,8 @@ export interface Timebox {
 
 interface TimeboxState {
     timeboxes: Timebox[];
-    addTimebox: (logicalDate: string, startMinute: number, taskId?: string) => string;
+    addTimebox: (logicalDate: string, startMinute: number, taskId?: string, durationMinutes?: number) => string;
+    syncScheduledTimebox: (logicalDate: string, startMinute: number, taskId: string, durationMinutes: number) => void;
     updateTimebox: (id: string, updates: Partial<Omit<Timebox, 'id'>>) => void;
     deleteTimebox: (id: string) => void;
     assignTask: (id: string, taskId?: string) => void;
@@ -29,19 +30,46 @@ export const useTimeboxStore = create<TimeboxState>()(
     persist(
         (set) => ({
             timeboxes: [],
-            addTimebox: (logicalDate, startMinute, taskId) => {
+            addTimebox: (logicalDate, startMinute, taskId, durationMinutes = TIMEBOX_SLOT_MINUTES) => {
                 const id = crypto.randomUUID();
                 set((state) => ({
                     timeboxes: [...state.timeboxes, {
                         id,
                         logicalDate,
                         startMinute: Math.max(0, Math.min(1425, startMinute)),
-                        durationMinutes: TIMEBOX_SLOT_MINUTES,
+                        durationMinutes: normalizeMinutes(durationMinutes),
                         taskId,
                     }],
                 }));
                 return id;
             },
+            syncScheduledTimebox: (logicalDate, startMinute, taskId, durationMinutes) => set((state) => {
+                const existing = state.timeboxes.find((timebox) =>
+                    timebox.logicalDate === logicalDate && timebox.taskId === taskId,
+                );
+                if (existing) return state;
+
+                const emptySlot = state.timeboxes.find((timebox) =>
+                    timebox.logicalDate === logicalDate && timebox.startMinute === startMinute && !timebox.taskId,
+                );
+                if (emptySlot) {
+                    return {
+                        timeboxes: state.timeboxes.map((timebox) => timebox.id === emptySlot.id
+                            ? { ...timebox, taskId, durationMinutes: normalizeMinutes(durationMinutes) }
+                            : timebox),
+                    };
+                }
+
+                return {
+                    timeboxes: [...state.timeboxes, {
+                        id: crypto.randomUUID(),
+                        logicalDate,
+                        startMinute: Math.max(0, Math.min(1425, startMinute)),
+                        durationMinutes: normalizeMinutes(durationMinutes),
+                        taskId,
+                    }],
+                };
+            }),
             updateTimebox: (id, updates) => set((state) => ({
                 timeboxes: state.timeboxes.map((timebox) => timebox.id === id
                     ? {
@@ -66,6 +94,8 @@ export const useTimeboxStore = create<TimeboxState>()(
         {
             name: 'timetask-timeboxes',
             storage: createJSONStorage(() => indexedDbStorage),
+            version: 1,
+            migrate: (persistedState) => persistedState as TimeboxState,
         },
     ),
 );

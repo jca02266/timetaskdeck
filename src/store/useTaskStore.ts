@@ -60,6 +60,7 @@ export interface Task {
     scheduledTime?: string; // HH:mm format
     scheduledDate?: string; // YYYY-MM-DD format
     scheduledDaysOfWeek?: number[]; // 0=Sun, 6=Sat
+    estimatedDurationMinutes?: number; // Planned duration for the timebox deck
     backlogId?: string;
     colorId?: string;
     autoStart?: boolean;
@@ -130,6 +131,7 @@ interface TaskState {
     // Timer Control
     togglePause: () => void;
     updateTaskSchedule: (taskId: string, date?: string | null, time?: string | null, daysOfWeek?: number[] | null, autoStart?: boolean) => void;
+    updateTaskEstimatedDuration: (taskId: string, minutes: number) => void;
     resumeFromStack: () => void;
     reorderBacklogTasks: (startIndex: number, endIndex: number) => void;
     moveTaskToLocation: (taskId: string, location: 'current' | 'stack' | 'backlog', backlogId?: string) => void;
@@ -335,7 +337,8 @@ export const useTaskStore = create<TaskState>()(
                     backlogId: defaultBacklogId,
                     scheduledDate: parsed.scheduledDate,
                     scheduledTime: parsed.scheduledTime,
-                    scheduledDaysOfWeek: parsed.scheduledDaysOfWeek
+                    scheduledDaysOfWeek: parsed.scheduledDaysOfWeek,
+                    estimatedDurationMinutes: 30,
                 };
 
                 // Save memo if present
@@ -1145,6 +1148,24 @@ export const useTaskStore = create<TaskState>()(
                     return {
                         backlogTasks: updateList(state.backlogTasks),
                         recurringTasks: updateList(state.recurringTasks)
+                    };
+                });
+            },
+
+            updateTaskEstimatedDuration: (taskId, minutes) => {
+                const estimatedDurationMinutes = Math.max(15, Math.min(24 * 60, Math.round(minutes / 15) * 15));
+                set((state) => {
+                    const updateList = (list: Task[]) => list.map((task) => task.id === taskId
+                        ? { ...task, estimatedDurationMinutes }
+                        : task);
+                    return {
+                        currentTask: state.currentTask?.id === taskId
+                            ? { ...state.currentTask, estimatedDurationMinutes }
+                            : state.currentTask,
+                        taskStack: updateList(state.taskStack),
+                        backlogTasks: updateList(state.backlogTasks),
+                        recurringTasks: updateList(state.recurringTasks),
+                        history: updateList(state.history),
                     };
                 });
             },
