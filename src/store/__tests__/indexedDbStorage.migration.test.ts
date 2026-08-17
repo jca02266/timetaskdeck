@@ -111,7 +111,7 @@ describe('indexedDbStorage migration', () => {
         expect(state.history[0].id).toBe('old-history');
     });
 
-    it('exposes legacy localStorage data for manual recovery', () => {
+    it('exposes legacy localStorage data for manual recovery', async () => {
         localStorage.setItem('timetask-storage', JSON.stringify(taskEnvelope({
             backlogTasks: [{ id: 'recover-task', name: 'Recover', startTime: 1, duration: 0, status: 'paused' }],
             backlogCategories: [{ id: 'recover-deck', name: 'Recover deck', allocatedMinutes: 0 }],
@@ -122,7 +122,7 @@ describe('indexedDbStorage migration', () => {
             memos: { 'recover-task': 'memo' },
         })));
 
-        const candidate = getLegacyRecoveryCandidate();
+        const candidate = await getLegacyRecoveryCandidate();
 
         expect(candidate?.summary).toMatchObject({
             backlogTasks: 1,
@@ -131,6 +131,20 @@ describe('indexedDbStorage migration', () => {
             memos: 1,
         });
         expect(candidate?.taskState.backlogTasks?.[0].id).toBe('recover-task');
+    });
+
+    it('exposes the legacy IndexedDB JSON store for manual recovery', async () => {
+        await putLegacyValue('timetask-storage', taskEnvelope({
+            backlogTasks: [{ id: 'legacy-idb-task', name: 'Legacy IDB', startTime: 1, duration: 0, status: 'paused' }],
+            backlogCategories: [{ id: 'legacy-deck', name: 'Legacy deck', allocatedMinutes: 0 }],
+            history: [],
+            taskLog: [],
+        }));
+
+        const candidate = await getLegacyRecoveryCandidate();
+
+        expect(candidate?.taskState.backlogTasks?.[0].id).toBe('legacy-idb-task');
+        expect(candidate?.sources).toContain('旧IndexedDB');
     });
 
     it('migrates the legacy IndexedDB JSON format before localStorage', async () => {

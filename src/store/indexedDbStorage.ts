@@ -62,6 +62,7 @@ export type LegacyRecoveryCandidate = {
         taskLogs: number;
         memos: number;
     };
+    sources: string[];
 };
 
 type PersistedEnvelope<T> = {
@@ -102,6 +103,19 @@ const isIndexedDBAvailable = () =>
 
 const getLocalStorage = (): Storage | undefined =>
     typeof localStorage === 'undefined' ? undefined : localStorage;
+
+const captureLocalRecoveryValues = () => {
+    const storage = getLocalStorage();
+    return {
+        task: storage?.getItem('timetask-storage') ?? null,
+        fallbackTask: storage?.getItem(`${FALLBACK_PREFIX}timetask-storage`) ?? null,
+        memo: storage?.getItem('timetask-memos') ?? null,
+        fallbackMemo: storage?.getItem(`${FALLBACK_PREFIX}timetask-memos`) ?? null,
+    };
+};
+
+// Capture before Zustand starts its asynchronous migration, which may remove legacy keys.
+const startupLocalRecoveryValues = captureLocalRecoveryValues();
 
 const createObjectStores = (database: IDBDatabase) => {
     Object.values(STORE).forEach((storeName) => {
@@ -278,31 +292,54 @@ const mergeLegacyTaskStates = (older: PersistedTaskState, newer: PersistedTaskSt
     taskLog: mergeRecordsById(older.taskLog, newer.taskLog),
 });
 
-const parseLocalRecoveryEnvelope = <T>(name: string): ParsedLegacy<T> =>
-    parseEnvelope<T>(getLocalStorage()?.getItem(name) ?? null);
+export const getLegacyRecoveryCandidate = async (): Promise<LegacyRecoveryCandidate | null> => {
+    const liveLocalValues = captureLocalRecoveryValues();
+    let legacyIndexedDbTask: string | null = null;
+    let legacyIndexedDbMemo: string | null = null;
+    try {
+        const database = await openDatabase();
+        if (database.objectStoreNames.contains(LEGACY_STORE_NAME)) {
+            legacyIndexedDbTask = await readValue<string>(database, LEGACY_STORE_NAME, 'timetask-storage') ?? null;
+            legacyIndexedDbMemo = await readValue<string>(database, LEGACY_STORE_NAME, 'timetask-memos') ?? null;
+        }
+    } catch {
+        // LocalStorage recovery remains available when IndexedDB cannot be opened.
+    }
 
-export const getLegacyRecoveryCandidate = (): LegacyRecoveryCandidate | null => {
-    const taskSources = [
-        parseLocalRecoveryEnvelope<PersistedTaskState>('timetask-storage'),
-        parseLocalRecoveryEnvelope<PersistedTaskState>(`${FALLBACK_PREFIX}timetask-storage`),
+    const taskSourceValues = [
+        { source: '旧IndexedDB', value: legacyIndexedDbTask },
+        { source: '起動時LocalStorage', value: startupLocalRecoveryValues.task },
+        { source: '起動時LocalStorageフォールバック', value: startupLocalRecoveryValues.fallbackTask },
+        { source: 'LocalStorage', value: liveLocalValues.task },
+        { source: 'LocalStorageフォールバック', value: liveLocalValues.fallbackTask },
     ];
-    const memoSources = [
-        parseLocalRecoveryEnvelope<PersistedMemoState>('timetask-memos'),
-        parseLocalRecoveryEnvelope<PersistedMemoState>(`${FALLBACK_PREFIX}timetask-memos`),
+    const memoSourceValues = [
+        { source: '旧IndexedDB', value: legacyIndexedDbMemo },
+        { source: '起動時LocalStorage', value: startupLocalRecoveryValues.memo },
+        { source: '起動時LocalStorageフォールバック', value: startupLocalRecoveryValues.fallbackMemo },
+        { source: 'LocalStorage', value: liveLocalValues.memo },
+        { source: 'LocalStorageフォールバック', value: liveLocalValues.fallbackMemo },
     ];
+    const taskSources = taskSourceValues.map(({ source, value }) => ({ source, parsed: parseEnvelope<PersistedTaskState>(value) }));
+    const memoSources = memoSourceValues.map(({ source, value }) => ({ source, parsed: parseEnvelope<PersistedMemoState>(value) }));
 
-    const taskState = taskSources.reduce<PersistedTaskState>((merged, parsed) => {
+    const taskState = taskSources.reduce<PersistedTaskState>((merged, { parsed }) => {
         if (parsed.kind !== 'valid') return merged;
         return mergeLegacyTaskStates(merged, migrateLegacyTaskState(parsed.state, parsed.version));
     }, {});
-    const memoState = memoSources.reduce<PersistedMemoState>((merged, parsed) => {
+    const memoState = memoSources.reduce<PersistedMemoState>((merged, { parsed }) => {
         if (parsed.kind !== 'valid') return merged;
         return { memos: { ...(merged.memos ?? {}), ...(parsed.state.memos ?? {}) } };
     }, {});
 
-    const hasTaskData = taskSources.some((parsed) => parsed.kind === 'valid');
-    const hasMemoData = memoSources.some((parsed) => parsed.kind === 'valid');
+    const hasTaskData = taskSources.some(({ parsed }) => parsed.kind === 'valid');
+    const hasMemoData = memoSources.some(({ parsed }) => parsed.kind === 'valid');
     if (!hasTaskData && !hasMemoData) return null;
+
+    const sources = [...taskSources, ...memoSources]
+        .filter(({ parsed }) => parsed.kind === 'valid')
+        .map(({ source }) => source)
+        .filter((source, index, all) => all.indexOf(source) === index);
 
     return {
         taskState,
@@ -315,6 +352,7 @@ export const getLegacyRecoveryCandidate = (): LegacyRecoveryCandidate | null => 
             taskLogs: taskState.taskLog?.length ?? 0,
             memos: Object.keys(memoState.memos ?? {}).length,
         },
+        sources,
     };
 };
 

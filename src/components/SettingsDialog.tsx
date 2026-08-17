@@ -3,7 +3,7 @@
 import { useTaskStore } from '@/store/useTaskStore';
 import { useMemoStore } from '@/store/useMemoStore';
 import { X, Check, Save, Upload, Download, Settings, Palette, Clock, RotateCcw } from 'lucide-react';
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { useNotification } from '@/hooks/useNotification';
 import { Bell, BellOff, Info } from 'lucide-react';
 import { validateImportData } from '@/utils/validate';
@@ -34,9 +34,22 @@ export function SettingsDialog() {
 
     const [editingColorId, setEditingColorId] = useState<string | null>(null);
     const [editColorValue, setEditColorValue] = useState('');
-    const [legacyRecovery] = useState<LegacyRecoveryCandidate | null>(() => getLegacyRecoveryCandidate());
+    const [legacyRecovery, setLegacyRecovery] = useState<LegacyRecoveryCandidate | null>(null);
+    const [legacyInspectionComplete, setLegacyInspectionComplete] = useState(false);
     const [hasRecoveredLegacy, setHasRecoveredLegacy] = useState(false);
     const { permission, requestPermission, sendNotification } = useNotification();
+
+    useEffect(() => {
+        let active = true;
+        void getLegacyRecoveryCandidate().then((candidate) => {
+            if (!active) return;
+            setLegacyRecovery(candidate);
+            setLegacyInspectionComplete(true);
+        });
+        return () => {
+            active = false;
+        };
+    }, []);
 
     const handleRequestPermission = async () => {
         const result = await requestPermission();
@@ -357,6 +370,9 @@ export function SettingsDialog() {
                                         <p className="text-[10px] leading-relaxed text-amber-100/70 mt-1">
                                             現在のデータを優先し、欠けているタスク、デッキ、履歴、ログ、メモをID単位で統合できます。
                                         </p>
+                                        <p className="text-[9px] text-amber-100/50 mt-1">
+                                            検出元: {legacyRecovery.sources.join('、')}
+                                        </p>
                                     </div>
                                 </div>
                                 <div className="grid grid-cols-2 gap-x-3 gap-y-1 text-[10px] text-slate-300">
@@ -383,6 +399,21 @@ export function SettingsDialog() {
                                         {hasRecoveredLegacy ? 'もう一度統合' : 'データを復旧'}
                                     </button>
                                 </div>
+                            </div>
+                        )}
+
+                        {!legacyInspectionComplete && (
+                            <div className="rounded-xl border border-slate-700 bg-slate-800/30 p-3 text-[10px] text-slate-400">
+                                LocalStorageと旧IndexedDBから復旧可能なデータを検索しています…
+                            </div>
+                        )}
+
+                        {legacyInspectionComplete && !legacyRecovery && (
+                            <div className="rounded-xl border border-slate-700 bg-slate-800/30 p-3 space-y-1">
+                                <p className="text-[10px] font-bold text-slate-300">復旧可能な旧データは検出されませんでした</p>
+                                <p className="text-[9px] leading-relaxed text-slate-500">
+                                    LocalStorageの画面配置だけが残っている場合や、タスクデータが既に削除されている場合は復旧欄を表示できません。
+                                </p>
                             </div>
                         )}
                     </section>
