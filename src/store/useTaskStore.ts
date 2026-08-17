@@ -76,7 +76,20 @@ export interface TaskLogEntry {
     status: TaskStatus;
 }
 
+export type RecoverableTaskState = {
+    currentTask?: Task | null;
+    taskStack?: Task[];
+    backlogTasks?: Task[];
+    backlogCategories?: BacklogCategory[];
+    colors?: ColorDefinition[];
+    history?: Task[];
+    recurringTasks?: Task[];
+    taskLog?: TaskLogEntry[];
+};
+
 interface TaskState {
+    hasHydrated: boolean;
+    setHasHydrated: (hydrated: boolean) => void;
     currentTask: Task | null;
     taskStack: Task[];
     backlogTasks: Task[]; // Replaces old `backlog`
@@ -136,6 +149,7 @@ interface TaskState {
     reorderBacklogTasks: (startIndex: number, endIndex: number) => void;
     moveTaskToLocation: (taskId: string, location: 'current' | 'stack' | 'backlog', backlogId?: string) => void;
     importState: (data: any) => void;
+    mergeRecoveredState: (data: RecoverableTaskState) => void;
     reorderAllTasks: (newTasks: Task[]) => void;
     setPaused: (isPaused: boolean) => void;
     toggleRecurringMinimized: () => void;
@@ -178,6 +192,8 @@ interface TaskState {
 export const useTaskStore = create<TaskState>()(
     persist(
         (set, get) => ({
+            hasHydrated: false,
+            setHasHydrated: (hydrated) => set({ hasHydrated: hydrated }),
             currentTask: null,
             taskStack: [],
             backlogTasks: [],
@@ -1286,6 +1302,25 @@ export const useTaskStore = create<TaskState>()(
                 }));
             },
 
+            mergeRecoveredState: (data) => {
+                const recovered = data ?? {};
+                const mergeCurrentFirst = <T extends { id: string }>(current: T[], older: T[] = []) => {
+                    const currentIds = new Set(current.map((item) => item.id));
+                    return [...current, ...older.filter((item) => !currentIds.has(item.id))];
+                };
+
+                set((state) => ({
+                    currentTask: state.currentTask ?? recovered.currentTask ?? null,
+                    taskStack: mergeCurrentFirst(state.taskStack, recovered.taskStack),
+                    backlogTasks: mergeCurrentFirst(state.backlogTasks, recovered.backlogTasks),
+                    backlogCategories: mergeCurrentFirst(state.backlogCategories, recovered.backlogCategories),
+                    colors: mergeCurrentFirst(state.colors, recovered.colors),
+                    history: mergeCurrentFirst(state.history, recovered.history),
+                    recurringTasks: mergeCurrentFirst(state.recurringTasks, recovered.recurringTasks),
+                    taskLog: mergeCurrentFirst(state.taskLog, recovered.taskLog),
+                }));
+            },
+
             reorderAllTasks: (newAllTasks) => {
                 set((state) => {
                     if (newAllTasks.length === 0) return { currentTask: null, taskStack: [], backlogTasks: [] };
@@ -1520,8 +1555,11 @@ export const useTaskStore = create<TaskState>()(
                 }
                 return persistedState as TaskState;
             },
+            onRehydrateStorage: () => () => {
+                useTaskStore.setState({ hasHydrated: true });
+            },
             partialize: (state) => {
-                const { isRecurringMinimized, isHistoryMinimized, frontPanelId, draggedTaskId, ...rest } = state;
+                const { hasHydrated, isRecurringMinimized, isHistoryMinimized, frontPanelId, draggedTaskId, ...rest } = state;
                 return rest;
             }
         }

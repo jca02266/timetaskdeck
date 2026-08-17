@@ -100,6 +100,34 @@ describe('useTaskStore', () => {
         });
     });
 
+    describe('legacy data recovery', () => {
+        it('keeps current records and restores only missing record IDs', () => {
+            const currentBacklog = makeTask({ id: 'same', name: 'Current backlog' });
+            const recoveredBacklog = makeTask({ id: 'same', name: 'Old backlog' });
+            const missingBacklog = makeTask({ id: 'missing', name: 'Recovered backlog' });
+            setState({
+                backlogTasks: [currentBacklog],
+                backlogCategories: [{ id: 'main', name: 'Current deck', allocatedMinutes: 0 }],
+                history: [],
+            });
+
+            getState().mergeRecoveredState({
+                backlogTasks: [recoveredBacklog, missingBacklog],
+                backlogCategories: [
+                    { id: 'main', name: 'Old deck', allocatedMinutes: 0 },
+                    { id: 'old-deck', name: 'Recovered deck', allocatedMinutes: 0 },
+                ],
+                history: [makeTask({ id: 'old-history', status: 'completed' })],
+            });
+
+            expect(getState().backlogTasks.map((task) => task.id)).toEqual(['same', 'missing']);
+            expect(getState().backlogTasks[0].name).toBe('Current backlog');
+            expect(getState().backlogCategories.map((category) => category.id)).toEqual(['main', 'old-deck']);
+            expect(getState().backlogCategories[0].name).toBe('Current deck');
+            expect(getState().history[0].id).toBe('old-history');
+        });
+    });
+
     describe('Normal flow: stopTask', () => {
         it('should stop current task and log its session', () => {
             getState().startTask('Task A');

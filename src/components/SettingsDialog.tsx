@@ -2,12 +2,16 @@
 
 import { useTaskStore } from '@/store/useTaskStore';
 import { useMemoStore } from '@/store/useMemoStore';
-import { X, Check, Save, Upload, Download, Settings, Palette, Clock } from 'lucide-react';
+import { X, Check, Save, Upload, Download, Settings, Palette, Clock, RotateCcw } from 'lucide-react';
 import { useState, useRef } from 'react';
 import { useNotification } from '@/hooks/useNotification';
 import { Bell, BellOff, Info } from 'lucide-react';
 import { validateImportData } from '@/utils/validate';
-import { getPersistedValue } from '@/store/indexedDbStorage';
+import {
+    getLegacyRecoveryCandidate,
+    getPersistedValue,
+    type LegacyRecoveryCandidate,
+} from '@/store/indexedDbStorage';
 
 export function SettingsDialog() {
     const {
@@ -19,15 +23,19 @@ export function SettingsDialog() {
         setMissedTaskWindowMinutes,
         colors,
         updateColorName,
-        importState
+        importState,
+        mergeRecoveredState,
     } = useTaskStore();
     const isSettingsOpen = activeDialog === 'settings';
 
     const importMemoState = useMemoStore((state) => state.importState);
+    const mergeRecoveredMemos = useMemoStore((state) => state.mergeRecoveredState);
     const fileInputRef = useRef<HTMLInputElement>(null);
 
     const [editingColorId, setEditingColorId] = useState<string | null>(null);
     const [editColorValue, setEditColorValue] = useState('');
+    const [legacyRecovery] = useState<LegacyRecoveryCandidate | null>(() => getLegacyRecoveryCandidate());
+    const [hasRecoveredLegacy, setHasRecoveredLegacy] = useState(false);
     const { permission, requestPermission, sendNotification } = useNotification();
 
     const handleRequestPermission = async () => {
@@ -124,6 +132,44 @@ export function SettingsDialog() {
             }
         };
         reader.readAsText(file);
+    };
+
+    const downloadLegacyRecovery = () => {
+        if (!legacyRecovery) return;
+        const backup = {
+            tasks: { state: legacyRecovery.taskState, version: 1 },
+            memos: { state: legacyRecovery.memoState, version: 1 },
+        };
+        const blob = new Blob([JSON.stringify(backup, null, 2)], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = `timetask-recovery-${new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19)}.json`;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        URL.revokeObjectURL(url);
+    };
+
+    const recoverLegacyData = () => {
+        if (!legacyRecovery) return;
+        const summary = legacyRecovery.summary;
+        const confirmed = window.confirm(
+            `旧保存データを現在のデータへ統合します。\n\n` +
+            `バックログ: ${summary.backlogTasks}件\n` +
+            `バックログデッキ: ${summary.backlogCategories}件\n` +
+            `完了タスク: ${summary.history}件\n` +
+            `定期タスク: ${summary.recurringTasks}件\n` +
+            `作業ログ: ${summary.taskLogs}件\n` +
+            `メモ: ${summary.memos}件\n\n` +
+            `同じIDのデータは現在の内容を残します。`,
+        );
+        if (!confirmed) return;
+
+        mergeRecoveredState(legacyRecovery.taskState);
+        mergeRecoveredMemos(legacyRecovery.memoState);
+        setHasRecoveredLegacy(true);
+        alert('旧保存データを統合しました。内容を確認してから画面を再読み込みしてください。');
     };
 
     return (
@@ -301,6 +347,44 @@ export function SettingsDialog() {
                                 className="hidden"
                             />
                         </div>
+
+                        {legacyRecovery && (
+                            <div className="rounded-xl border border-amber-500/40 bg-amber-500/10 p-4 space-y-3">
+                                <div className="flex items-start gap-2">
+                                    <RotateCcw size={15} className="text-amber-400 mt-0.5 shrink-0" />
+                                    <div>
+                                        <p className="text-xs font-bold text-amber-200">旧LocalStorageデータを検出しました</p>
+                                        <p className="text-[10px] leading-relaxed text-amber-100/70 mt-1">
+                                            現在のデータを優先し、欠けているタスク、デッキ、履歴、ログ、メモをID単位で統合できます。
+                                        </p>
+                                    </div>
+                                </div>
+                                <div className="grid grid-cols-2 gap-x-3 gap-y-1 text-[10px] text-slate-300">
+                                    <span>バックログ: {legacyRecovery.summary.backlogTasks}</span>
+                                    <span>デッキ: {legacyRecovery.summary.backlogCategories}</span>
+                                    <span>完了タスク: {legacyRecovery.summary.history}</span>
+                                    <span>定期タスク: {legacyRecovery.summary.recurringTasks}</span>
+                                    <span>作業ログ: {legacyRecovery.summary.taskLogs}</span>
+                                    <span>メモ: {legacyRecovery.summary.memos}</span>
+                                </div>
+                                <div className="grid grid-cols-2 gap-2">
+                                    <button
+                                        onClick={downloadLegacyRecovery}
+                                        className="flex items-center justify-center gap-1.5 rounded-lg border border-slate-600 bg-slate-800 px-2 py-2 text-[10px] font-bold text-slate-200 hover:bg-slate-700"
+                                    >
+                                        <Download size={12} />
+                                        復旧元を保存
+                                    </button>
+                                    <button
+                                        onClick={recoverLegacyData}
+                                        className="flex items-center justify-center gap-1.5 rounded-lg border border-amber-400/60 bg-amber-500/20 px-2 py-2 text-[10px] font-bold text-amber-100 hover:bg-amber-500/30"
+                                    >
+                                        <RotateCcw size={12} />
+                                        {hasRecoveredLegacy ? 'もう一度統合' : 'データを復旧'}
+                                    </button>
+                                </div>
+                            </div>
+                        )}
                     </section>
                 </div>
 

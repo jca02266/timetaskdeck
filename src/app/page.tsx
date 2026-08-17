@@ -16,6 +16,7 @@ import { useState } from "react";
 /* New Components */
 import { DraggablePanel } from "@/components/DraggablePanel";
 import { useTaskStore } from "@/store/useTaskStore";
+import { useMemoStore } from "@/store/useMemoStore";
 import { NotificationManager } from "@/components/NotificationManager";
 import { useShallow } from 'zustand/react/shallow';
 
@@ -26,8 +27,10 @@ export default function Home() {
   const [isStackExpanded, setStackExpanded] = useState(false);
   const [draggedDockId, setDraggedDockId] = useState<string | null>(null);
   const [isTimeboxOpen, setTimeboxOpen] = useState(false);
+  const hasMemoHydrated = useMemoStore((state) => state.hasHydrated);
 
   const {
+    hasHydrated,
     activeDialog,
     openDialog,
     backlogCategories,
@@ -42,6 +45,7 @@ export default function Home() {
     currentTask,
     taskStack
   } = useTaskStore(useShallow((state) => ({
+    hasHydrated: state.hasHydrated,
     activeDialog: state.activeDialog,
     openDialog: state.openDialog,
     backlogCategories: state.backlogCategories,
@@ -56,6 +60,14 @@ export default function Home() {
     currentTask: state.currentTask,
     taskStack: state.taskStack,
   })));
+
+  if (!hasHydrated || !hasMemoHydrated) {
+    return (
+      <main className="min-h-screen flex items-center justify-center bg-slate-950 text-slate-400">
+        <p className="text-sm tracking-wider">保存データを読み込んでいます…</p>
+      </main>
+    );
+  }
 
   const deckTaskCount = (currentTask ? 1 : 0) + taskStack.length;
 

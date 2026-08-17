@@ -1,6 +1,7 @@
 import 'fake-indexeddb/auto';
 import { beforeEach, afterEach, describe, expect, it } from 'vitest';
 import {
+    getLegacyRecoveryCandidate,
     INDEXED_DB_NAME,
     indexedDbStorage,
     resetIndexedDbStorageForTests,
@@ -87,6 +88,49 @@ describe('indexedDbStorage migration', () => {
             schemaVersion: 3,
             status: 'completed',
         });
+    });
+
+    it('ignores writes published before the initial asynchronous read completes', async () => {
+        localStorage.setItem('timetask-storage', JSON.stringify(taskEnvelope({
+            backlogTasks: [{ id: 'preserved-task', name: 'Preserved', startTime: 1, duration: 0, status: 'pending' }],
+            backlogCategories: [{ id: 'main', name: 'Main', allocatedMinutes: 0 }],
+            history: [{ id: 'old-history', name: 'Old history', startTime: 1, duration: 1, status: 'completed' }],
+            taskLog: [],
+        })));
+
+        await indexedDbStorage.setItem('timetask-storage', JSON.stringify(taskEnvelope({
+            backlogTasks: [],
+            backlogCategories: [{ id: 'main', name: 'Main', allocatedMinutes: 0 }],
+            history: [],
+            taskLog: [],
+        })));
+
+        const rawTasks = await indexedDbStorage.getItem('timetask-storage');
+        const state = JSON.parse(rawTasks ?? '{}').state;
+        expect(state.backlogTasks[0].id).toBe('preserved-task');
+        expect(state.history[0].id).toBe('old-history');
+    });
+
+    it('exposes legacy localStorage data for manual recovery', () => {
+        localStorage.setItem('timetask-storage', JSON.stringify(taskEnvelope({
+            backlogTasks: [{ id: 'recover-task', name: 'Recover', startTime: 1, duration: 0, status: 'paused' }],
+            backlogCategories: [{ id: 'recover-deck', name: 'Recover deck', allocatedMinutes: 0 }],
+            history: [{ id: 'recover-history', name: 'History', startTime: 1, duration: 1, status: 'completed' }],
+            taskLog: [],
+        })));
+        localStorage.setItem('timetask-memos', JSON.stringify(taskEnvelope({
+            memos: { 'recover-task': 'memo' },
+        })));
+
+        const candidate = getLegacyRecoveryCandidate();
+
+        expect(candidate?.summary).toMatchObject({
+            backlogTasks: 1,
+            backlogCategories: 1,
+            history: 1,
+            memos: 1,
+        });
+        expect(candidate?.taskState.backlogTasks?.[0].id).toBe('recover-task');
     });
 
     it('migrates the legacy IndexedDB JSON format before localStorage', async () => {

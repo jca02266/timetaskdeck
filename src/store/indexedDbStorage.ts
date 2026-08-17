@@ -51,6 +51,19 @@ type PersistedMemoState = {
     memos?: Record<string, string>;
 };
 
+export type LegacyRecoveryCandidate = {
+    taskState: PersistedTaskState;
+    memoState: PersistedMemoState;
+    summary: {
+        backlogTasks: number;
+        backlogCategories: number;
+        history: number;
+        recurringTasks: number;
+        taskLogs: number;
+        memos: number;
+    };
+};
+
 type PersistedEnvelope<T> = {
     state?: T;
     version?: number;
@@ -80,6 +93,7 @@ let migrationPromise: Promise<void> | undefined;
 let taskSnapshot: NormalizedTaskState | undefined;
 let memoSnapshot: NormalizedMemoState | undefined;
 let timeboxSnapshot: Timebox[] | undefined;
+const initializedStorageNames = new Set<string>();
 
 const areEqual = (left: unknown, right: unknown) => JSON.stringify(left) === JSON.stringify(right);
 
@@ -244,6 +258,65 @@ const normalizeTaskState = (state: PersistedTaskState = {}): NormalizedTaskState
 const normalizeMemoState = (state: PersistedMemoState = {}): NormalizedMemoState => ({
     memos: state.memos ?? {},
 });
+
+const mergeRecordsById = <T extends { id: string }>(older: T[] = [], newer: T[] = []): T[] => {
+    const merged = new Map(older.map((record) => [record.id, record]));
+    newer.forEach((record) => merged.set(record.id, record));
+    return [...merged.values()];
+};
+
+const mergeLegacyTaskStates = (older: PersistedTaskState, newer: PersistedTaskState): PersistedTaskState => ({
+    ...older,
+    ...newer,
+    currentTask: newer.currentTask ?? older.currentTask,
+    taskStack: mergeRecordsById(older.taskStack, newer.taskStack),
+    backlogTasks: mergeRecordsById(older.backlogTasks, newer.backlogTasks),
+    backlogCategories: mergeRecordsById(older.backlogCategories, newer.backlogCategories),
+    colors: mergeRecordsById(older.colors, newer.colors),
+    history: mergeRecordsById(older.history, newer.history),
+    recurringTasks: mergeRecordsById(older.recurringTasks, newer.recurringTasks),
+    taskLog: mergeRecordsById(older.taskLog, newer.taskLog),
+});
+
+const parseLocalRecoveryEnvelope = <T>(name: string): ParsedLegacy<T> =>
+    parseEnvelope<T>(getLocalStorage()?.getItem(name) ?? null);
+
+export const getLegacyRecoveryCandidate = (): LegacyRecoveryCandidate | null => {
+    const taskSources = [
+        parseLocalRecoveryEnvelope<PersistedTaskState>('timetask-storage'),
+        parseLocalRecoveryEnvelope<PersistedTaskState>(`${FALLBACK_PREFIX}timetask-storage`),
+    ];
+    const memoSources = [
+        parseLocalRecoveryEnvelope<PersistedMemoState>('timetask-memos'),
+        parseLocalRecoveryEnvelope<PersistedMemoState>(`${FALLBACK_PREFIX}timetask-memos`),
+    ];
+
+    const taskState = taskSources.reduce<PersistedTaskState>((merged, parsed) => {
+        if (parsed.kind !== 'valid') return merged;
+        return mergeLegacyTaskStates(merged, migrateLegacyTaskState(parsed.state, parsed.version));
+    }, {});
+    const memoState = memoSources.reduce<PersistedMemoState>((merged, parsed) => {
+        if (parsed.kind !== 'valid') return merged;
+        return { memos: { ...(merged.memos ?? {}), ...(parsed.state.memos ?? {}) } };
+    }, {});
+
+    const hasTaskData = taskSources.some((parsed) => parsed.kind === 'valid');
+    const hasMemoData = memoSources.some((parsed) => parsed.kind === 'valid');
+    if (!hasTaskData && !hasMemoData) return null;
+
+    return {
+        taskState,
+        memoState,
+        summary: {
+            backlogTasks: taskState.backlogTasks?.length ?? 0,
+            backlogCategories: taskState.backlogCategories?.length ?? 0,
+            history: taskState.history?.length ?? 0,
+            recurringTasks: taskState.recurringTasks?.length ?? 0,
+            taskLogs: taskState.taskLog?.length ?? 0,
+            memos: Object.keys(memoState.memos ?? {}).length,
+        },
+    };
+};
 
 const LEGACY_DEFAULT_COLORS: ColorDefinition[] = [
     { id: 'color-1', colorCode: 'bg-slate-500', name: 'Default' },
@@ -554,7 +627,10 @@ const fallbackStorage: StateStorage = {
 
 export const indexedDbStorage: StateStorage = {
     async getItem(name) {
-        if (!isIndexedDBAvailable()) return fallbackStorage.getItem(name);
+        if (!isIndexedDBAvailable()) {
+            initializedStorageNames.add(name);
+            return fallbackStorage.getItem(name);
+        }
         try {
             const database = await ensureDatabaseMigrated();
             if (name === 'timetask-memos') return await getMemoState(database);
@@ -562,6 +638,8 @@ export const indexedDbStorage: StateStorage = {
             return await getTaskState(database);
         } catch {
             return fallbackStorage.getItem(name);
+        } finally {
+            initializedStorageNames.add(name);
         }
     },
     async setItem(name, value) {
@@ -569,6 +647,9 @@ export const indexedDbStorage: StateStorage = {
             fallbackStorage.setItem(name, value);
             return;
         }
+        // Zustand can publish default state while asynchronous hydration is still reading.
+        // Ignoring that write prevents an empty startup snapshot from replacing persisted data.
+        if (!initializedStorageNames.has(name)) return;
         try {
             const database = await ensureDatabaseMigrated();
             if (name === 'timetask-memos') await setMemoState(database, value);
@@ -621,4 +702,5 @@ export const resetIndexedDbStorageForTests = () => {
     taskSnapshot = undefined;
     memoSnapshot = undefined;
     timeboxSnapshot = undefined;
+    initializedStorageNames.clear();
 };

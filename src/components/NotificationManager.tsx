@@ -50,6 +50,7 @@ function checkAndAutoStart(
 }
 
 export function NotificationManager() {
+    const hasHydrated = useTaskStore(state => state.hasHydrated);
     const updateCurrentTime = useTaskStore(state => state.updateCurrentTime);
     const missedTaskWindowMinutes = useTaskStore(state => state.missedTaskWindowMinutes);
     const { sendNotification } = useNotification();
@@ -59,11 +60,12 @@ export function NotificationManager() {
     const checkedMissedMinutes = useRef<Set<string>>(new Set());
 
     useEffect(() => {
+        if (!hasHydrated) return;
         if (!hasSettled.current) {
             hasSettled.current = true;
             useTaskStore.getState().settleStaleTasks();
         }
-    }, []);
+    }, [hasHydrated]);
 
     // 過去N分以内のスケジュールタスクをまとめてチェック
     const checkMissedTasks = (windowMinutes: number) => {
@@ -85,6 +87,7 @@ export function NotificationManager() {
     };
 
     useEffect(() => {
+        if (!hasHydrated) return;
         const updateTimer = () => {
             const now = new Date();
             const timeStr = `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}`;
@@ -132,7 +135,7 @@ export function NotificationManager() {
             clearInterval(interval);
             document.removeEventListener('visibilitychange', handleVisibilityChange);
         };
-    }, [sendNotification, updateCurrentTime, missedTaskWindowMinutes]);
+    }, [hasHydrated, sendNotification, updateCurrentTime, missedTaskWindowMinutes]);
 
     return null;
 }
