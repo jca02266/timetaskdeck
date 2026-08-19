@@ -237,12 +237,18 @@ export default function Home() {
           ))}
           {/* Timebox Deck Dock Item */}
           <button
-            onClick={() => setTimeboxOpen(true)}
+            onClick={() => {
+              const nextOpen = !isTimeboxOpen;
+              setTimeboxOpen(nextOpen);
+              if (nextOpen) {
+                useTaskStore.getState().bringToFront('timebox-panel');
+              }
+            }}
             className={`pointer-events-auto flex items-center gap-2 px-4 py-2 backdrop-blur-md border rounded-full text-sm font-medium transition-all shadow-xl hover:-translate-y-0.5
               ${isTimeboxOpen
                 ? 'bg-cyan-900/40 border-cyan-500/50 text-cyan-100 shadow-cyan-900/20'
                 : 'bg-slate-900/90 border-slate-700/50 text-slate-400 hover:text-white hover:bg-slate-800'}`}
-            title="タイムボックスデッキを開く"
+            title={isTimeboxOpen ? "タイムボックスデッキを隠す" : "タイムボックスデッキを表示"}
           >
             <Clock size={16} className={isTimeboxOpen ? 'text-cyan-400' : 'opacity-60'} />
             <span>タイムボックス</span>

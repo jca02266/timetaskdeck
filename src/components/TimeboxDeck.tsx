@@ -8,6 +8,7 @@ import { useTaskStore, getLogicalDate, type Task } from '@/store/useTaskStore';
 import { useTimeboxStore, type Timebox } from '@/store/useTimeboxStore';
 import {
     getActualMinutes,
+    getActualTaskLogs,
     getLogicalDayStart,
     getTimeboxResult,
     TIMEBOX_SLOT_MINUTES,
@@ -298,6 +299,13 @@ export function TimeboxDeck({ onClose }: TimeboxDeckProps) {
 
     const editingTimebox = editingId ? timeboxes.find((timebox) => timebox.id === editingId) : undefined;
     const currentMinute = (now - dayStartMs) / 60_000;
+    const actualTaskIds = [...new Set([
+        ...taskLog.map((log) => log.taskId),
+        currentTask?.id,
+    ].filter((taskId): taskId is string => Boolean(taskId)))];
+    const actualDayLogs = actualTaskIds.flatMap((taskId) =>
+        getActualTaskLogs(taskId, dayStartMs, dayEndMs, taskLog, currentTask, now),
+    );
 
     return (
         <DraggablePanel
@@ -330,6 +338,21 @@ export function TimeboxDeck({ onClose }: TimeboxDeckProps) {
                             ))}
                         </div>
                         <div className="relative" onDoubleClick={createTimebox}>
+                            {Array.from({ length: TIMEBOX_TOTAL_MINUTES / TIMEBOX_SLOT_MINUTES }, (_, index) => {
+                                const slotStart = index * TIMEBOX_SLOT_MINUTES;
+                                const slotEnd = slotStart + TIMEBOX_SLOT_MINUTES;
+                                const isPast = currentMinute >= slotEnd;
+                                const isCurrent = currentMinute >= slotStart && currentMinute < slotEnd;
+                                return (
+                                    <div
+                                        key={`background-${index}`}
+                                        className={`absolute inset-x-0 pointer-events-none ${
+                                            isPast ? 'bg-slate-700/25' : isCurrent ? 'bg-cyan-950/25' : ''
+                                        }`}
+                                        style={{ top: index * SLOT_HEIGHT, height: SLOT_HEIGHT }}
+                                    />
+                                );
+                            })}
                             {Array.from({ length: 97 }, (_, index) => (
                                 <div
                                     key={index}
@@ -340,6 +363,23 @@ export function TimeboxDeck({ onClose }: TimeboxDeckProps) {
                             {currentMinute >= 0 && currentMinute < TIMEBOX_TOTAL_MINUTES && (
                                 <div className="absolute inset-x-0 z-20 border-t border-cyan-400/80 pointer-events-none" style={{ top: currentMinute / 15 * SLOT_HEIGHT }} />
                             )}
+                            {actualDayLogs.map((actual) => {
+                                    const actualStart = Math.max(dayStartMs, actual.startTime);
+                                    const actualEnd = Math.min(dayEndMs, actual.endTime);
+                                    return (
+                                        <div
+                                            key={`actual-${actual.id}`}
+                                            className="absolute left-1/2 right-1 z-[8] rounded border border-dashed border-white/70 bg-slate-950/45 px-1.5 py-0.5 text-[10px] text-white/90 overflow-hidden pointer-events-none"
+                                            style={{
+                                                top: ((actualStart - dayStartMs) / 60000) / 15 * SLOT_HEIGHT + 1,
+                                                height: Math.max(8, ((actualEnd - actualStart) / 60000) / 15 * SLOT_HEIGHT - 2),
+                                            }}
+                                            title={`実績: ${actual.name}`}
+                                        >
+                                            <span className="truncate block">実績: {actual.name}</span>
+                                        </div>
+                                    );
+                                })}
                             {dayTimeboxes.map((timebox) => {
                                 const effective = effectiveTimebox(timebox);
                                 const shown = preview?.id === timebox.id ? { ...effective, ...preview } : effective;
@@ -348,6 +388,7 @@ export function TimeboxDeck({ onClose }: TimeboxDeckProps) {
                                 const startTime = dayStartMs + shown.startMinute * 60_000;
                                 const endTime = Math.min(dayEndMs, startTime + shown.durationMinutes * 60_000);
                                 const actualMinutes = getActualMinutes(shown.taskId, startTime, endTime, taskLog, currentTask, now);
+                                const actualLogs = getActualTaskLogs(shown.taskId, startTime, endTime, taskLog, currentTask, now);
                                 const result = getTimeboxResult(shown.taskId, actualMinutes, shown.durationMinutes, endTime, history, currentTask, now);
                                 return (
                                     <div
@@ -384,6 +425,11 @@ export function TimeboxDeck({ onClose }: TimeboxDeckProps) {
                                                 <div className={`flex justify-between text-[10px] ${resultClasses[result]}`}>
                                                     <span>{shown.durationMinutes}分</span>
                                                     <span>{actualMinutes > 0 ? `${Math.round(actualMinutes)}分実施 · ` : ''}{resultLabels[result] ?? ''}</span>
+                                                </div>
+                                            )}
+                                            {actualLogs.length > 0 && (
+                                                <div className="truncate text-[10px] text-white/80" title={actualLogs.map((log) => log.name).join(', ')}>
+                                                    実績: {actualLogs.map((log) => log.name).join(' / ')}
                                                 </div>
                                             )}
                                         </div>

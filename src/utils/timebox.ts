@@ -41,20 +41,50 @@ export function getActualMinutes(
     currentTask: Task | null,
     now: number,
 ): number {
-    if (!taskId) return 0;
-    const actualLogs = logs
-        .filter((log) => log.taskId === taskId && log.endTime > log.startTime)
-        .map((log) => ({ start: log.startTime, end: log.endTime }));
-
-    if (currentTask?.id === taskId && currentTask.status === 'pending' && currentTask.startTime > 0) {
-        actualLogs.push({ start: currentTask.startTime, end: now });
-    }
+    const actualLogs = getActualTaskLogs(taskId, startTime, endTime, logs, currentTask, now);
 
     return actualLogs.reduce((total, log) => {
-        const overlapStart = Math.max(startTime, log.start);
-        const overlapEnd = Math.min(endTime, log.end);
+        const overlapStart = Math.max(startTime, log.startTime);
+        const overlapEnd = Math.min(endTime, log.endTime);
         return overlapEnd > overlapStart ? total + (overlapEnd - overlapStart) / 60000 : total;
     }, 0);
+}
+
+/**
+ * Returns the actual task sessions shown by the timeline and used for timebox totals.
+ * Keeping this in one place prevents the task label and the duration/result from diverging.
+ */
+export function getActualTaskLogs(
+    taskId: string | undefined,
+    startTime: number,
+    endTime: number,
+    logs: TaskLogEntry[],
+    currentTask: Task | null,
+    now: number,
+): Array<Pick<TaskLogEntry, 'id' | 'taskId' | 'name' | 'startTime' | 'endTime'>> {
+    if (!taskId) return [];
+
+    const actualLogs = logs
+        .filter((log) => log.taskId === taskId && log.endTime > log.startTime)
+        .map(({ id, taskId: logTaskId, name, startTime: logStart, endTime: logEnd }) => ({
+            id,
+            taskId: logTaskId,
+            name,
+            startTime: logStart,
+            endTime: logEnd,
+        }));
+
+    if (currentTask?.id === taskId && currentTask.status === 'pending' && currentTask.startTime > 0) {
+        actualLogs.unshift({
+            id: 'current-active-task',
+            taskId,
+            name: currentTask.name,
+            startTime: currentTask.startTime,
+            endTime: now,
+        });
+    }
+
+    return actualLogs.filter((log) => log.endTime > startTime && log.startTime < endTime);
 }
 
 export type TimeboxResult = 'empty' | 'planned' | 'in-progress' | 'partial' | 'completed' | 'overrun' | 'missed';
