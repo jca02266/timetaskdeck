@@ -14,7 +14,9 @@ interface AdvancedScheduleDialogProps {
     currentTime?: string;
     currentDaysOfWeek?: number[];
     currentAutoStart?: boolean;
+    currentEstimatedDurationMinutes?: number;
     onSave: (date?: string, time?: string, daysOfWeek?: number[], autoStart?: boolean) => void;
+    onSaveEstimatedDuration?: (minutes: number) => void;
 }
 
 const DAYS = [
@@ -34,13 +36,16 @@ export function AdvancedScheduleDialog({
     currentTime,
     currentDaysOfWeek,
     currentAutoStart,
-    onSave
+    onSave,
+    currentEstimatedDurationMinutes,
+    onSaveEstimatedDuration
 }: AdvancedScheduleDialogProps) {
     const [mode, setMode] = useState<'one-time' | 'weekly'>(currentDaysOfWeek && currentDaysOfWeek.length > 0 ? 'weekly' : 'one-time');
     const [date, setDate] = useState(currentDate || '');
     const timeInput = useTimeInput(currentTime || '');
     const [daysOfWeek, setDaysOfWeek] = useState<number[]>(currentDaysOfWeek || []);
     const [autoStart, setAutoStart] = useState(currentAutoStart ?? true);
+    const [estimatedDurationMinutes, setEstimatedDurationMinutes] = useState(currentEstimatedDurationMinutes ?? 30);
     const datePickerRef = useRef<DatePickerRef>(null);
 
     const [mounted, setMounted] = useState(false);
@@ -53,8 +58,9 @@ export function AdvancedScheduleDialog({
             timeInput.reset(currentTime || '');
             setDaysOfWeek(currentDaysOfWeek || []);
             setAutoStart(currentAutoStart ?? true);
+            setEstimatedDurationMinutes(currentEstimatedDurationMinutes ?? 30);
         }
-    }, [isOpen, currentDate, currentTime, currentDaysOfWeek, currentAutoStart]);
+    }, [isOpen, currentDate, currentTime, currentDaysOfWeek, currentAutoStart, currentEstimatedDurationMinutes]);
 
     if (!isOpen || !mounted) return null;
 
@@ -72,6 +78,7 @@ export function AdvancedScheduleDialog({
         } else {
             onSave(undefined, formattedTime, daysOfWeek.length > 0 ? daysOfWeek : undefined, autoStart);
         }
+        onSaveEstimatedDuration?.(Math.max(15, Math.min(1440, Math.round((estimatedDurationMinutes || 30) / 15) * 15)));
         onClose();
     };
 
@@ -166,6 +173,21 @@ export function AdvancedScheduleDialog({
                             onChange={timeInput.setValue}
                             onKeyDown={handleKeyDown}
                             variant="dialog"
+                        />
+                    </div>
+
+                    {/* Timebox duration */}
+                    <div className="space-y-1.5">
+                        <label className="text-[10px] text-slate-500 uppercase tracking-tighter">Timebox duration (minutes)</label>
+                        <input
+                            type="number"
+                            min="15"
+                            max="1440"
+                            step="15"
+                            value={estimatedDurationMinutes}
+                            onChange={(e) => setEstimatedDurationMinutes(Number(e.target.value) || 30)}
+                            className="w-full bg-slate-950/30 border border-slate-800 rounded-lg px-3 py-2 text-sm text-slate-300 focus:border-blue-500 focus:outline-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                            aria-label="タイムボックスの予定時間（分）"
                         />
                     </div>
 

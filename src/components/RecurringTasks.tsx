@@ -1,12 +1,12 @@
 import { useTaskStore } from '@/store/useTaskStore';
-import { useMemoStore } from '@/store/useMemoStore';
-import { Repeat, Play, Plus, Pencil, Check, X, Trash2, GripVertical, CheckCircle2, Circle, Minimize2, FileText, RotateCcw, Bell } from 'lucide-react';
+import { Repeat, Play, Plus, Pencil, Check, X, Trash2, GripVertical, CheckCircle2, Circle, Minimize2, RotateCcw, Bell } from 'lucide-react';
 import { getSmartPasteText } from '@/utils/taskParsing';
 import { useState, useRef } from 'react';
 import { TaskScheduleInput } from './TaskScheduleInput';
 import { Tooltip } from './Tooltip';
 import { DraggablePanel } from './DraggablePanel';
 import { ColorPickerDialog } from './ColorPickerDialog';
+import { TaskMemoButton } from './TaskMemoButton';
 
 export function RecurringTasks() {
     const {
@@ -29,8 +29,6 @@ export function RecurringTasks() {
         updateTaskColorId,
         clearAllRecurringTasksChecks
     } = useTaskStore();
-    const memos = useMemoStore((state) => state.memos);
-
     const [newItem, setNewItem] = useState('');
     const [editingId, setEditingId] = useState<string | null>(null);
     const [editValue, setEditValue] = useState('');
@@ -418,17 +416,7 @@ export function RecurringTasks() {
                                             <Pencil size={14} />
                                         </button>
                                         {/* 8. Open Memo */}
-                                        <button
-                                            onClick={(e) => {
-                                                e.stopPropagation();
-                                                useTaskStore.getState().openMemo(task.id);
-                                            }}
-                                            onPointerDown={(e) => e.stopPropagation()}
-                                            className={`p-1.5 text-slate-400 hover:text-blue-400 rounded hover:bg-slate-700/50 transition-all ${!!memos[task.id] ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'}`}
-                                            title="Open Memo"
-                                        >
-                                            <FileText size={14} />
-                                        </button>
+                                        <TaskMemoButton taskId={task.id} recurringTaskId={task.recurringTaskId} />
                                         {/* 9. Delete Task */}
                                         <button
                                             onClick={(e) => {

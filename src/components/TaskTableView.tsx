@@ -1,8 +1,9 @@
 import React, { useState, useMemo, useEffect, useRef, useCallback, memo } from 'react';
 import { useTaskStore, Task } from '@/store/useTaskStore';
 import { useMemoStore } from '@/store/useMemoStore';
-import { Trash2, ArrowUp, ArrowDown, Plus, X, GripVertical, ListFilter, Play, FileText, Search, Bell } from 'lucide-react';
+import { Trash2, ArrowUp, ArrowDown, Plus, X, GripVertical, ListFilter, Play, Search, Bell } from 'lucide-react';
 import { TaskScheduleInput } from './TaskScheduleInput';
+import { TaskMemoButton } from './TaskMemoButton';
 
 type SortKey = 'name' | 'color' | 'backlog' | 'scheduled';
 type SortDirection = 'asc' | 'desc';
@@ -347,7 +348,6 @@ export function TaskTableView() {
                                     <th className="px-4 py-4 cursor-pointer hover:text-slate-300 transition-colors w-48" onClick={() => handleSort('scheduled')}>
                                         <div className="flex items-center gap-1.5">Scheduled Date <SortIcon columnKey="scheduled" /></div>
                                     </th>
-                                    <th className="px-4 py-4 w-24">予定時間</th>
                                     <th className="px-6 py-4 w-20 text-right">Actions</th>
                                 </tr>
                             </thead>
@@ -371,7 +371,7 @@ export function TaskTableView() {
 
                                 {displayTasks.length === 0 && (
                                     <tr>
-                                        <td colSpan={7} className="text-center py-12 text-slate-500 text-sm">
+                                        <td colSpan={6} className="text-center py-12 text-slate-500 text-sm">
                                             No tasks found. Click "Create Card" to get started.
                                         </td>
                                     </tr>
@@ -530,36 +530,19 @@ const TaskTableRow = memo(function TaskTableRow({
                     time={task.scheduledTime}
                     daysOfWeek={task.scheduledDaysOfWeek}
                     autoStart={task.autoStart}
+                    estimatedDurationMinutes={task.estimatedDurationMinutes}
                     onUpdate={(d, t, days, auto) => onUpdate(task.id, { scheduledDate: d, scheduledTime: t, scheduledDaysOfWeek: days, autoStart: auto })}
+                    onEstimatedDurationChange={(minutes) => onUpdate(task.id, { estimatedDurationMinutes: minutes })}
                 />
-            </td>
-
-            <td className="px-4 py-4">
-                <input
-                    type="number"
-                    min="15"
-                    max="1440"
-                    step="15"
-                    value={task.estimatedDurationMinutes ?? 30}
-                    onChange={(e) => onUpdate(task.id, { estimatedDurationMinutes: Math.max(15, Math.min(1440, Math.round((Number(e.target.value) || 30) / 15) * 15)) })}
-                    className="w-16 bg-slate-800/50 border border-transparent rounded px-2 py-1.5 text-xs text-center text-slate-300 focus:border-blue-500 focus:outline-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
-                    aria-label="予定時間（分）"
-                />
-                <span className="ml-1 text-[10px] text-slate-500">分</span>
             </td>
 
             <td className="px-6 py-4 text-right flex items-center justify-end gap-1">
-                <button
-                    className="text-slate-600 hover:text-blue-400 transition-colors opacity-0 group-hover:opacity-100 p-2 rounded-lg hover:bg-slate-800/80"
-                    onClick={(e) => {
-                        e.stopPropagation();
-                        useTaskStore.getState().openMemo(task.id);
-                    }}
-                    onPointerDown={(e) => e.stopPropagation()}
-                    title="Open Memo"
-                >
-                    <FileText size={16} />
-                </button>
+                <TaskMemoButton
+                    taskId={task.id}
+                    recurringTaskId={task.recurringTaskId}
+                    iconSize={16}
+                    className="p-2 hover:bg-slate-800/80"
+                />
                 <button
                     className="text-slate-600 hover:text-red-400 transition-colors opacity-0 group-hover:opacity-100 p-2 rounded-lg hover:bg-slate-800/80"
                     onClick={() => onDelete(task.id)}

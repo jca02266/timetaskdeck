@@ -1,13 +1,13 @@
 "use client";
 
 import { useTaskStore, getLogicalDate } from '@/store/useTaskStore';
-import { useMemoStore } from '@/store/useMemoStore';
-import { Download, RotateCcw, Clock, Pencil, Check, X, Trash2, Copy, Minimize2, FileText, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Download, RotateCcw, Clock, Pencil, Check, X, Trash2, Copy, Minimize2, ChevronLeft, ChevronRight } from 'lucide-react';
 import { format, startOfDay, addDays, subDays, isSameDay, parseISO } from 'date-fns';
 import { useState } from 'react';
 import { DatePicker } from './DatePicker';
 import { Tooltip } from './Tooltip';
 import { DraggablePanel } from './DraggablePanel';
+import { TaskMemoButton } from './TaskMemoButton';
 
 export function HistoryView() {
     const history = useTaskStore((state) => state.history);
@@ -16,7 +16,6 @@ export function HistoryView() {
     const deleteTask = useTaskStore((state) => state.deleteTask);
     const copyToRecurring = useTaskStore((state) => state.copyToRecurring);
     const toggleHistoryMinimized = useTaskStore((state) => state.toggleHistoryMinimized);
-    const memos = useMemoStore((state) => state.memos);
     const dayStartHour = useTaskStore((state) => state.dayStartHour);
     const [editingId, setEditingId] = useState<string | null>(null);
     const [editValue, setEditValue] = useState('');
@@ -190,17 +189,7 @@ export function HistoryView() {
                                             <Pencil size={14} />
                                         </button>
                                         {/* 3. Open Memo */}
-                                        <button
-                                            onClick={(e) => {
-                                                e.stopPropagation();
-                                                useTaskStore.getState().openMemo(task.id);
-                                            }}
-                                            onPointerDown={(e) => e.stopPropagation()}
-                                            className={`p-1 text-slate-400 hover:text-blue-400 rounded hover:bg-slate-700/50 transition-all ${!!memos[task.id] ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'}`}
-                                            title="Open Memo"
-                                        >
-                                            <FileText size={14} />
-                                        </button>
+                                        <TaskMemoButton taskId={task.id} recurringTaskId={task.recurringTaskId} className="p-1" />
                                         {/* 4. Delete Task */}
                                         <button
                                             onClick={(e) => {

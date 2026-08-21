@@ -282,7 +282,7 @@ export default function Home() {
               className="pointer-events-auto flex items-center gap-2 px-4 py-2 backdrop-blur-md border rounded-full text-sm font-medium transition-all shadow-xl hover:-translate-y-0.5 bg-slate-900/90 border-slate-700/50 text-slate-400 hover:text-white hover:bg-slate-800"
               title="Restore Memo"
             >
-              <FileText size={16} className="opacity-50" />
+              <FileText size={16} style={{ color: '#60a5fa' }} />
               <span className="max-w-[150px] truncate">
                 {useTaskStore.getState().getTaskById(activeMemoTaskId)?.name || "Task"} - メモ
               </span>

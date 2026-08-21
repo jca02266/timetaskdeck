@@ -1,10 +1,10 @@
 import { useTaskStore, Task } from '@/store/useTaskStore';
-import { useMemoStore } from '@/store/useMemoStore';
 import { Tooltip } from './Tooltip';
 import { TaskScheduleInput } from './TaskScheduleInput';
-import { Play, Pencil, Check, X, Trash2, GripVertical, FileText } from 'lucide-react';
+import { Play, Pencil, Check, X, Trash2, GripVertical } from 'lucide-react';
 import { useState } from 'react';
 import { ColorPickerDialog } from './ColorPickerDialog';
+import { TaskMemoButton } from './TaskMemoButton';
 
 interface BacklogTaskItemProps {
     task: Task;
@@ -19,14 +19,11 @@ export function BacklogTaskItem({ task, index, categoryId, isDue }: BacklogTaskI
     const updateTaskName = useTaskStore((state) => state.updateTaskName);
     const deleteTask = useTaskStore((state) => state.deleteTask);
     const updateTaskSchedule = useTaskStore((state) => state.updateTaskSchedule);
-    const updateTaskEstimatedDuration = useTaskStore((state) => state.updateTaskEstimatedDuration);
     const updateTaskColorId = useTaskStore((state) => state.updateTaskColorId);
     const draggedTaskId = useTaskStore((state) => state.draggedTaskId);
     const setDraggedTaskId = useTaskStore((state) => state.setDraggedTaskId);
     const setDropTarget = useTaskStore((state) => state.setDropTarget);
     const commitMove = useTaskStore((state) => state.commitMove);
-
-    const memos = useMemoStore((state) => state.memos);
 
     const [isEditing, setIsEditing] = useState(false);
     const [editValue, setEditValue] = useState('');
@@ -186,24 +183,11 @@ export function BacklogTaskItem({ task, index, categoryId, isDue }: BacklogTaskI
                 time={task.scheduledTime}
                 daysOfWeek={task.scheduledDaysOfWeek}
                 autoStart={task.autoStart}
+                estimatedDurationMinutes={task.estimatedDurationMinutes}
                 onUpdate={(date, time, days, auto) => updateTaskSchedule(task.id, date, time, days, auto)}
+                onEstimatedDurationChange={(minutes) => useTaskStore.getState().updateTaskEstimatedDuration(task.id, minutes)}
                 className="ml-auto"
             />
-
-            <div className="flex items-center gap-1 shrink-0" title="タイムボックスの予定時間">
-                <input
-                    type="number"
-                    min="15"
-                    max="1440"
-                    step="15"
-                    value={task.estimatedDurationMinutes ?? 30}
-                    onChange={(e) => updateTaskEstimatedDuration(task.id, Number(e.target.value) || 30)}
-                    onPointerDown={(e) => e.stopPropagation()}
-                    className="w-12 bg-slate-950/30 border border-slate-800 rounded px-1 py-1.5 text-[10px] text-center text-slate-300 focus:outline-none focus:border-blue-500 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
-                    aria-label="予定時間（分）"
-                />
-                <span className="text-[10px] text-slate-500">分</span>
-            </div>
 
             <div className="flex items-center gap-1 shrink-0">
                 {/* Rename */}
@@ -217,14 +201,7 @@ export function BacklogTaskItem({ task, index, categoryId, isDue }: BacklogTaskI
                 </button>
 
                 {/* Memo */}
-                <button
-                    onClick={(e) => { e.stopPropagation(); useTaskStore.getState().openMemo(task.id); }}
-                    onPointerDown={(e) => e.stopPropagation()}
-                    className={`p-1.5 text-slate-400 hover:text-blue-400 rounded hover:bg-slate-700/50 transition-colors ${!!memos[task.id] ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'}`}
-                    title="Open Memo"
-                >
-                    <FileText size={14} />
-                </button>
+                <TaskMemoButton taskId={task.id} recurringTaskId={task.recurringTaskId} />
 
                 {/* Delete */}
                 <button

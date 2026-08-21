@@ -1,9 +1,9 @@
 "use client";
 
 import { useTaskStore } from '@/store/useTaskStore';
-import { useMemoStore } from '@/store/useMemoStore';
-import { Layers, FileText } from 'lucide-react';
+import { Layers } from 'lucide-react';
 import { useState } from 'react';
+import { TaskMemoIndicator } from './TaskMemoButton';
 
 // TaskStack.tsx
 interface TaskStackProps {
@@ -28,8 +28,6 @@ export const STACK_CONFIG = {
 
 export function TaskStack({ isExpanded, onToggle }: TaskStackProps) {
     const { currentTask, taskStack, switchTask } = useTaskStore();
-    const memos = useMemoStore((state) => state.memos);
-
     // Combine currentTask and stack for the view
     // To make sure currentTask is on TOP of the 3D stack, it must be the LAST element mapped
     // (since absolute positioned elements later in the DOM are on top by default)
@@ -102,11 +100,9 @@ export function TaskStack({ isExpanded, onToggle }: TaskStackProps) {
                             marginTop: isExpanded ? '1.5rem' : '0',
                         }}
                     >
-                        {!!memos[task.id] && (
-                            <div className={`absolute top-4 right-4 text-blue-400 transition-opacity duration-300 ${(!isExpanded && !isCurrent) ? 'opacity-0' : 'opacity-70'}`}>
-                                <FileText size={18} />
-                            </div>
-                        )}
+                        <div className={`absolute top-4 right-4 transition-opacity duration-300 ${(!isExpanded && !isCurrent) ? 'opacity-0' : 'opacity-100'}`}>
+                            <TaskMemoIndicator taskId={task.id} recurringTaskId={task.recurringTaskId} />
+                        </div>
                         <div className={`text-lg font-bold text-slate-200 truncate max-w-[90%] px-4 w-full text-center tracking-wider transition-opacity duration-300 ${(!isExpanded && !isCurrent) ? 'opacity-0' : 'opacity-100'}`}>
                             {isCurrent && <span className="text-blue-400 text-[10px] block mb-1 uppercase tracking-widest animate-pulse font-black">Executing</span>}
                             {task.name}

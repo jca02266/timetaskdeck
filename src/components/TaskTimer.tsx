@@ -1,9 +1,9 @@
 import { useEffect, useState } from 'react';
 import { useTaskStore } from '@/store/useTaskStore';
-import { useMemoStore } from '@/store/useMemoStore';
-import { Play, Square, Pause, ArrowDown, Pencil, Check, X, FileText, ListTodo } from 'lucide-react';
+import { Play, Square, Pause, ArrowDown, Pencil, Check, X, ListTodo } from 'lucide-react';
 import { Tooltip } from './Tooltip';
 import { STACK_CONFIG } from './TaskStack';
+import { TaskMemoButton, useTaskMemoId } from './TaskMemoButton';
 
 export function TaskTimer() {
     const {
@@ -20,7 +20,8 @@ export function TaskTimer() {
     const [isEditing, setIsEditing] = useState(false);
     const [editName, setEditName] = useState('');
 
-    const hasMemo = useMemoStore((state) => !!state.memos[currentTask?.id || '']);
+    const memoTaskId = useTaskMemoId(currentTask?.id, currentTask?.recurringTaskId);
+    const hasMemo = Boolean(memoTaskId);
 
     // Parse numeric height for layout adjustments
     const cardHeightNum = parseInt(STACK_CONFIG.CARD_HEIGHT) || 300;
@@ -156,13 +157,12 @@ export function TaskTimer() {
                         >
                             <Pencil size={isShort ? 14 : 18} />
                         </button>
-                        <button
-                            onClick={() => useTaskStore.getState().openMemo(currentTask.id)}
-                            className="text-slate-400 hover:text-blue-400 transition-colors p-1"
-                            title="Open Memo"
-                        >
-                            <FileText size={isShort ? 14 : 18} />
-                        </button>
+                        <TaskMemoButton
+                            taskId={currentTask.id}
+                            recurringTaskId={currentTask.recurringTaskId}
+                            iconSize={isShort ? 14 : 18}
+                            className="p-1 opacity-100"
+                        />
                     </div>
                 </div>
             )}

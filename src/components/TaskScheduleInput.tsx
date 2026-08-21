@@ -9,13 +9,15 @@ interface TaskScheduleInputProps {
     time?: string;
     daysOfWeek?: number[];
     autoStart?: boolean;
+    estimatedDurationMinutes?: number;
     onUpdate: (date?: string, time?: string, daysOfWeek?: number[], autoStart?: boolean) => void;
+    onEstimatedDurationChange?: (minutes: number) => void;
     className?: string;
 }
 
 const WEEKDAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
-export function TaskScheduleInput({ date, time, daysOfWeek, autoStart, onUpdate, className }: TaskScheduleInputProps) {
+export function TaskScheduleInput({ date, time, daysOfWeek, autoStart, estimatedDurationMinutes, onUpdate, onEstimatedDurationChange, className }: TaskScheduleInputProps) {
     const [isDialogOpen, setIsDialogOpen] = useState(false);
 
     const hasDays = daysOfWeek && daysOfWeek.length > 0;
@@ -70,7 +72,9 @@ export function TaskScheduleInput({ date, time, daysOfWeek, autoStart, onUpdate,
                 currentTime={time}
                 currentDaysOfWeek={daysOfWeek}
                 currentAutoStart={autoStart}
+                currentEstimatedDurationMinutes={estimatedDurationMinutes}
                 onSave={onUpdate}
+                onSaveEstimatedDuration={onEstimatedDurationChange}
             />
         </>
     );
