@@ -18,12 +18,15 @@ export const getLogicalDate = (timestamp: number, dayStartHour: number): Date =>
 };
 
 export type TaskStatus = 'pending' | 'completed' | 'paused' | 'interrupted';
-export type PanelType = 'backlog' | 'recurring';
+export type PanelType = 'backlog' | 'recurring' | 'timebox';
 
 export interface DropTarget {
     panelId: string;
     index: number;
     type: PanelType;
+    logicalDate?: string;
+    scheduledTime?: string;
+    durationMinutes?: number;
 }
 
 export interface BacklogCategory {
@@ -238,6 +241,39 @@ export const useTaskStore = create<TaskState>()(
                 const { draggedTaskId, dropTarget } = get();
                 if (!draggedTaskId || !dropTarget) {
                     set({ draggedTaskId: null, dropTarget: null });
+                    return;
+                }
+
+                if (dropTarget.type === 'timebox') {
+                    const { logicalDate, scheduledTime } = dropTarget;
+                    if (!logicalDate || !scheduledTime) {
+                        set({ draggedTaskId: null, dropTarget: null });
+                        return;
+                    }
+
+                    const estimatedDurationMinutes = Math.max(
+                        15,
+                        Math.min(24 * 60, Math.round((dropTarget.durationMinutes ?? 30) / 15) * 15),
+                    );
+                    const scheduleTask = (task: Task) => task.id === draggedTaskId
+                        ? {
+                            ...task,
+                            scheduledDate: logicalDate,
+                            scheduledTime,
+                            scheduledDaysOfWeek: undefined,
+                            estimatedDurationMinutes,
+                        }
+                        : task;
+
+                    set((state) => ({
+                        currentTask: state.currentTask ? scheduleTask(state.currentTask) : null,
+                        taskStack: state.taskStack.map(scheduleTask),
+                        backlogTasks: state.backlogTasks.map(scheduleTask),
+                        recurringTasks: state.recurringTasks.map(scheduleTask),
+                        history: state.history.map(scheduleTask),
+                        draggedTaskId: null,
+                        dropTarget: null,
+                    }));
                     return;
                 }
 

@@ -5,6 +5,7 @@ import { Play, Pencil, Check, X, Trash2, GripVertical } from 'lucide-react';
 import { useState } from 'react';
 import { ColorPickerDialog } from './ColorPickerDialog';
 import { TaskMemoButton } from './TaskMemoButton';
+import { getTimeboxDropStartMinute, formatTimeboxDropSchedule } from '@/utils/timeboxDrag';
 
 interface BacklogTaskItemProps {
     task: Task;
@@ -75,8 +76,30 @@ export function BacklogTaskItem({ task, index, categoryId, isDue }: BacklogTaskI
                     }
                     if (hasMoved) {
                         const overElement = document.elementFromPoint(moveEvent.clientX, moveEvent.clientY);
+                        const timeboxTimeline = overElement?.closest<HTMLElement>('[data-timebox-drop-target="true"]');
                         const overTaskRow = overElement?.closest('div[data-task-id]');
-                        if (overTaskRow) {
+                        if (timeboxTimeline) {
+                            const logicalDate = timeboxTimeline.dataset.logicalDate;
+                            const dayStartHour = Number(timeboxTimeline.dataset.dayStartHour);
+                            const slotHeight = Number(timeboxTimeline.dataset.slotHeight);
+                            if (logicalDate && Number.isFinite(dayStartHour) && slotHeight > 0) {
+                                const durationMinutes = task.estimatedDurationMinutes ?? 30;
+                                const startMinute = getTimeboxDropStartMinute(
+                                    moveEvent.clientY,
+                                    timeboxTimeline.getBoundingClientRect().top,
+                                    slotHeight,
+                                    durationMinutes,
+                                );
+                                setDropTarget({
+                                    panelId: 'timebox',
+                                    index: startMinute,
+                                    type: 'timebox',
+                                    logicalDate,
+                                    scheduledTime: formatTimeboxDropSchedule(startMinute, dayStartHour),
+                                    durationMinutes,
+                                });
+                            }
+                        } else if (overTaskRow) {
                             const overPanelId = overTaskRow.getAttribute('data-panel-id');
                             const overPanelType = (overTaskRow.getAttribute('data-panel-type') as 'backlog' | 'recurring') || 'backlog';
                             const overIndex = parseInt(overTaskRow.getAttribute('data-index') || '0');
@@ -89,6 +112,7 @@ export function BacklogTaskItem({ task, index, categoryId, isDue }: BacklogTaskI
                             } else {
                                 const overRecurring = overElement?.closest('div[data-panel-type="recurring"]');
                                 if (overRecurring) setDropTarget({ panelId: 'recurring', index: 9999, type: 'recurring' });
+                                else setDropTarget(null);
                             }
                         }
                     }

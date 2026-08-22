@@ -128,6 +128,43 @@ describe('useTaskStore', () => {
         });
     });
 
+    describe('timebox drag scheduling', () => {
+        it('keeps a backlog task in place and assigns the dropped schedule', () => {
+            const task = makeTask({
+                id: 'dragged-task',
+                scheduledDaysOfWeek: [1, 2, 3],
+                estimatedDurationMinutes: undefined,
+            });
+            setState({
+                backlogTasks: [task],
+                draggedTaskId: task.id,
+                dropTarget: {
+                    panelId: 'timebox',
+                    index: 195,
+                    type: 'timebox',
+                    logicalDate: '2026-08-24',
+                    scheduledTime: '08:15',
+                    durationMinutes: 30,
+                },
+            });
+
+            getState().commitMove();
+
+            const state = getState();
+            expect(state.backlogTasks).toHaveLength(1);
+            expect(state.backlogTasks[0]).toMatchObject({
+                id: task.id,
+                backlogId: 'main',
+                scheduledDate: '2026-08-24',
+                scheduledTime: '08:15',
+                estimatedDurationMinutes: 30,
+            });
+            expect(state.backlogTasks[0].scheduledDaysOfWeek).toBeUndefined();
+            expect(state.draggedTaskId).toBeNull();
+            expect(state.dropTarget).toBeNull();
+        });
+    });
+
     describe('Normal flow: stopTask', () => {
         it('should stop current task and log its session', () => {
             getState().startTask('Task A');

@@ -75,6 +75,8 @@ export function TimeboxDeck({ onClose }: TimeboxDeckProps) {
     const updateTaskColorId = useTaskStore((state) => state.updateTaskColorId);
     const updateTaskSchedule = useTaskStore((state) => state.updateTaskSchedule);
     const updateTaskEstimatedDuration = useTaskStore((state) => state.updateTaskEstimatedDuration);
+    const draggedTaskId = useTaskStore((state) => state.draggedTaskId);
+    const dropTarget = useTaskStore((state) => state.dropTarget);
 
     const timeboxes = useTimeboxStore((state) => state.timeboxes);
     const addTimebox = useTimeboxStore((state) => state.addTimebox);
@@ -115,6 +117,10 @@ export function TimeboxDeck({ onClose }: TimeboxDeckProps) {
     ]), [currentTask, taskStack, backlogTasks, recurringTasks, history]);
     const taskById = useMemo(() => new Map(tasks.map((task) => [task.id, task])), [tasks]);
     const colorById = useMemo(() => new Map(colors.map((color) => [color.id, color])), [colors]);
+    const draggedTask = draggedTaskId ? taskById.get(draggedTaskId) : undefined;
+    const timeboxDropTarget = dropTarget?.type === 'timebox' && dropTarget.logicalDate === logicalDateKey
+        ? dropTarget
+        : null;
     const taskMatchesSelectedDate = (task: Task) => {
         if (!task.scheduledTime) return true;
         if (task.scheduledDate) return task.scheduledDate === logicalDateKey;
@@ -351,7 +357,14 @@ export function TimeboxDeck({ onClose }: TimeboxDeckProps) {
                                 </div>
                             ))}
                         </div>
-                        <div className="relative" onDoubleClick={createTimebox}>
+                        <div
+                            className={`relative ${draggedTaskId ? 'ring-1 ring-inset ring-cyan-500/30' : ''}`}
+                            onDoubleClick={createTimebox}
+                            data-timebox-drop-target="true"
+                            data-logical-date={logicalDateKey}
+                            data-day-start-hour={dayStartHour}
+                            data-slot-height={SLOT_HEIGHT}
+                        >
                             {Array.from({ length: TIMEBOX_TOTAL_MINUTES / TIMEBOX_SLOT_MINUTES }, (_, index) => {
                                 const slotStart = index * TIMEBOX_SLOT_MINUTES;
                                 const slotEnd = slotStart + TIMEBOX_SLOT_MINUTES;
@@ -382,6 +395,24 @@ export function TimeboxDeck({ onClose }: TimeboxDeckProps) {
                             {currentMinute >= 0 && currentMinute < TIMEBOX_TOTAL_MINUTES && (
                                 <div className="absolute inset-x-0 z-20 border-t-2 border-cyan-400 pointer-events-none shadow-[0_-1px_8px_rgba(34,211,238,0.35)]" style={{ top: currentMinute / 15 * SLOT_HEIGHT }}>
                                     <span className="absolute right-2 -top-5 rounded bg-cyan-950/90 px-1.5 py-0.5 text-[9px] font-semibold text-cyan-300">現在</span>
+                                </div>
+                            )}
+                            {timeboxDropTarget && draggedTask && (
+                                <div
+                                    className="absolute left-2 right-3 z-30 rounded border-2 border-cyan-300 bg-cyan-600/75 px-3 py-2 text-white shadow-lg shadow-cyan-950/40 pointer-events-none"
+                                    style={{
+                                        top: timeboxDropTarget.index / TIMEBOX_SLOT_MINUTES * SLOT_HEIGHT + 2,
+                                        height: Math.max(
+                                            SLOT_HEIGHT - 4,
+                                            (timeboxDropTarget.durationMinutes ?? 30) / TIMEBOX_SLOT_MINUTES * SLOT_HEIGHT - 4,
+                                        ),
+                                    }}
+                                >
+                                    <div className="flex items-start justify-between gap-2 text-xs font-semibold">
+                                        <span className="truncate">{draggedTask.name}</span>
+                                        <span className="font-mono whitespace-nowrap">{timeboxDropTarget.scheduledTime}</span>
+                                    </div>
+                                    <div className="mt-1 text-[10px] text-cyan-100">ここに予定を設定</div>
                                 </div>
                             )}
                             {actualDayLogs.map((actual) => {
