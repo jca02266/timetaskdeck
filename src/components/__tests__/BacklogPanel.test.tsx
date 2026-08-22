@@ -39,8 +39,6 @@ const makeStoreState = () => ({
     setDropTarget: vi.fn(),
     commitMove: vi.fn(),
     taskStack: [],
-    frontPanelId: null,
-    bringToFront: vi.fn(),
     history: [],
     openMemo: vi.fn(),
 });

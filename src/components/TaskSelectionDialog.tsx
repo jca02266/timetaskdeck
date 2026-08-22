@@ -5,6 +5,7 @@ import { X, Search, Play, Layers, ListTodo, Repeat, Clock, Plus, CheckCircle2 } 
 import { useState, useMemo } from 'react';
 import { createPortal } from 'react-dom';
 import { isSameDay, startOfDay } from 'date-fns';
+import { UI_LAYER } from '@/utils/layers';
 
 interface TaskSelectionDialogProps {
     onSelect: (taskId: string, name: string) => void;
@@ -84,7 +85,7 @@ export function TaskSelectionDialog({ onSelect, onClose, referenceDate }: TaskSe
     }, [search, currentTask, taskStack, backlogTasks, recurringTasks, history, dayStartHour]);
 
     return createPortal(
-        <div className="fixed inset-0 z-[500] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-in fade-in duration-200">
+        <div className="fixed inset-0 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-in fade-in duration-200" style={{ zIndex: UI_LAYER.taskSelection }}>
             <div
                 className="w-full max-w-lg bg-slate-900 border border-slate-700 rounded-2xl shadow-2xl flex flex-col overflow-hidden max-h-[80vh] animate-in zoom-in-95 duration-200"
                 onClick={(e) => e.stopPropagation()}

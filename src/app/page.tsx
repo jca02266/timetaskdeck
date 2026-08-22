@@ -17,6 +17,9 @@ import { useState } from "react";
 import { DraggablePanel } from "@/components/DraggablePanel";
 import { useTaskStore } from "@/store/useTaskStore";
 import { useMemoStore } from "@/store/useMemoStore";
+import { usePanelStore } from "@/store/usePanelStore";
+import { togglePanelFromDock } from "@/utils/panelDock";
+import { UI_LAYER } from "@/utils/layers";
 import { NotificationManager } from "@/components/NotificationManager";
 import { useShallow } from 'zustand/react/shallow';
 
@@ -138,7 +141,7 @@ export default function Home() {
         defaultSize={{ width: timerPanelWidth, height: 500 }}
         title={`カレントタスクデッキ (${deckTaskCount})`}
         resizable={false}
-        className="!bg-transparent !shadow-none !border-none"
+        className="!bg-transparent !shadow-none !border-none pointer-events-none"
         headerControls={
           <button
             onClick={() => setStackExpanded(!isStackExpanded)}
@@ -152,7 +155,7 @@ export default function Home() {
         <div className="relative w-full h-full flex items-end justify-center pb-8">
           <TaskStack isExpanded={isStackExpanded} onToggle={setStackExpanded} />
           <div 
-            className={`origin-bottom transition-all duration-300 ${isStackExpanded ? 'opacity-0 pointer-events-none' : 'opacity-100'}`}
+            className={`origin-bottom transition-all duration-300 ${isStackExpanded ? 'opacity-0 pointer-events-none' : 'opacity-100 pointer-events-auto'}`}
             style={{
               transform: isStackExpanded ? 'translateY(0) scale(1)' : `translateY(${STACK_CONFIG.OFFSET_BASE}px) scale(1)`
             }}
@@ -163,7 +166,7 @@ export default function Home() {
       </DraggablePanel>
 
       {/* Deck Bar (Always visible) */}
-      <div className="fixed bottom-6 left-0 right-0 flex justify-center gap-3 z-[200] pointer-events-none px-4">
+      <div className="fixed bottom-6 left-0 right-0 flex justify-center gap-3 pointer-events-none px-4" style={{ zIndex: UI_LAYER.dock }}>
         <div className="flex flex-wrap justify-center gap-2 max-w-4xl">
           {backlogCategories.map((category, index) => (
             <button
@@ -212,10 +215,11 @@ export default function Home() {
 
                   if (!hasMoved && (Date.now() - startTime < 300)) {
                     // It was a tap
-                    useTaskStore.getState().toggleBacklogMinimized(category.id);
-                    if (category.isMinimized) {
-                      useTaskStore.getState().bringToFront(`backlog-panel-${category.id}`);
-                    }
+                    togglePanelFromDock(
+                      `backlog-panel-${category.id}`,
+                      !category.isMinimized,
+                      () => useTaskStore.getState().toggleBacklogMinimized(category.id),
+                    );
                   }
                   setDraggedDockId(null);
                 };
@@ -238,11 +242,7 @@ export default function Home() {
           {/* Timebox Deck Dock Item */}
           <button
             onClick={() => {
-              const nextOpen = !isTimeboxOpen;
-              setTimeboxOpen(nextOpen);
-              if (nextOpen) {
-                useTaskStore.getState().bringToFront('timebox-panel');
-              }
+              togglePanelFromDock('timebox-panel', isTimeboxOpen, () => setTimeboxOpen(!isTimeboxOpen));
             }}
             className={`pointer-events-auto flex items-center gap-2 px-4 py-2 backdrop-blur-md border rounded-full text-sm font-medium transition-all shadow-xl hover:-translate-y-0.5
               ${isTimeboxOpen
@@ -257,10 +257,7 @@ export default function Home() {
           {/* Recurring Tasks Dock Item */}
           <button
             onClick={() => {
-              toggleRecurringMinimized();
-              if (isRecurringMinimized) {
-                useTaskStore.getState().bringToFront('recurring-panel');
-              }
+              togglePanelFromDock('recurring-panel', !isRecurringMinimized, toggleRecurringMinimized);
             }}
             className={`pointer-events-auto flex items-center gap-2 px-4 py-2 backdrop-blur-md border rounded-full text-sm font-medium transition-all shadow-xl hover:-translate-y-0.5
               ${isRecurringMinimized
@@ -276,8 +273,11 @@ export default function Home() {
           {activeMemoTaskId && isMemoMinimized && (
             <button
               onClick={() => {
-                useTaskStore.getState().toggleMemoMinimized();
-                useTaskStore.getState().bringToFront('memo-panel');
+                togglePanelFromDock(
+                  'memo-panel',
+                  false,
+                  () => useTaskStore.getState().toggleMemoMinimized(),
+                );
               }}
               className="pointer-events-auto flex items-center gap-2 px-4 py-2 backdrop-blur-md border rounded-full text-sm font-medium transition-all shadow-xl hover:-translate-y-0.5 bg-slate-900/90 border-slate-700/50 text-slate-400 hover:text-white hover:bg-slate-800"
               title="Restore Memo"
@@ -291,13 +291,10 @@ export default function Home() {
 
           {/* History Dock Item (Only show if there's history) */}
           {historyCount > 0 && (
-            <button
-              onClick={() => {
-                toggleHistoryMinimized();
-                if (isHistoryMinimized) {
-                  useTaskStore.getState().bringToFront('history-panel');
-                }
-              }}
+          <button
+            onClick={() => {
+                togglePanelFromDock('history-panel', !isHistoryMinimized, toggleHistoryMinimized);
+            }}
               className={`pointer-events-auto flex items-center gap-2 px-4 py-2 backdrop-blur-md border rounded-full text-sm font-medium transition-all shadow-xl hover:-translate-y-0.5
                 ${isHistoryMinimized
                   ? 'bg-slate-900/90 border-slate-700/50 text-slate-400 hover:text-white hover:bg-slate-800'
@@ -322,7 +319,10 @@ export default function Home() {
       ))}
 
       <TaskTableView />
-      {isTimeboxOpen && <TimeboxDeck onClose={() => setTimeboxOpen(false)} />}
+      {isTimeboxOpen && <TimeboxDeck onClose={() => {
+        usePanelStore.getState().remove('timebox-panel');
+        setTimeboxOpen(false);
+      }} />}
       {!isRecurringMinimized && <RecurringTasks />}
       {!isHistoryMinimized && <HistoryView />}
       <TaskMemoEditor />

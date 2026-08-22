@@ -7,6 +7,8 @@ import { setTimeOnDate, calendarDayForTime } from '@/utils/dateUtils';
 export function useTaskLog() {
     const isLogOpen = useTaskStore((state) => state.activeDialog === 'log');
     const openDialog = useTaskStore((state) => state.openDialog);
+    const taskLogEditRequest = useTaskStore((state) => state.taskLogEditRequest);
+    const clearTaskLogEditRequest = useTaskStore((state) => state.clearTaskLogEditRequest);
     const currentTask = useTaskStore((state) => state.currentTask);
     const { taskLog, history, backlogTasks, taskStack, addManualTaskLogEntry } = useTaskStore();
     const dayStartHour = useTaskStore((state) => state.dayStartHour);
@@ -21,6 +23,7 @@ export function useTaskLog() {
     const [isSortDescending, setIsSortDescending] = useState(true);
     const [activeSelectionLogId, setActiveSelectionLogId] = useState<string | null>(null);
     const [editingValue, setEditingValue] = useState<{ id: string; type: 'start' | 'end'; value: string } | null>(null);
+    const [focusedLogId, setFocusedLogId] = useState<string | null>(null);
 
     useEffect(() => {
         if (!isLogOpen) return;
@@ -40,9 +43,18 @@ export function useTaskLog() {
         if (!isLogOpen) return;
         setNow(Date.now());
         setSelectedDate(getLogicalDate(Date.now(), dayStartHour));
+        setFocusedLogId(null);
         const interval = setInterval(() => setNow(Date.now()), 1000);
         return () => clearInterval(interval);
     }, [isLogOpen, dayStartHour]);
+
+    useEffect(() => {
+        if (!isLogOpen || !taskLogEditRequest) return;
+        setSelectedDate(getLogicalDate(taskLogEditRequest.startTime, dayStartHour));
+        setViewMode('timeline');
+        setFocusedLogId(taskLogEditRequest.entryId);
+        clearTaskLogEditRequest();
+    }, [isLogOpen, taskLogEditRequest, dayStartHour, clearTaskLogEditRequest]);
 
     const allLogs = (currentTask && currentTask.startTime > 0)
         ? [
@@ -370,6 +382,7 @@ export function useTaskLog() {
         activeSelectionLogId,
         setActiveSelectionLogId,
         editingValue,
+        focusedLogId,
         allLogs,
         availableDates,
         sortedLogs,

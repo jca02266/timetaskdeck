@@ -1,8 +1,9 @@
 "use client";
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useLayoutEffect, useRef } from 'react';
 import { GripHorizontal, Maximize2 } from 'lucide-react';
-import { useTaskStore } from '@/store/useTaskStore';
+import { usePanelStore } from '@/store/usePanelStore';
+import { UI_LAYER } from '@/utils/layers';
 
 export type ResizeDirection = 'n' | 's' | 'e' | 'w' | 'ne' | 'nw' | 'se' | 'sw';
 
@@ -26,26 +27,35 @@ interface DraggablePanelProps {
     resizable?: boolean;
     headerControls?: React.ReactNode;
     minSize?: { width: number; height: number };
+    zIndexOverride?: number;
 }
 
-export function DraggablePanel({ id, defaultPosition, defaultSize, children, title, className, resizable = true, headerControls, minSize = { width: 200, height: 150 } }: DraggablePanelProps) {
+export function DraggablePanel({ id, defaultPosition, defaultSize, children, title, className, resizable = true, headerControls, minSize = { width: 200, height: 150 }, zIndexOverride }: DraggablePanelProps) {
     const [position, setPosition] = useState<Position>({ x: 0, y: 0 });
     const [size, setSize] = useState<Size>(defaultSize);
     const [isLoaded, setIsLoaded] = useState(false);
 
     const panelRef = useRef<HTMLDivElement>(null);
-    const frontPanelId = useTaskStore((state) => state.frontPanelId);
-    const bringToFront = useTaskStore((state) => state.bringToFront);
+    const panelOrder = usePanelStore((state) => state.order);
+    const activatePanel = usePanelStore((state) => state.activate);
 
     const isDragging = useRef(false);
     const isResizing = useRef(false);
     const dragStart = useRef({ x: 0, y: 0 });
     const resizeStart = useRef({ x: 0, y: 0, width: 0, height: 0, posX: 0, posY: 0 });
 
-    const isFront = frontPanelId === id;
-    const zIndex = isFront ? 60 : 50;
+    const stackIndex = panelOrder.indexOf(id);
+    const isFront = panelOrder[panelOrder.length - 1] === id;
+    // CSS z-index accepts integers only. Each activation moves the panel to
+    // the final array position, so a simple integer rank is deterministic.
+    const zIndex = stackIndex < 0
+        ? UI_LAYER.deckBase
+        : UI_LAYER.deckBase + stackIndex + 1;
 
-    useEffect(() => {
+    // Restore the saved geometry before the browser paints. Using a normal
+    // effect here leaves the dock-visible state active for one frame while
+    // the panel still returns null, which makes restoring a deck feel delayed.
+    useLayoutEffect(() => {
         const clampPosition = (x: number, y: number, w: number, h: number) => {
             if (typeof window === 'undefined') return { x, y };
             const maxX = window.innerWidth - 40;
@@ -109,7 +119,6 @@ export function DraggablePanel({ id, defaultPosition, defaultSize, children, tit
 
     const handleDragStart = (e: React.PointerEvent) => {
         if (e.button !== 0) return; // Only target primary button
-        bringToFront(id);
         isDragging.current = true;
         dragStart.current = { x: e.clientX - position.x, y: e.clientY - position.y };
 
@@ -154,7 +163,6 @@ export function DraggablePanel({ id, defaultPosition, defaultSize, children, tit
 
     const handleResizeStart = (direction: ResizeDirection) => (e: React.PointerEvent) => {
         if (e.button !== 0) return;
-        bringToFront(id);
         e.stopPropagation();
         isResizing.current = true;
         resizeStart.current = {
@@ -246,21 +254,23 @@ export function DraggablePanel({ id, defaultPosition, defaultSize, children, tit
     return (
         <div
             ref={panelRef}
-            onPointerDown={() => bringToFront(id)}
+            data-panel-id={id}
+            data-panel-front={isFront}
+            onPointerDownCapture={() => activatePanel(id)}
             className={`fixed glass-panel flex flex-col shadow-2xl overflow-hidden ${className || ''}`}
             style={{
                 left: position.x,
                 top: position.y,
                 width: size.width,
                 height: size.height,
-                zIndex: className?.includes('z-[') ? undefined : zIndex,
+                zIndex: zIndexOverride ?? zIndex,
                 touchAction: 'none'
             }}
         >
             {/* Header / Drag Handle */}
             <div
                 onPointerDown={handleDragStart}
-                className="relative z-50 flex items-center justify-between p-2 border-b border-slate-700/50 cursor-grab active:cursor-grabbing bg-slate-800/90 backdrop-blur-sm rounded-t-xl select-none"
+                className="relative z-50 pointer-events-auto flex items-center justify-between p-2 border-b border-slate-700/50 cursor-grab active:cursor-grabbing bg-slate-800/90 backdrop-blur-sm rounded-t-xl select-none"
             >
                 <div className="flex items-center gap-2 text-slate-400 text-sm font-semibold pointer-events-none">
                     <GripHorizontal size={14} />

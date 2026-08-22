@@ -4,6 +4,7 @@ import { useMemoStore } from '@/store/useMemoStore';
 import { Trash2, ArrowUp, ArrowDown, Plus, X, GripVertical, ListFilter, Play, Search, Bell } from 'lucide-react';
 import { TaskScheduleInput } from './TaskScheduleInput';
 import { TaskMemoButton } from './TaskMemoButton';
+import { UI_LAYER } from '@/utils/layers';
 
 type SortKey = 'name' | 'color' | 'backlog' | 'scheduled';
 type SortDirection = 'asc' | 'desc';
@@ -36,7 +37,6 @@ export function TaskTableView() {
     const reorderAllTasks = useTaskStore((state) => state.reorderAllTasks);
     const setPaused = useTaskStore((state) => state.setPaused);
     const addBacklogCategory = useTaskStore((state) => state.addBacklogCategory);
-    const bringToFront = useTaskStore((state) => state.bringToFront);
 
     // Local state for performance
     const [localTasks, setLocalTasks] = useState<Task[]>([]);
@@ -262,7 +262,7 @@ export function TaskTableView() {
     };
 
     return (
-        <div className="fixed inset-0 z-[100] flex flex-col bg-slate-950/95 backdrop-blur-md overflow-hidden animate-in fade-in duration-200">
+        <div className="fixed inset-0 flex flex-col bg-slate-950/95 backdrop-blur-md overflow-hidden animate-in fade-in duration-200" style={{ zIndex: UI_LAYER.modal }}>
             {/* Header Section */}
             <div className="w-full max-w-7xl mx-auto px-8 py-10 flex justify-between items-start shrink-0">
                 <div className="flex flex-col gap-2">

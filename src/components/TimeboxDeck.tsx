@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { addDays, addMinutes, format, subDays } from 'date-fns';
 import { ChevronLeft, ChevronRight, Clock3, GripHorizontal, Play, Trash2, X } from 'lucide-react';
 import { DraggablePanel } from './DraggablePanel';
+import { TaskSelectionDialog } from './TaskSelectionDialog';
 import { useTaskStore, getLogicalDate, type Task } from '@/store/useTaskStore';
 import { useTimeboxStore, type Timebox } from '@/store/useTimeboxStore';
 import {
@@ -85,6 +86,7 @@ export function TimeboxDeck({ onClose }: TimeboxDeckProps) {
     const [now, setNow] = useState(() => Date.now());
     const [preview, setPreview] = useState<TimeboxPreview | null>(null);
     const [editingId, setEditingId] = useState<string | null>(null);
+    const [isTaskSelectionOpen, setIsTaskSelectionOpen] = useState(false);
     const [draftTaskId, setDraftTaskId] = useState('');
     const [draftName, setDraftName] = useState('');
     const [draftColorId, setDraftColorId] = useState('');
@@ -228,6 +230,18 @@ export function TimeboxDeck({ onClose }: TimeboxDeckProps) {
         setEditingId(null);
     };
 
+    const selectTaskForTimebox = (taskId: string, name: string) => {
+        const selectedTaskId = taskId.startsWith('manual-')
+            ? useTaskStore.getState().addToBacklog(name)
+            : taskId;
+        const selectedTask = useTaskStore.getState().getTaskById(selectedTaskId);
+
+        setDraftTaskId(selectedTaskId);
+        setDraftName(selectedTask?.name ?? name);
+        setDraftColorId(selectedTask?.colorId ?? '');
+        setIsTaskSelectionOpen(false);
+    };
+
     const beginPointerOperation = (
         event: React.PointerEvent,
         timebox: Timebox,
@@ -346,10 +360,15 @@ export function TimeboxDeck({ onClose }: TimeboxDeckProps) {
                                 return (
                                     <div
                                         key={`background-${index}`}
-                                        className={`absolute inset-x-0 pointer-events-none ${
-                                            isPast ? 'bg-slate-700/25' : isCurrent ? 'bg-cyan-950/25' : ''
-                                        }`}
-                                        style={{ top: index * SLOT_HEIGHT, height: SLOT_HEIGHT }}
+                                        className={`absolute inset-x-0 pointer-events-none ${isCurrent ? 'bg-cyan-950/35' : ''}`}
+                                        style={{
+                                            top: index * SLOT_HEIGHT,
+                                            height: SLOT_HEIGHT,
+                                            ...(isPast ? {
+                                                backgroundColor: 'rgba(51, 65, 85, 0.82)',
+                                                backgroundImage: 'repeating-linear-gradient(135deg, rgba(148, 163, 184, 0.16) 0, rgba(148, 163, 184, 0.16) 1px, transparent 1px, transparent 8px)',
+                                            } : {}),
+                                        }}
                                     />
                                 );
                             })}
@@ -361,7 +380,9 @@ export function TimeboxDeck({ onClose }: TimeboxDeckProps) {
                                 />
                             ))}
                             {currentMinute >= 0 && currentMinute < TIMEBOX_TOTAL_MINUTES && (
-                                <div className="absolute inset-x-0 z-20 border-t border-cyan-400/80 pointer-events-none" style={{ top: currentMinute / 15 * SLOT_HEIGHT }} />
+                                <div className="absolute inset-x-0 z-20 border-t-2 border-cyan-400 pointer-events-none shadow-[0_-1px_8px_rgba(34,211,238,0.35)]" style={{ top: currentMinute / 15 * SLOT_HEIGHT }}>
+                                    <span className="absolute right-2 -top-5 rounded bg-cyan-950/90 px-1.5 py-0.5 text-[9px] font-semibold text-cyan-300">現在</span>
+                                </div>
                             )}
                             {actualDayLogs.map((actual) => {
                                     const actualStart = Math.max(dayStartMs, actual.startTime);
@@ -369,12 +390,24 @@ export function TimeboxDeck({ onClose }: TimeboxDeckProps) {
                                     return (
                                         <div
                                             key={`actual-${actual.id}`}
-                                            className="absolute left-1/2 right-1 z-[8] rounded border border-dashed border-white/70 bg-slate-950/45 px-1.5 py-0.5 text-[10px] text-white/90 overflow-hidden pointer-events-none"
+                                            className="absolute left-1/2 right-1 z-[25] rounded border border-dashed border-white/70 bg-slate-950/45 px-1.5 py-0.5 text-[10px] text-white/90 overflow-hidden cursor-pointer hover:bg-cyan-950/80 hover:border-cyan-300"
                                             style={{
                                                 top: ((actualStart - dayStartMs) / 60000) / 15 * SLOT_HEIGHT + 1,
                                                 height: Math.max(8, ((actualEnd - actualStart) / 60000) / 15 * SLOT_HEIGHT - 2),
                                             }}
-                                            title={`実績: ${actual.name}`}
+                                            title={`実績を編集: ${actual.name}`}
+                                            role="button"
+                                            tabIndex={0}
+                                            onClick={(event) => {
+                                                event.stopPropagation();
+                                                useTaskStore.getState().openTaskLogEntry(actual.id, actual.startTime);
+                                            }}
+                                            onKeyDown={(event) => {
+                                                if (event.key === 'Enter' || event.key === ' ') {
+                                                    event.preventDefault();
+                                                    useTaskStore.getState().openTaskLogEntry(actual.id, actual.startTime);
+                                                }
+                                            }}
                                         >
                                             <span className="truncate block">実績: {actual.name}</span>
                                         </div>
@@ -460,24 +493,30 @@ export function TimeboxDeck({ onClose }: TimeboxDeckProps) {
                                 <button onClick={() => setEditingId(null)} className="text-slate-400 hover:text-white"><X size={16} /></button>
                             </div>
                             <div className="p-4 space-y-3">
-                                <label className="block text-xs text-slate-400">タスク
-                                    <select
-                                        value={draftTaskId}
-                                        onChange={(event) => {
-                                            const taskId = event.target.value;
-                                            const task = taskById.get(taskId);
-                                            setDraftTaskId(taskId);
-                                            if (task) {
-                                                setDraftName(task.name);
-                                                setDraftColorId(task.colorId ?? '');
-                                            }
-                                        }}
-                                        className="mt-1 w-full bg-slate-950 border border-slate-700 rounded px-3 py-2 text-sm"
-                                    >
-                                        <option value="">タスク未割当</option>
-                                        {tasks.map((task) => <option key={task.id} value={task.id}>{task.name}</option>)}
-                                    </select>
-                                </label>
+                                <div className="block text-xs text-slate-400">
+                                    <span>タスク</span>
+                                    <div className="mt-1 flex gap-2">
+                                        <button
+                                            type="button"
+                                            onClick={() => setIsTaskSelectionOpen(true)}
+                                            className="flex-1 min-w-0 bg-slate-950 border border-slate-700 rounded px-3 py-2 text-left text-sm text-slate-200 hover:border-blue-500 transition-colors truncate"
+                                        >
+                                            {draftTaskId ? (taskById.get(draftTaskId)?.name ?? draftName) : 'タスクを選択'}
+                                        </button>
+                                        {draftTaskId && (
+                                            <button
+                                                type="button"
+                                                onClick={() => {
+                                                    setDraftTaskId('');
+                                                    setDraftColorId('');
+                                                }}
+                                                className="px-3 py-2 border border-slate-700 rounded text-xs text-slate-400 hover:text-white hover:border-slate-500"
+                                            >
+                                                割当解除
+                                            </button>
+                                        )}
+                                    </div>
+                                </div>
                                 <label className="block text-xs text-slate-400">タスク名
                                     <input value={draftName} onChange={(event) => setDraftName(event.target.value)} className="mt-1 w-full bg-slate-950 border border-slate-700 rounded px-3 py-2 text-sm" />
                                 </label>
@@ -509,6 +548,13 @@ export function TimeboxDeck({ onClose }: TimeboxDeckProps) {
                             </div>
                         </div>
                     </div>
+                )}
+                {isTaskSelectionOpen && (
+                    <TaskSelectionDialog
+                        referenceDate={selectedDate}
+                        onSelect={selectTaskForTimebox}
+                        onClose={() => setIsTaskSelectionOpen(false)}
+                    />
                 )}
             </div>
         </DraggablePanel>

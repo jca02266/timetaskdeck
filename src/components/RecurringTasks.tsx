@@ -7,6 +7,7 @@ import { Tooltip } from './Tooltip';
 import { DraggablePanel } from './DraggablePanel';
 import { ColorPickerDialog } from './ColorPickerDialog';
 import { TaskMemoButton } from './TaskMemoButton';
+import { usePanelStore } from '@/store/usePanelStore';
 
 export function RecurringTasks() {
     const {
@@ -165,7 +166,10 @@ export function RecurringTasks() {
                         <CheckCircle2 size={14} />
                     </button>
                     <button
-                        onClick={() => toggleRecurringMinimized()}
+                        onClick={() => {
+                            usePanelStore.getState().remove('recurring-panel');
+                            toggleRecurringMinimized();
+                        }}
                         className="p-1.5 text-slate-400 hover:text-white rounded hover:bg-slate-700/50 transition-colors"
                     >
                         <Minimize2 size={14} />

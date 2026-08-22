@@ -1,5 +1,6 @@
 import { useTaskStore, BacklogCategory, Task } from '@/store/useTaskStore';
 import { useMemoStore } from '@/store/useMemoStore';
+import { usePanelStore } from '@/store/usePanelStore';
 import { DraggablePanel } from './DraggablePanel';
 import { BacklogTaskItem } from './BacklogTaskItem';
 import { ListTodo, Plus, Pencil, Trash2, Minimize2, Bell } from 'lucide-react';
@@ -264,7 +265,11 @@ export const BacklogPanel = ({ category, defaultPosition }: BacklogPanelProps) =
                             <Pencil size={14} />
                         </button>
                         <button
-                            onClick={(e) => { e.stopPropagation(); toggleBacklogMinimized(category.id); }}
+                            onClick={(e) => {
+                                e.stopPropagation();
+                                usePanelStore.getState().remove(`backlog-panel-${category.id}`);
+                                toggleBacklogMinimized(category.id);
+                            }}
                             className="p-1.5 text-slate-400 hover:text-white rounded hover:bg-slate-700/50 transition-colors"
                             title="Minimize Backlog"
                             onPointerDown={(e) => e.stopPropagation()}

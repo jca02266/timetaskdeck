@@ -4,6 +4,7 @@ import { DatePicker } from './DatePicker';
 import { TaskSelectionDialog } from './TaskSelectionDialog';
 import { TimeInput } from './ui/TimeInput';
 import { useTaskLog } from '@/hooks/useTaskLog';
+import { UI_LAYER } from '@/utils/layers';
 
 export function TaskLogModal() {
     const {
@@ -19,6 +20,7 @@ export function TaskLogModal() {
         activeSelectionLogId,
         setActiveSelectionLogId,
         editingValue,
+        focusedLogId,
         sortedLogs,
         displayLogs,
         dataToDisplay,
@@ -41,7 +43,7 @@ export function TaskLogModal() {
     if (!isLogOpen) return null;
 
     return (
-        <div className="fixed inset-0 z-[100] flex items-start justify-center bg-black/50 backdrop-blur-sm p-4 pt-20 sm:pt-24">
+        <div className="fixed inset-0 flex items-start justify-center bg-black/50 backdrop-blur-sm p-4 pt-20 sm:pt-24" style={{ zIndex: UI_LAYER.modal }}>
             <div className="bg-slate-900 border border-slate-700 w-full max-w-4xl max-h-[80vh] rounded-xl shadow-2xl flex flex-col overflow-hidden">
                 {/* Header */}
                 <div className="flex items-center justify-between p-4 border-b border-slate-800 bg-slate-800/50">
@@ -195,7 +197,7 @@ export function TaskLogModal() {
                                     const shortTextClass = isShort ? "text-slate-500" : "";
 
                                     return (
-                                        <tr key={log.id || `agg-${i}`} className={`transition-colors ${isInvalid ? 'bg-red-900/10 hover:bg-red-900/20' : log.id === 'current-active-task' ? 'bg-blue-900/20 hover:bg-blue-900/30' :
+                                        <tr key={log.id || `agg-${i}`} data-task-log-id={log.id} className={`transition-colors ${focusedLogId === log.id ? 'bg-cyan-900/30 ring-1 ring-inset ring-cyan-500/70' : ''} ${isInvalid ? 'bg-red-900/10 hover:bg-red-900/20' : log.id === 'current-active-task' ? 'bg-blue-900/20 hover:bg-blue-900/30' :
                                             log.taskId === 'break' ? 'bg-slate-800/30 text-slate-500' :
                                                 isShort ? 'opacity-50 text-slate-500' : 'hover:bg-slate-800/50'
                                             }`}>

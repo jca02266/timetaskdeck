@@ -4,6 +4,7 @@ import { useMemoStore } from './useMemoStore';
 import { startOfDay, subDays } from 'date-fns';
 import { parseTaskInput } from '@/utils/taskParsing';
 import { indexedDbStorage } from './indexedDbStorage';
+import { usePanelStore } from './usePanelStore';
 
 export const getLogicalDate = (timestamp: number, dayStartHour: number): Date => {
     const date = new Date(timestamp);
@@ -108,7 +109,7 @@ interface TaskState {
     interruptTask: (name: string) => void;
 
     // Backlog Operations
-    addToBacklog: (name: string, backlogId?: string) => void;
+    addToBacklog: (name: string, backlogId?: string) => string;
     pickFromBacklog: (taskId: string) => void;
     moveBacklogTask: (taskId: string, targetBacklogId: string, targetIndexInCategory: number) => void;
     moveHistoryToBacklog: (taskId: string, targetBacklogId: string) => void;
@@ -154,8 +155,6 @@ interface TaskState {
     setPaused: (isPaused: boolean) => void;
     toggleRecurringMinimized: () => void;
     toggleHistoryMinimized: () => void;
-    frontPanelId: string | null;
-    bringToFront: (id: string) => void;
     draggedTaskId: string | null;
     setDraggedTaskId: (id: string | null) => void;
 
@@ -170,6 +169,9 @@ interface TaskState {
     // Modal Global States — 同時に1つのみ開く
     activeDialog: 'log' | 'settings' | 'taskTable' | null;
     openDialog: (name: 'log' | 'settings' | 'taskTable' | null) => void;
+    taskLogEditRequest: { entryId: string; startTime: number } | null;
+    openTaskLogEntry: (entryId: string, startTime: number) => void;
+    clearTaskLogEditRequest: () => void;
     dayStartHour: number;
     setDayStartHour: (hour: number) => void;
     missedTaskWindowMinutes: number;
@@ -204,7 +206,6 @@ export const useTaskStore = create<TaskState>()(
             taskLog: [],
             isRecurringMinimized: typeof window !== 'undefined' ? localStorage.getItem('timetask-ui-recurring-minimized') === 'true' : false,
             isHistoryMinimized: typeof window !== 'undefined' ? localStorage.getItem('timetask-ui-history-minimized') === 'true' : false,
-            frontPanelId: null,
             draggedTaskId: null,
 
             // Memo Initialization
@@ -214,6 +215,12 @@ export const useTaskStore = create<TaskState>()(
             // Modal Global States Initialization
             activeDialog: null,
             openDialog: (name) => set({ activeDialog: name }),
+            taskLogEditRequest: null,
+            openTaskLogEntry: (entryId, startTime) => set({
+                activeDialog: 'log',
+                taskLogEditRequest: { entryId, startTime },
+            }),
+            clearTaskLogEditRequest: () => set({ taskLogEditRequest: null }),
             dayStartHour: 5,
             missedTaskWindowMinutes: 5,
 
@@ -299,7 +306,7 @@ export const useTaskStore = create<TaskState>()(
 
             openMemo: (taskId: string) => {
                 set({ activeMemoTaskId: taskId, isMemoMinimized: false });
-                get().bringToFront('memo-panel');
+                usePanelStore.getState().activate('memo-panel');
             },
 
             closeMemo: () => {
@@ -326,10 +333,6 @@ export const useTaskStore = create<TaskState>()(
                 const inHistory = state.history.find(t => t.id === taskId);
                 if (inHistory) return inHistory;
                 return undefined;
-            },
-
-            bringToFront: (id: string) => {
-                set({ frontPanelId: id });
             },
 
             setDraggedTaskId: (id: string | null) => {
@@ -586,6 +589,7 @@ export const useTaskStore = create<TaskState>()(
                 }
 
                 set((state) => ({ backlogTasks: [newTask, ...state.backlogTasks] }));
+                return newTask.id;
             },
 
             pickFromBacklog: (taskId) => {
@@ -1559,7 +1563,7 @@ export const useTaskStore = create<TaskState>()(
                 useTaskStore.setState({ hasHydrated: true });
             },
             partialize: (state) => {
-                const { hasHydrated, isRecurringMinimized, isHistoryMinimized, frontPanelId, draggedTaskId, ...rest } = state;
+                const { hasHydrated, isRecurringMinimized, isHistoryMinimized, draggedTaskId, taskLogEditRequest, ...rest } = state;
                 return rest;
             }
         }

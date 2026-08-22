@@ -38,7 +38,7 @@ export function TaskStack({ isExpanded, onToggle }: TaskStackProps) {
     return (
         <div
             // Use justify-end to align bottom with Timer, p-8 matches page padding
-            className={`absolute inset-0 -z-10 flex flex-col items-center transition-all duration-500 ${isExpanded ? 'z-[150] bg-slate-950/95 backdrop-blur-md overflow-y-auto pt-20 pb-10 justify-start' : 'justify-end pb-8 overflow-hidden'}`}
+            className={`absolute inset-0 -z-10 flex flex-col items-center transition-all duration-500 ${isExpanded ? 'z-[150] pointer-events-auto bg-slate-950/95 backdrop-blur-md overflow-y-auto pt-20 pb-10 justify-start' : 'pointer-events-none justify-end pb-8 overflow-hidden'}`}
             style={{}}
             onClick={() => !isExpanded && onToggle(true)}
         >

@@ -8,6 +8,7 @@ import { DatePicker } from './DatePicker';
 import { Tooltip } from './Tooltip';
 import { DraggablePanel } from './DraggablePanel';
 import { TaskMemoButton } from './TaskMemoButton';
+import { usePanelStore } from '@/store/usePanelStore';
 
 export function HistoryView() {
     const history = useTaskStore((state) => state.history);
@@ -129,7 +130,10 @@ export function HistoryView() {
                             <Download size={14} />
                         </button>
                         <button
-                            onClick={() => toggleHistoryMinimized()}
+                            onClick={() => {
+                                usePanelStore.getState().remove('history-panel');
+                                toggleHistoryMinimized();
+                            }}
                             className="p-1.5 text-slate-400 hover:text-white rounded hover:bg-slate-700/50 transition-colors"
                             title="Minimize"
                         >

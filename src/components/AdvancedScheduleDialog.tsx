@@ -6,6 +6,7 @@ import { Calendar, Repeat, Check } from 'lucide-react';
 import { DatePicker, DatePickerRef } from './DatePicker';
 import { TimeInput } from './ui/TimeInput';
 import { useTimeInput } from '@/hooks/useTimeInput';
+import { UI_LAYER } from '@/utils/layers';
 
 interface AdvancedScheduleDialogProps {
     isOpen: boolean;
@@ -95,7 +96,7 @@ export function AdvancedScheduleDialog({
     };
 
     return createPortal(
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200"
+        <div className="fixed inset-0 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200" style={{ zIndex: UI_LAYER.modal }}
             onPointerDown={(e) => {
                 if (e.target === e.currentTarget) onClose();
             }}

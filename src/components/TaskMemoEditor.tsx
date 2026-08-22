@@ -2,6 +2,8 @@
 
 import { useTaskStore } from "@/store/useTaskStore";
 import { useMemoStore } from "@/store/useMemoStore";
+import { usePanelStore } from "@/store/usePanelStore";
+import { UI_LAYER } from "@/utils/layers";
 import { DraggablePanel } from "./DraggablePanel";
 import { FileText, Maximize2, Minimize2, Edit2, Eye, Copy, Check, X } from "lucide-react";
 import { useState, useEffect, useRef } from "react";
@@ -83,11 +85,6 @@ export function TaskMemoEditor() {
     const closeMemo = useTaskStore((state) => state.closeMemo);
     const getTaskById = useTaskStore((state) => state.getTaskById);
 
-    
-    
-    const activeDialog = useTaskStore((state) => state.activeDialog);
-    const isAnyModalOpen = activeDialog !== null;
-
     const setMemo = useMemoStore((state) => state.setMemo);
     const memos = useMemoStore((state) => state.memos);
 
@@ -136,11 +133,13 @@ export function TaskMemoEditor() {
 
     const toggleMinimize = (e: React.MouseEvent) => {
         e.stopPropagation();
+        usePanelStore.getState().remove('memo-panel');
         toggleMemoMinimized(); // This will dock it and unmount this component
     };
 
     const handleClose = (e: React.MouseEvent) => {
         e.stopPropagation();
+        usePanelStore.getState().remove('memo-panel');
         closeMemo();
     };
 
@@ -186,10 +185,11 @@ export function TaskMemoEditor() {
     );
 
 
-    // CSS class to override position/size when maximized, and ensure it's always above TaskTableView (which is z-100)
+    // Position/size override when maximized. Normal display participates in the
+    // same front-panel stack as every other draggable deck.
     const containerClass = isMaximized
-        ? "!fixed !top-4 !left-4 !right-4 !bottom-4 !w-auto !h-auto !translate-x-0 !translate-y-0 z-[110]"
-        : isAnyModalOpen ? "z-[110]" : "z-[60]";
+        ? "!fixed !top-4 !left-4 !right-4 !bottom-4 !w-auto !h-auto !translate-x-0 !translate-y-0"
+        : "";
 
     return (
         <DraggablePanel
@@ -200,6 +200,7 @@ export function TaskMemoEditor() {
             minSize={{ width: 300, height: 200 }}
             headerControls={renderHeaderControls()}
             className={containerClass}
+            zIndexOverride={isMaximized ? UI_LAYER.maximizedDeck : undefined}
             resizable={!isMaximized}
         >
             <div className="flex flex-col h-full bg-slate-900/95 relative overflow-hidden group">

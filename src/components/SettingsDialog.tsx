@@ -2,6 +2,7 @@
 
 import { useTaskStore } from '@/store/useTaskStore';
 import { useMemoStore } from '@/store/useMemoStore';
+import { UI_LAYER } from '@/utils/layers';
 import { X, Check, Save, Upload, Download, Settings, Palette, Clock, RotateCcw } from 'lucide-react';
 import { useState, useRef, useEffect } from 'react';
 import { useNotification } from '@/hooks/useNotification';
@@ -186,7 +187,7 @@ export function SettingsDialog() {
     };
 
     return (
-        <div className="fixed inset-0 z-[300] flex items-center justify-center bg-black/70 backdrop-blur-md p-4 animate-in fade-in duration-300">
+        <div className="fixed inset-0 flex items-center justify-center bg-black/70 backdrop-blur-md p-4 animate-in fade-in duration-300" style={{ zIndex: UI_LAYER.settings }}>
             <div className="w-full max-w-md bg-slate-900 border border-slate-700/50 rounded-2xl shadow-2xl flex flex-col overflow-hidden animate-in zoom-in-95 duration-200">
                 {/* Header */}
                 <div className="flex justify-between items-center p-5 border-b border-slate-800 bg-slate-800/30">
