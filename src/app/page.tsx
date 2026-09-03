@@ -12,7 +12,7 @@ import { SettingsDialog } from "@/components/SettingsDialog";
 import { TaskTableView } from "@/components/TaskTableView";
 import { TaskMemoEditor } from "@/components/TaskMemoEditor";
 import { TimeboxDeck } from "@/components/TimeboxDeck";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 /* New Components */
 import { DraggablePanel } from "@/components/DraggablePanel";
 import { useTaskStore } from "@/store/useTaskStore";
@@ -26,11 +26,26 @@ import { useShallow } from 'zustand/react/shallow';
 /* Icons */
 import { RotateCcw, Plus, Play, List, Layers, Settings, ListPlus, Table, ListTodo, Repeat, Clock, FileText } from 'lucide-react';
 
+const TIMEBOX_VISIBILITY_STORAGE_KEY = 'timetask-ui-timebox-visible';
+
 export default function Home() {
   const [isStackExpanded, setStackExpanded] = useState(false);
   const [draggedDockId, setDraggedDockId] = useState<string | null>(null);
   const [isTimeboxOpen, setTimeboxOpen] = useState(false);
+  const hydratePanelOrder = usePanelStore((state) => state.hydrate);
   const hasMemoHydrated = useMemoStore((state) => state.hasHydrated);
+
+  useEffect(() => {
+    hydratePanelOrder();
+    if (localStorage.getItem(TIMEBOX_VISIBILITY_STORAGE_KEY) === 'true') {
+      setTimeboxOpen(true);
+    }
+  }, [hydratePanelOrder]);
+
+  const setTimeboxVisibility = (isOpen: boolean) => {
+    localStorage.setItem(TIMEBOX_VISIBILITY_STORAGE_KEY, String(isOpen));
+    setTimeboxOpen(isOpen);
+  };
 
   const {
     hasHydrated,
@@ -242,7 +257,7 @@ export default function Home() {
           {/* Timebox Deck Dock Item */}
           <button
             onClick={() => {
-              togglePanelFromDock('timebox-panel', isTimeboxOpen, () => setTimeboxOpen(!isTimeboxOpen));
+              togglePanelFromDock('timebox-panel', isTimeboxOpen, () => setTimeboxVisibility(!isTimeboxOpen));
             }}
             className={`pointer-events-auto flex items-center gap-2 px-4 py-2 backdrop-blur-md border rounded-full text-sm font-medium transition-all shadow-xl hover:-translate-y-0.5
               ${isTimeboxOpen
@@ -321,7 +336,7 @@ export default function Home() {
       <TaskTableView />
       {isTimeboxOpen && <TimeboxDeck onClose={() => {
         usePanelStore.getState().remove('timebox-panel');
-        setTimeboxOpen(false);
+        setTimeboxVisibility(false);
       }} />}
       {!isRecurringMinimized && <RecurringTasks />}
       {!isHistoryMinimized && <HistoryView />}
